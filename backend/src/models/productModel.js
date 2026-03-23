@@ -1,11 +1,23 @@
 const pool = require("../config/db");
 
 exports.getAllProducts = async () => {
-  const result = await pool.query(`
-    SELECT *
-    FROM products
-    ORDER BY created_at DESC
-  `);
+  const result = await pool.query(
+    `SELECT *
+     FROM products
+     ORDER BY created_at DESC`
+    );
+
+  return result.rows;
+};
+
+exports.getProductsByCategoryId = async (category_id) => {
+  const result = await pool.query(
+    `SELECT *
+     FROM products
+     WHERE category_id = $1
+     ORDER BY created_at DESC`,
+    [category_id]
+  );
 
   return result.rows;
 };

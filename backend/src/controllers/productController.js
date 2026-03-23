@@ -8,3 +8,12 @@ exports.getAllProducts = async (req, res, next) => {
         next(err);
     }
 }
+
+exports.getProductsByCategoryId = async (req, res, next) => {
+    try {
+        const result = await productService.getProductsByCategoryId(req.body);
+        res.status(201).json(result);
+    } catch (err) {
+        next(err);
+    }
+}
