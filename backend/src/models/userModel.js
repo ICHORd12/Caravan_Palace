@@ -24,8 +24,8 @@ exports.createUser = async ({
   name,
   email,
   passwordHash,
-  taxId,
-  homeAddress,
+  tax_id,
+  home_address,
   role,
 }) => {
   const result = await pool.query(
@@ -33,7 +33,7 @@ exports.createUser = async ({
      (name, email, password, tax_id, home_address, role)
      VALUES ($1, $2, $3, $4, $5, $6)
      RETURNING user_id, name, email, role`,
-    [name, email, passwordHash, taxId, homeAddress, role]
+    [name, email, passwordHash, tax_id, home_address, role]
   );
   return result.rows[0];
 };
