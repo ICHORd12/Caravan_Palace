@@ -7,8 +7,8 @@ exports.register = async ({
   name,
   email,
   password,
-  taxId,
-  homeAddress,
+  tax_id,
+  home_address,
   role = "customer",
 }) => {
   const existingUser = await userModel.findByEmail(email);
@@ -23,8 +23,8 @@ exports.register = async ({
     name,
     email,
     passwordHash,
-    taxId,
-    homeAddress,
+    tax_id,
+    home_address,
     role,
   });
 
