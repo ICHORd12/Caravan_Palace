@@ -1,6 +1,7 @@
 import './App.css';
 import ProductCard, { type CaravanProduct } from './components/ProductCard';
 import { useCaravans } from './hooks/useCaravans';
+import { useCategories } from './hooks/useCategories';
 
 
 
@@ -8,7 +9,8 @@ import { useCaravans } from './hooks/useCaravans';
 
 function App() {
 
-  const { caravans, isLoading, error } = useCaravans();
+  const { caravans, isLoading: caravansLoading, error: caravansError } = useCaravans();
+  const { categories, isLoading: categoriesLoading, error: categoriesError } = useCategories();
 
 
   return (
@@ -36,30 +38,27 @@ function App() {
         {/* Categories Sidebar */}
         <aside className="sidebar">
           <h3>Categories</h3>
+          
+          {categoriesLoading && <p style={{color: '#888'}}>Loading...</p>}
+          {categoriesError && <p style={{color: '#e74c3c'}}>{categoriesError}</p>}
+          
           <ul>
-            <li>Class A Motorhomes</li>
-            <li>Class B Camper Vans</li>
-            <li>Travel Trailers</li>
-            <li>Fifth Wheels</li>
+            <li className="active-category">All Products</li>
+            {!categoriesLoading && !categoriesError && categories.map(category => (
+              <li key={category.id}>{category.name}</li>
+            ))}
           </ul>
         </aside>
         
-        {/* Product Grid Placeholder */}
+        {/* Product Grid */}
         <section className="product-grid">
+          {caravansLoading && <h2>Loading caravan inventory...</h2>}
+          {caravansError && <h2 style={{ color: '#e74c3c' }}>{caravansError}</h2>}
           
-          {/* 1. Show a loading message while waiting for Supabase */}
-          {isLoading && <h2>Loading caravan inventory...</h2>}
-          
-          {/* 2. Show a red error message if the fetch fails */}
-          {error && <h2 style={{ color: '#e74c3c' }}>{error}</h2>}
-          
-          {/* 3. Only map over the caravans if we are done loading and have no errors */}
-          {!isLoading && !error && caravans.map(caravan => (
+          {!caravansLoading && !caravansError && caravans.map(caravan => (
             <ProductCard key={caravan.id} product={caravan} />
           ))}
-
         </section>
-  
 
       </main>
 
