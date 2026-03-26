@@ -1,6 +1,5 @@
 import React from 'react';
 
-// This strictly enforces Requirement #9 for your project grading
 export interface CaravanProduct {
   id: string;
   name: string;
@@ -13,6 +12,8 @@ export interface CaravanProduct {
   distributorInfo: string;
   imageUrl: string;
   category: string; 
+  averageRating: number;
+  reviewCount: number;
 
 }
 
@@ -21,12 +22,10 @@ interface ProductCardProps {
 }
 
 const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
-  // Requirement #7: If out of stock, user shouldn't be able to add it to cart
   const isOutOfStock = product.quantityInStock === 0;
 
   return (
     <div className="product-card">
-    {/* Replaced the placeholder div with an actual image tag */}
     <img 
         src={product.imageUrl} 
         alt={`${product.name} ${product.model}`} 
@@ -36,13 +35,22 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
       <div className="card-content">
 
         <span className="category-label">{product.category}</span>
+
+        {/* Star Rating Display */}
+        <div className="rating-container">
+          <span className="stars">
+            {'★'.repeat(Math.round(product.averageRating))}
+            {'☆'.repeat(5 - Math.round(product.averageRating))}
+          </span>
+          <span className="review-count">({product.reviewCount})</span>
+        </div>
+
         <h3>{product.name}</h3>
         <p className="model-text">Model: {product.model}</p>
         <p className="desc-text">{product.description}</p>
 
         <div className="card-details">
           <span className="price">${product.price.toLocaleString()}</span>
-          {/* Requirement #3: Must show quantity in stock */}
           <span className={`stock ${isOutOfStock ? 'out-of-stock' : 'in-stock'}`}>
             {isOutOfStock ? 'Out of Stock' : `${product.quantityInStock} left in stock`}
           </span>

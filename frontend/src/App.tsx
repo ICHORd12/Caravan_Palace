@@ -28,7 +28,7 @@ function App() {
 
       <div className="marquee-container">
         <div className="marquee-text">
-          Grand Opening Sale: Save 15% on all Class B Camper Vans this week! • Free delivery on all orders over $50k! • Warranty included on all new models! 
+          Grand Opening • Free delivery on all orders over $50k! • Warranty included on all new models! 
         </div>
       </div>
 

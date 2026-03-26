@@ -16,9 +16,9 @@ export function useCaravans() {
           .select(`
             *,
             categories (category_name),
-            product_images (url, is_primary)
+            product_images (url, is_primary),
+            reviews (rating, is_approved)
           `);
-
         if (error) {
           throw error;
         }
@@ -29,6 +29,14 @@ export function useCaravans() {
               const primaryImage = item.product_images?.find((img: any) => img.is_primary);
               const fallbackImage = item.product_images?.[0]?.url;
               const finalImageUrl = primaryImage?.url || fallbackImage || 'https://via.placeholder.com/300x200?text=No+Image+Available';
+
+              //review calculation
+              const approvedReviews = item.reviews?.filter((r: any) => r.is_approved) || [];  
+              const reviewCount = approvedReviews.length;  
+
+              const averageRating = reviewCount > 0 
+              ? approvedReviews.reduce((sum: number, r: any) => sum + r.rating, 0) / reviewCount 
+              : 0;
   
               return {
                 id: item.product_id,                  
@@ -40,9 +48,10 @@ export function useCaravans() {
                 price: item.current_price,            
                 warrantyStatus: item.warranty_status, 
                 distributorInfo: item.distributor_info,
-                // Map the joined relational data:
                 category: item.categories?.category_name || 'Uncategorized',
-                imageUrl: finalImageUrl
+                imageUrl: finalImageUrl,
+                averageRating: averageRating,
+                reviewCount: reviewCount
               };
             });
 
