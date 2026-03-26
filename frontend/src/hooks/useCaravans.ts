@@ -13,25 +13,38 @@ export function useCaravans() {
         // We target the exact table name from the SQL schema
         const { data, error } = await supabase
           .from('products') 
-          .select('*');
+          .select(`
+            *,
+            categories (category_name),
+            product_images (url, is_primary)
+          `);
 
         if (error) {
           throw error;
         }
 
         if (data) {
-          // Map the Supabase snake_case columns to our frontend camelCase interface
-          const mappedCaravans: CaravanProduct[] = data.map((item: any) => ({
-            id: item.product_id,                  // Maps to uuid
-            name: item.name,
-            model: item.model,
-            serialNumber: item.serial_number,     // Fixes the mismatch
-            description: item.description,
-            quantityInStock: item.quantity_in_stocks, // Fixes the mismatch
-            price: item.current_price,            // Using current_price instead of base_price
-            warrantyStatus: item.warranty_status, // Fixes the mismatch
-            distributorInfo: item.distributor_info // Fixes the mismatch
-          }));
+            const mappedCaravans: CaravanProduct[] = data.map((item: any) => {
+              // Find the primary image, or use the first one available, or use a placeholder
+              const primaryImage = item.product_images?.find((img: any) => img.is_primary);
+              const fallbackImage = item.product_images?.[0]?.url;
+              const finalImageUrl = primaryImage?.url || fallbackImage || 'https://via.placeholder.com/300x200?text=No+Image+Available';
+  
+              return {
+                id: item.product_id,                  
+                name: item.name,
+                model: item.model,
+                serialNumber: item.serial_number,     
+                description: item.description,
+                quantityInStock: item.quantity_in_stocks, 
+                price: item.current_price,            
+                warrantyStatus: item.warranty_status, 
+                distributorInfo: item.distributor_info,
+                // Map the joined relational data:
+                category: item.categories?.category_name || 'Uncategorized',
+                imageUrl: finalImageUrl
+              };
+            });
 
           setCaravans(mappedCaravans);
         }

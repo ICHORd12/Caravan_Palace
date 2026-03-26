@@ -11,6 +11,9 @@ export interface CaravanProduct {
   price: number;
   warrantyStatus: string;
   distributorInfo: string;
+  imageUrl: string;
+  category: string; 
+
 }
 
 interface ProductCardProps {
@@ -23,16 +26,20 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
 
   return (
     <div className="product-card">
-      {/* Placeholder for the caravan image */}
-      <div className="card-image-placeholder">
-        🚐 Image
-      </div>
+    {/* Replaced the placeholder div with an actual image tag */}
+    <img 
+        src={product.imageUrl} 
+        alt={`${product.name} ${product.model}`} 
+        className="product-image" 
+      />
       
       <div className="card-content">
+
+        <span className="category-label">{product.category}</span>
         <h3>{product.name}</h3>
         <p className="model-text">Model: {product.model}</p>
         <p className="desc-text">{product.description}</p>
-        
+
         <div className="card-details">
           <span className="price">${product.price.toLocaleString()}</span>
           {/* Requirement #3: Must show quantity in stock */}
