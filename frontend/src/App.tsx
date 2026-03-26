@@ -1,121 +1,70 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import './App.css';
+import ProductCard, { type CaravanProduct } from './components/ProductCard';
+import { useCaravans } from './hooks/useCaravans';
+
+
+
+
 
 function App() {
-  const [count, setCount] = useState(0)
+
+  const { caravans, isLoading, error } = useCaravans();
+
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
+    <div className="app-container">
+      
+      {/* Navigation Bar */}
+      <nav className="navbar">
+        <h1><i>Caravan-Palace</i></h1>
+        <div className="nav-links">
+          <input type="text" placeholder="Search models or descriptions..." />
+          <button>Login</button>
+          <button>Cart (0)</button>
         </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
+      </nav>
+
+      <div className="marquee-container">
+        <div className="marquee-text">
+          Grand Opening Sale: Save 15% on all Class B Camper Vans this week! • Free delivery on all orders over $50k! • Warranty included on all new models! 
         </div>
-        <button
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+      </div>
 
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
+      {/* Main Content Area */}
+      <main className="main-content">
+        
+        {/* Categories Sidebar */}
+        <aside className="sidebar">
+          <h3>Categories</h3>
           <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
+            <li>Class A Motorhomes</li>
+            <li>Class B Camper Vans</li>
+            <li>Travel Trailers</li>
+            <li>Fifth Wheels</li>
           </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
+        </aside>
+        
+        {/* Product Grid Placeholder */}
+        <section className="product-grid">
+          
+          {/* 1. Show a loading message while waiting for Supabase */}
+          {isLoading && <h2>Loading caravan inventory...</h2>}
+          
+          {/* 2. Show a red error message if the fetch fails */}
+          {error && <h2 style={{ color: '#e74c3c' }}>{error}</h2>}
+          
+          {/* 3. Only map over the caravans if we are done loading and have no errors */}
+          {!isLoading && !error && caravans.map(caravan => (
+            <ProductCard key={caravan.id} product={caravan} />
+          ))}
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+        </section>
+  
+
+      </main>
+
+    </div>
+  );
 }
 
-export default App
+export default App;
