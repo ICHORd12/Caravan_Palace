@@ -32,6 +32,17 @@ body {
   color: #ffffff; 
   border-bottom: 1px solid #333; 
 }
+/*Clicakble title*/
+.logo-link {
+  text-decoration: none; 
+  color: inherit; 
+  transition: opacity 0.2s ease;
+}
+
+/* Fades upon hover */
+.logo-link:hover {
+  opacity: 0.8;
+}
 
 .nav-links input { 
   margin-right: 1rem; 

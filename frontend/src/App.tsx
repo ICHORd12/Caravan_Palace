@@ -18,7 +18,10 @@ function App() {
       
       {/* Navigation Bar */}
       <nav className="navbar">
-        <h1><i>Caravan-Palace</i></h1>
+      <h1>
+          {/* Pointing to "/" reloads the main page */}
+          <a href="/" className="logo-link"><i>Caravan-Palace</i></a>
+        </h1>
         <div className="nav-links">
           <input type="text" placeholder="Search models or descriptions..." />
           <button>Login</button>
