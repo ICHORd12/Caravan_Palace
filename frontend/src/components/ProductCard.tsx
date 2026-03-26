@@ -14,6 +14,8 @@ export interface CaravanProduct {
   category: string; 
   averageRating: number;
   reviewCount: number;
+  weightKg: number | null;
+  hasKitchen: boolean | null;
 
 }
 
@@ -26,12 +28,29 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
 
   return (
     <div className="product-card">
-    <img 
-        src={product.imageUrl} 
-        alt={`${product.name} ${product.model}`} 
-        className="product-image" 
-      />
-      
+
+<div className="image-container">
+        <img 
+          src={product.imageUrl} 
+          alt={`${product.name} ${product.model}`} 
+          className="product-image" 
+          onError={(e) => {
+            (e.target as HTMLImageElement).src = 'https://via.placeholder.com/300x200?text=Image+Not+Found';
+          }}
+        />
+        
+        {/* The Hover Overlay */}
+        <div className="card-overlay">
+          <h4>Quick Specs</h4>
+          <ul>
+            <li><strong>Warranty:</strong> {product.warrantyStatus || 'N/A'}</li>
+            <li><strong>Distributor:</strong> {product.distributorInfo || 'N/A'}</li>
+            <li><strong>Weight:</strong> {product.weightKg ? `${product.weightKg} kg` : 'N/A'}</li>
+            <li><strong>Kitchen:</strong> {product.hasKitchen ? 'Included' : 'None'}</li>
+          </ul>
+        </div>
+      </div>
+   
       <div className="card-content">
 
         <span className="category-label">{product.category}</span>

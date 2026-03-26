@@ -51,7 +51,9 @@ export function useCaravans() {
                 category: item.categories?.category_name || 'Uncategorized',
                 imageUrl: finalImageUrl,
                 averageRating: averageRating,
-                reviewCount: reviewCount
+                reviewCount: reviewCount,
+                weightKg: item.weight_kg,
+                hasKitchen: item.has_kitchen
               };
             });
 
