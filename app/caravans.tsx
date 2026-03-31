@@ -1,126 +1,235 @@
-import { useRouter } from 'expo-router';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View, Pressable } from 'react-native';
 
-import C_CaravanCard from '../components/utku/C_CaravanCard/C_CaravanCard'; // Adjust path if necessary
+import C_CaravanCard from '../components/utku/C_CaravanCard/C_CaravanCard';
 import C_Navbar from '../components/utku/C_Navbar/C_Navbar';
-
-// Dummy data array to render 10 cards
-const dummyCards = Array.from({ length: 10 }).map((_, index) => ({
-    id: index.toString(),
-    // Adjust relative paths according to your project structure
-    starIcon: require('../assets/images/star.png'),
-    capacityIcon: require('../assets/images/user.png'),
-    seasonIcon: require('../assets/images/snow.png'),
-    caravanImages: [
-        require('../assets/images/accessory1.jpg'),
-        require('../assets/images/camp1.jpg')
-    ],
-    name: "Test 1",
-    type: "Motocaravan",
-    score: "4.00",
-    price: "40 000 EURO"
-}));
+import SearchBar from '../components/utku/SearchBar/SearchBar';
+import SortDropdown from '../components/utku/SortDropdown/SortDropdown';
+import Toast from '../components/utku/Toast/Toast';
+import { useCart } from '../context/CartContext';
+import { api, Category, Product } from '../services/api';
 
 export default function Caravans() {
-    const router = useRouter();
+  const router = useRouter();
+  const params = useLocalSearchParams();
+  const { addToCart } = useCart();
 
-    return (
-        <View style={styles.container}>
-            {/* HEADER */}
-            <View style={styles.headerBarContainer}> 
-                <C_Navbar router={router} />
-            </View>
+  const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
 
-            <View style={styles.screenTitleContainer}>
-                <Text style={styles.screenTitle}>Caravans Screen</Text>
-            </View>
+  // Filters
+  const [search, setSearch] = useState('');
+  const [sortValue, setSortValue] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<number | null>(
+    params.category_id ? Number(params.category_id) : null
+  );
 
-            {/* CONTENT CONTAINER */}
-            <View style={styles.contentContainer}>
-                
-                {/* FILTER AREA (Left Side) */}
-                <View style={styles.filterContainer}>
-                    <Text style={styles.filterPlaceholderText}>
-                        Filter Component Goes Here
-                    </Text>
-                </View>
+  // Toast
+  const [toastVisible, setToastVisible] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
 
-                {/* CARAVAN CARDS GRID (Right Side) */}
-                <ScrollView 
-                    style={styles.scrollArea}
-                    contentContainerStyle={styles.cardsGrid}
-                    showsVerticalScrollIndicator={false}
-                >
-                    {dummyCards.map((item) => (
-                        <C_CaravanCard 
-                            key={item.id}
-                            starIcon={item.starIcon}
-                            capacityIcon={item.capacityIcon}
-                            seasonIcon={item.seasonIcon}
-                            caravanImages={item.caravanImages}
-                            name={item.name}
-                            type={item.type}
-                            score={item.score}
-                            price={item.price}
-                        />
-                    ))}
-                </ScrollView>
-                
-            </View>
-        </View> 
-    );
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setToastVisible(true);
+  };
+
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [catRes, prodRes] = await Promise.all([
+        api.getCategories(),
+        api.getProducts({
+          search,
+          sort: sortValue ? sortValue.split('_')[0] : undefined,
+          order: sortValue ? sortValue.split('_')[1] : undefined,
+          category_id: selectedCategory || undefined,
+        }),
+      ]);
+      setCategories(catRes.categories);
+      setProducts(prodRes.products);
+    } catch (err) {
+      console.error(err);
+      showToast('Error loading products');
+    } finally {
+      setLoading(false);
+    }
+  }, [search, sortValue, selectedCategory]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  const handleAddToCart = (product: Product) => {
+    addToCart(product, 1);
+    showToast(`Added ${product.name} to cart`);
+  };
+
+  return (
+    <View style={styles.container}>
+      <Toast message={toastMessage} visible={toastVisible} onHide={() => setToastVisible(false)} />
+      
+      {/* HEADER */}
+      <View style={styles.headerBarContainer}> 
+        <C_Navbar />
+      </View>
+
+      <View style={styles.screenTitleContainer}>
+        <Text style={styles.screenTitle}>Our Collection</Text>
+      </View>
+
+      {/* CONTENT CONTAINER */}
+      <View style={styles.contentContainer}>
+        
+        {/* FILTER AREA (Left Side) */}
+        <View style={styles.filterContainer}>
+          <Text style={styles.filterTitle}>Search</Text>
+          <SearchBar onSearch={setSearch} />
+
+          <Text style={[styles.filterTitle, { marginTop: 30 }]}>Sort By</Text>
+          <SortDropdown value={sortValue} onChange={setSortValue} />
+
+          <Text style={[styles.filterTitle, { marginTop: 30 }]}>Categories</Text>
+          <View style={styles.categoryList}>
+            <Pressable 
+              style={[styles.categoryItem, selectedCategory === null && styles.categoryItemActive]}
+              onPress={() => setSelectedCategory(null)}
+            >
+              <Text style={[styles.categoryText, selectedCategory === null && styles.categoryTextActive]}>
+                All Products
+              </Text>
+            </Pressable>
+            {categories.map(cat => (
+              <Pressable 
+                key={cat.category_id}
+                style={[styles.categoryItem, selectedCategory === cat.category_id && styles.categoryItemActive]}
+                onPress={() => setSelectedCategory(cat.category_id)}
+              >
+                <Text style={[styles.categoryText, selectedCategory === cat.category_id && styles.categoryTextActive]}>
+                  {cat.name}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        </View>
+
+        {/* CARAVAN CARDS GRID (Right Side) */}
+        <View style={styles.gridWrapper}>
+          {loading ? (
+            <ActivityIndicator size="large" color="#5A7D71" style={{ marginTop: 100 }} />
+          ) : (
+            <ScrollView 
+              style={styles.scrollArea}
+              contentContainerStyle={styles.cardsGrid}
+              showsVerticalScrollIndicator={false}
+            >
+              {products.length === 0 ? (
+                <Text style={styles.noResults}>No products found.</Text>
+              ) : (
+                products.map((item) => (
+                  <C_CaravanCard 
+                    key={item.product_id}
+                    name={item.name}
+                    type={categories.find(c => c.category_id === item.category_id)?.name || "Accessory"}
+                    score={(item.popularity / 20).toFixed(1)} 
+                    price={`$${item.current_price.toLocaleString()}`}
+                    stock={item.quantity_in_stocks}
+                    onAddToCart={() => handleAddToCart(item)}
+                    onPress={() => router.push(`/product/${item.product_id}`)}
+                  />
+                ))
+              )}
+            </ScrollView>
+          )}
+        </View>
+        
+      </View>
+    </View> 
+  );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: '#d6cba6',
-    },
-    headerBarContainer: {
-        flexDirection: 'row',
-        justifyContent: 'flex-end',
-        paddingHorizontal: 20,
-        paddingVertical: 10,
-    },
-    screenTitleContainer: {
-        paddingHorizontal: 20,
-        marginBottom: 10,
-    },
-    screenTitle: {
-        fontSize: 24,
-        fontWeight: 'bold',
-        color: '#333',
-    },
-    contentContainer: {
-        flex: 1,
-        flexDirection: 'row', // Places Filter and Grid side-by-side
-        paddingHorizontal: 20,
-        paddingBottom: 20,
-        gap: 20, // Space between filter and grid
-    },
-    filterContainer: {
-        width: 280, // Fixed width for the filter sidebar
-        backgroundColor: '#E2E2E2', // Temporary color to see the rectangle
-        borderRadius: 8,
-        padding: 20,
-        borderWidth: 1,
-        borderColor: '#ccc',
-        borderStyle: 'dashed', // Dashed border to indicate it's a placeholder
-    },
-    filterPlaceholderText: {
-        color: '#666',
-        textAlign: 'center',
-        marginTop: 20,
-        fontWeight: '600',
-    },
-    scrollArea: {
-        flex: 1,
-    },
-    cardsGrid: {
-        flexDirection: 'row',
-        flexWrap: 'wrap', // Allows cards to wrap to the next line
-        gap: 20, // Space between cards
-        justifyContent: 'flex-start',
-        paddingBottom: 40,
-    }
+  container: {
+    flex: 1,
+    backgroundColor: '#FAF9F6',
+  },
+  headerBarContainer: {
+    paddingHorizontal: 20,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  screenTitleContainer: {
+    paddingHorizontal: 40,
+    paddingVertical: 30,
+  },
+  screenTitle: {
+    fontFamily: 'Montserrat_700Bold',
+    fontSize: 32,
+    color: '#222',
+  },
+  contentContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    paddingHorizontal: 40,
+    paddingBottom: 20,
+    gap: 40,
+  },
+  filterContainer: {
+    width: 280,
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    padding: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    maxHeight: 600,
+  },
+  filterTitle: {
+    fontFamily: 'Montserrat_700Bold',
+    fontSize: 16,
+    color: '#333',
+    marginBottom: 12,
+  },
+  categoryList: {
+    gap: 8,
+  },
+  categoryItem: {
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+  },
+  categoryItemActive: {
+    backgroundColor: '#E8F5E9',
+  },
+  categoryText: {
+    fontFamily: 'Montserrat_400Regular',
+    fontSize: 14,
+    color: '#666',
+  },
+  categoryTextActive: {
+    fontFamily: 'Montserrat_600SemiBold',
+    color: '#2E7D32',
+  },
+  gridWrapper: {
+    flex: 1,
+  },
+  scrollArea: {
+    flex: 1,
+  },
+  cardsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 30,
+    justifyContent: 'flex-start',
+    paddingBottom: 40,
+  },
+  noResults: {
+    fontFamily: 'Montserrat_400Regular',
+    fontSize: 18,
+    color: '#888',
+    marginTop: 40,
+  }
 });
