@@ -4,17 +4,21 @@
  */
 
 const bcrypt = require("bcrypt");
+const fs = require("fs");
+const path = require("path");
+
+const DATA_FILE = path.join(__dirname, "mockData.json");
 
 // ── Seed Data ──────────────────────────────────────────────
 
-const categories = [
+let categories = [
   { category_id: 1, name: "Motorhomes" },
   { category_id: 2, name: "Caravan Trailers" },
   { category_id: 3, name: "Camping Accessories" },
   { category_id: 4, name: "Outdoor Gear" },
 ];
 
-const products = [
+let products = [
   // Motorhomes
   {
     product_id: 1, category_id: 1, name: "Voyager X500",
@@ -171,11 +175,34 @@ const products = [
   },
 ];
 
-const users = [];
-const orders = [];
-const orderItems = [];
+let users = [];
+let orders = [];
+let orderItems = [];
 let nextUserId = 1;
 let nextOrderId = 1;
+
+if (fs.existsSync(DATA_FILE)) {
+  try {
+    const data = JSON.parse(fs.readFileSync(DATA_FILE, "utf8"));
+    if (data.categories) categories = data.categories;
+    if (data.products) products = data.products;
+    if (data.users) users = data.users;
+    if (data.orders) orders = data.orders;
+    if (data.orderItems) orderItems = data.orderItems;
+    if (data.nextUserId) nextUserId = data.nextUserId;
+    if (data.nextOrderId) nextOrderId = data.nextOrderId;
+    console.log("[MockDB] Loaded existing data from mockData.json");
+  } catch (err) {
+    console.error("[MockDB] Failed to load mock data:", err);
+  }
+}
+
+function saveMockData() {
+  fs.writeFileSync(
+    DATA_FILE,
+    JSON.stringify({ categories, products, users, orders, orderItems, nextUserId, nextOrderId }, null, 2)
+  );
+}
 
 // ── Mock Pool ──────────────────────────────────────────────
 
@@ -213,6 +240,7 @@ const mockPool = {
         role: role || "customer",
       };
       users.push(newUser);
+      saveMockData();
       return { rows: [{ user_id: newUser.user_id, name, email, role: newUser.role }] };
     }
 
@@ -244,6 +272,7 @@ const mockPool = {
       if (p) {
         p.quantity_in_stocks -= Number(qty);
         if (p.quantity_in_stocks < 0) p.quantity_in_stocks = 0;
+        saveMockData();
       }
       return { rows: p ? [p] : [] };
     }
@@ -275,6 +304,7 @@ const mockPool = {
         updated_at: new Date(),
       };
       orders.push(newOrder);
+      saveMockData();
       return { rows: [newOrder] };
     }
 
@@ -282,6 +312,7 @@ const mockPool = {
       const [order_id, product_id, quantity, unit_price] = params;
       const item = { order_id, product_id, quantity, unit_price };
       orderItems.push(item);
+      saveMockData();
       return { rows: [item] };
     }
 
@@ -305,6 +336,7 @@ const mockPool = {
         order.status = status;
         if (transaction_id) order.transaction_id = transaction_id;
         order.updated_at = new Date();
+        saveMockData();
       }
       return { rows: order ? [order] : [] };
     }

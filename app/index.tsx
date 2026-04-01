@@ -5,6 +5,7 @@ import { Animated, Easing, StyleSheet, Text, View, Image, Pressable, ScrollView 
 import C_Navbar from '../components/utku/C_Navbar/C_Navbar';
 import GeneralButton from '../components/utku/GeneralButton/GeneralButton';
 import { api, Category } from '../services/api';
+import { getCategoryImage } from '../utils/imageMapper';
 
 export default function Home() {
   const router = useRouter();
@@ -76,7 +77,7 @@ export default function Home() {
               onPress={() => router.push({ pathname: '/caravans', params: { category_id: cat.category_id } })}
             >
               <View style={styles.categoryImagePlaceholder}>
-                <Image source={require('../assets/images/caravan.jpg')} style={{ width: '100%', height: '100%', borderRadius: 125 }} resizeMode="cover" />
+                <Image source={getCategoryImage(cat.category_id)} style={{ width: '100%', height: '100%', borderRadius: 125 }} resizeMode="cover" />
               </View>
               <Text style={styles.categoryName}>{cat.name}</Text>
             </Pressable>

@@ -6,6 +6,7 @@ import C_Navbar from '../components/utku/C_Navbar/C_Navbar';
 import GeneralButton from '../components/utku/GeneralButton/GeneralButton';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
+import { getProductImage } from '../utils/imageMapper';
 
 export default function Cart() {
   const router = useRouter();
@@ -53,7 +54,7 @@ export default function Cart() {
                   <View key={item.product.product_id} style={styles.cartRow}>
                     <View style={[styles.cell, { flex: 3, flexDirection: 'row', alignItems: 'center', gap: 15 }]}>
                       <View style={styles.thumb}>
-                        <Image source={require('../assets/images/caravan.jpg')} style={{ width: '100%', height: '100%', borderRadius: 8 }} resizeMode="cover" />
+                        <Image source={getProductImage(item.product.image_url)} style={{ width: '100%', height: '100%', borderRadius: 8 }} resizeMode="cover" />
                       </View>
                       <View style={{ flex: 1, paddingRight: 10 }}>
                         <Text style={styles.itemName} numberOfLines={2}>{item.product.name}</Text>

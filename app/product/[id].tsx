@@ -7,6 +7,7 @@ import GeneralButton from '../../components/utku/GeneralButton/GeneralButton';
 import Toast from '../../components/utku/Toast/Toast';
 import { useCart } from '../../context/CartContext';
 import { api, Product, Category } from '../../services/api';
+import { getProductImage } from '../../utils/imageMapper';
 
 export default function ProductDetail() {
   const { id } = useLocalSearchParams();
@@ -92,7 +93,7 @@ export default function ProductDetail() {
             {/* Image Column */}
             <View style={styles.imageColumn}>
               <View style={styles.imageWrapper}>
-                <Image source={require('../../assets/images/caravan.jpg')} style={{ width: '100%', height: '100%', borderRadius: 16 }} resizeMode="cover" />
+                <Image source={getProductImage(product.image_url)} style={{ width: '100%', height: '100%', borderRadius: 16 }} resizeMode="cover" />
               </View>
             </View>
 

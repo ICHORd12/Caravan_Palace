@@ -9,6 +9,7 @@ import SortDropdown from '../components/utku/SortDropdown/SortDropdown';
 import Toast from '../components/utku/Toast/Toast';
 import { useCart } from '../context/CartContext';
 import { api, Category, Product } from '../services/api';
+import { getProductImage } from '../utils/imageMapper';
 
 export default function Caravans() {
   const router = useRouter();
@@ -135,6 +136,7 @@ export default function Caravans() {
                     score={(item.popularity / 20).toFixed(1)} 
                     price={`$${item.current_price.toLocaleString()}`}
                     stock={item.quantity_in_stocks}
+                    caravanImages={[getProductImage(item.image_url)]}
                     onAddToCart={() => handleAddToCart(item)}
                     onPress={() => router.push(`/product/${item.product_id}`)}
                   />
