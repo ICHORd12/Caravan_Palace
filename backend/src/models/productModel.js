@@ -10,13 +10,14 @@ exports.getAllProducts = async () => {
   return result.rows;
 };
 
-exports.getProductsByCategoryId = async (category_id) => {
+exports.getProductsByCategoryName = async (category_name) => {
   const result = await pool.query(
-    `SELECT *
-     FROM products
-     WHERE category_id = $1
-     ORDER BY created_at DESC`,
-    [category_id]
+    `SELECT p.*
+     FROM products p
+     INNER JOIN categories c ON p.category_id = c.category_id
+     WHERE c.category_name = $1
+     ORDER BY p.created_at DESC`,
+    [category_name]
   );
 
   return result.rows;

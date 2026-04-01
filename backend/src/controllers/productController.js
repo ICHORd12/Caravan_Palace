@@ -9,9 +9,9 @@ exports.getAllProducts = async (req, res, next) => {
     }
 }
 
-exports.getProductsByCategoryId = async (req, res, next) => {
+exports.getProductsByCategoryName = async (req, res, next) => {
     try {
-        const result = await productService.getProductsByCategoryId(req.body);
+        const result = await productService.getProductsByCategoryName(req.body);
         res.status(201).json(result);
     } catch (err) {
         next(err);

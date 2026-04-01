@@ -1,4 +1,5 @@
 const productModel = require("../models/productModel")
+const ApiError = require("../utils/ApiError");
 
 exports.getAllProducts = async() => {
     const products = await productModel.getAllProducts();
@@ -12,11 +13,11 @@ exports.getAllProducts = async() => {
     };  
 };
 
-exports.getProductsByCategoryId = async ({category_id}) => {
-    const products = await productModel.getProductsByCategoryId(category_id);
+exports.getProductsByCategoryName = async ({category_name}) => {
+    const products = await productModel.getProductsByCategoryName(category_name);
 
-    if (!products) {
-        throw new ApiError(404, "There is no product with given category id in database ");
+    if (products.length === 0) {
+        throw new ApiError(404, "There is no product with given category name in database ");
     }
 
     return {
