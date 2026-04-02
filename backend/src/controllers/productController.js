@@ -11,8 +11,8 @@ exports.getAllProducts = async (req, res, next) => {
 
 exports.getProductsByCategoryId = async (req, res, next) => {
     try {
-        const result = await productService.getProductsByCategoryId(req.body);
-        res.status(201).json(result);
+        const result = await productService.getProductsByCategoryId(req.params.id);
+        res.status(200).json(result);
     } catch (err) {
         next(err);
     }

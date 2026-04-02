@@ -1,4 +1,7 @@
 import React from 'react';
+import { useCart } from '../context/CartContext';
+
+
 
 export interface CaravanProduct {
   id: string;
@@ -24,7 +27,13 @@ interface ProductCardProps {
 }
 
 const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
+  const { cart, addToCart, updateQuantity, removeFromCart } = useCart();
   const isOutOfStock = product.quantityInStock === 0;
+
+  const cartItem = cart.find(item => item.id === product.id);
+  const currentQuantity = cartItem ? cartItem.cartQuantity : 0;
+
+  const hasReachedMaxStock = currentQuantity >= product.quantityInStock;
 
   return (
     <div className="product-card">
@@ -35,7 +44,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
           alt={`${product.name} ${product.model}`} 
           className="product-image" 
           onError={(e) => {
-            (e.target as HTMLImageElement).src = 'https://via.placeholder.com/300x200?text=Image+Not+Found';
+            (e.target as HTMLImageElement).src = '/default-caravan.jpg';
           }}
         />
         
@@ -74,13 +83,34 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
             {isOutOfStock ? 'Out of Stock' : `${product.quantityInStock} left in stock`}
           </span>
         </div>
-
-        <button 
-          className="add-to-cart-btn" 
-          disabled={isOutOfStock}
-        >
-          {isOutOfStock ? 'Unavailable' : 'Add to Cart'}
-        </button>
+          {currentQuantity > 0 ? (
+          <div className="active-cart-controls">
+            <button 
+              className="qty-btn"
+              onClick={() => currentQuantity === 1 ? removeFromCart(product.id) : updateQuantity(product.id, currentQuantity - 1)}
+            >
+              -
+            </button>
+            
+            <span className="qty-display">{currentQuantity} in Cart</span>
+            
+            <button 
+              className="qty-btn"
+              disabled={hasReachedMaxStock}
+              onClick={() => updateQuantity(product.id, currentQuantity + 1)}
+            >
+              +
+            </button>
+          </div>
+        ) : (
+          <button 
+            className="add-to-cart-btn" 
+            disabled={isOutOfStock}
+            onClick={() => addToCart(product)}
+          >
+            {isOutOfStock ? 'Unavailable' : 'Add to Cart'}
+          </button>
+        )}
       </div>
     </div>
   );

@@ -10,7 +10,6 @@ export function useCaravans() {
   useEffect(() => {
     async function fetchCaravans() {
       try {
-        // We target the exact table name from the SQL schema
         const { data, error } = await supabase
           .from('products') 
           .select(`
@@ -25,12 +24,10 @@ export function useCaravans() {
 
         if (data) {
             const mappedCaravans: CaravanProduct[] = data.map((item: any) => {
-              // Find the primary image, or use the first one available, or use a placeholder
               const primaryImage = item.product_images?.find((img: any) => img.is_primary);
               const fallbackImage = item.product_images?.[0]?.url;
-              const finalImageUrl = primaryImage?.url || fallbackImage || 'https://via.placeholder.com/300x200?text=No+Image+Available';
+              const finalImageUrl = primaryImage?.url || fallbackImage || 'src/assets/cannot_find.jpg';
 
-              //review calculation
               const approvedReviews = item.reviews?.filter((r: any) => r.is_approved) || [];  
               const reviewCount = approvedReviews.length;  
 
