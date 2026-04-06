@@ -22,6 +22,22 @@ exports.getProductsByCategoryId = async (category_id) => {
   return result.rows;
 };
 
+
+exports.searchProductsByNameOrDescription = async (searchTerm) => {
+  const likePattern = "%" + searchTerm + "%";
+
+  const result = await pool.query(
+    `SELECT *
+     FROM products
+     WHERE name ILIKE $1 OR description ILIKE $1
+     ORDER BY created_at DESC`,
+    [likePattern]
+  );
+
+  return result.rows;
+};
+
+
 // exports.getAllProducts = async () => {
 //   const result = await pool.query(`
 //     SELECT

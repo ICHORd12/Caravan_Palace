@@ -1,4 +1,5 @@
 const productModel = require("../models/productModel")
+const ApiError = require("../utils/ApiError");
 
 exports.getAllProducts = async() => {
     const products = await productModel.getAllProducts();
@@ -22,5 +23,21 @@ exports.getProductsByCategoryId = async ({category_id}) => {
     return {
         message: "Products fetched successfully",
         products
+    };
+};
+
+
+exports.searchProductsByNameOrDescription = async ({q}) => {
+    const searchTerm = typeof q === "string" ? q.trim() : "";
+    
+    if (!searchTerm) {
+        throw new ApiError(400, "Query parameter q is required");
+    }
+
+    const products = await productModel.searchProductsByNameOrDescription(searchTerm);
+
+    return {
+        message: "Products fetched successfully",
+        products,
     };
 };
