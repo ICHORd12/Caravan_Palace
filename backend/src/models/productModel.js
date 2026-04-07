@@ -1,21 +1,33 @@
 const pool = require("../config/db");
 
-exports.getAllProducts = async () => {
+const getOrderByClause = (sort) => {
+  switch (sort) {
+    case "price_asc":
+      return "ORDER BY current_price ASC NULLS LAST";
+    case "price_desc":
+      return "ORDER BY current_price DESC NULLS LAST";
+    default:
+      return "ORDER BY created_at DESC";
+  }
+};
+
+
+exports.getAllProducts = async (sort) => {
   const result = await pool.query(
     `SELECT *
      FROM products
-     ORDER BY created_at DESC`
-    );
+     ${getOrderByClause(sort)}`
+  );
 
   return result.rows;
 };
 
-exports.getProductsByCategoryId = async (category_id) => {
+exports.getProductsByCategoryId = async (category_id, sort) => {
   const result = await pool.query(
     `SELECT *
      FROM products
      WHERE category_id = $1
-     ORDER BY created_at DESC`,
+     ${getOrderByClause(sort)}`,
     [category_id]
   );
 
@@ -23,14 +35,14 @@ exports.getProductsByCategoryId = async (category_id) => {
 };
 
 
-exports.searchProductsByNameOrDescription = async (searchTerm) => {
+exports.searchProductsByNameOrDescription = async (searchTerm, sort) => {
   const likePattern = "%" + searchTerm + "%";
 
   const result = await pool.query(
     `SELECT *
      FROM products
      WHERE name ILIKE $1 OR description ILIKE $1
-     ORDER BY created_at DESC`,
+     ${getOrderByClause(sort)}`,
     [likePattern]
   );
 
