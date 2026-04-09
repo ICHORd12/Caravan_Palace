@@ -6,7 +6,7 @@ const errorMiddleware = require("./middlewares/errorMiddleware");
 const app = express();
 
 app.use(express.json());
-app.use("/api/v1", routes);
+app.use("/api/v2", routes);
 
 app.use(notFoundMiddleware);
 app.use(errorMiddleware);

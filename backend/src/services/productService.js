@@ -3,7 +3,7 @@ const ApiError = require("../utils/ApiError");
 
 exports.getAllProducts = async() => {
     const products = await productModel.getAllProducts();
-    if (!products) {
+    if (products.length == 0) {
         throw new ApiError(404, "There is no product in database");
     }
 
