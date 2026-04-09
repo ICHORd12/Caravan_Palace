@@ -1,12 +1,24 @@
 const pool = require("../config/db");
 const { mapProduct } = require("../utils/mappers");
 
-exports.getAllProducts = async () => {
+const getOrderByClause = (sort) => {
+  switch (sort) {
+    case "price_asc":
+      return "ORDER BY current_price ASC NULLS LAST";
+    case "price_desc":
+      return "ORDER BY current_price DESC NULLS LAST";
+    default:
+      return "ORDER BY created_at DESC";
+  }
+};
+
+
+exports.getAllProducts = async (sort) => {
   const result = await pool.query(
     `SELECT *
      FROM products
-     ORDER BY created_at DESC`
-    );
+     ${getOrderByClause(sort)}`
+  );
 
   return result.rows.map(mapProduct);
 };
@@ -37,6 +49,46 @@ exports.getProductById = async (productId) => {
     `,
     [productId]
   );
+
+exports.searchProductsByNameOrDescription = async (searchTerm, sort) => {
+  const likePattern = "%" + searchTerm + "%";
+
+  const result = await pool.query(
+    `SELECT *
+     FROM products
+     WHERE name ILIKE $1 OR description ILIKE $1
+     ${getOrderByClause(sort)}`,
+    [likePattern]
+  );
+
+  return result.rows;
+};
+
+
+// exports.getAllProducts = async () => {
+//   const result = await pool.query(`
+//     SELECT
+//       product_id,
+//       category_id,
+//       name,
+//       model,
+//       serial_number,
+//       description,
+//       quantity_in_stocks,
+//       base_price,
+//       current_price,
+//       warranty_status,
+//       distributor_info,
+//       berth_count,
+//       fuel_type,
+//       weight_kg,
+//       has_kitchen,
+//       discount_rate,
+//       created_at,
+//       updated_at
+//     FROM products
+//     ORDER BY created_at DESC
+//   `);
 
   return mapProduct(result.rows[0]);
 };
