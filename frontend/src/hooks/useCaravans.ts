@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '../services/supabaseClient';
 import type { CaravanProduct } from '../components/ProductCard';
 
 export function useCaravans() {
@@ -10,55 +9,52 @@ export function useCaravans() {
   useEffect(() => {
     async function fetchCaravans() {
       try {
-        const { data, error } = await supabase
-          .from('products') 
-          .select(`
-            *,
-            categories (category_name),
-            product_images (url, is_primary),
-            reviews (rating, is_approved)
-          `);
-        if (error) {
-          throw error;
+        const response = await fetch('http://localhost:8080/api/v1/products/all');
+
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
         }
 
+        const data = await response.json();
+
         if (data) {
-            const mappedCaravans: CaravanProduct[] = data.map((item: any) => {
-              const primaryImage = item.product_images?.find((img: any) => img.is_primary);
-              const fallbackImage = item.product_images?.[0]?.url;
-              const finalImageUrl = primaryImage?.url || fallbackImage || 'src/assets/cannot_find.jpg';
+   
+          const mappedCaravans: CaravanProduct[] = data.map((item: any) => {
+            const primaryImage = item.product_images?.find((img: any) => img.is_primary);
+            const fallbackImage = item.product_images?.[0]?.url;
+            const finalImageUrl = primaryImage?.url || fallbackImage || 'src/assets/cannot_find.jpg';
+           
 
-              const approvedReviews = item.reviews?.filter((r: any) => r.is_approved) || [];  
-              const reviewCount = approvedReviews.length;  
-
-              const averageRating = reviewCount > 0 
+            const approvedReviews = item.reviews?.filter((r: any) => r.is_approved) || [];
+            const reviewCount = approvedReviews.length;
+            const averageRating = reviewCount > 0 
               ? approvedReviews.reduce((sum: number, r: any) => sum + r.rating, 0) / reviewCount 
               : 0;
-  
-              return {
-                id: item.product_id,                  
-                name: item.name,
-                model: item.model,
-                serialNumber: item.serial_number,     
-                description: item.description,
-                quantityInStock: item.quantity_in_stocks, 
-                price: item.current_price,            
-                warrantyStatus: item.warranty_status, 
-                distributorInfo: item.distributor_info,
-                category: item.categories?.category_name || 'Uncategorized',
-                imageUrl: finalImageUrl,
-                averageRating: averageRating,
-                reviewCount: reviewCount,
-                weightKg: item.weight_kg,
-                hasKitchen: item.has_kitchen
-              };
-            });
+
+            return {
+              id: item.product_id,                  
+              name: item.name,
+              model: item.model,
+              serialNumber: item.serial_number,     
+              description: item.description,
+              quantityInStock: item.quantity_in_stocks, 
+              price: item.current_price,            
+              warrantyStatus: item.warranty_status, 
+              distributorInfo: item.distributor_info,
+              category: item.categories?.category_name || 'Uncategorized',
+              imageUrl: finalImageUrl,
+              averageRating: averageRating,
+              reviewCount: reviewCount,
+              weightKg: item.weight_kg,
+              hasKitchen: item.has_kitchen
+            };
+          });
 
           setCaravans(mappedCaravans);
         }
       } catch (err: any) {
-        console.error("Supabase fetching error:", err.message);
-        setError("Could not load inventory from the database.");
+        console.error("Backend fetching error:", err.message);
+        setError("Could not load inventory from the server.");
       } finally {
         setIsLoading(false);
       }
