@@ -38,15 +38,13 @@ exports.addItemToCart = async ({ userId, productId, quantity }) => {
     productId
   );
 
-  let cartItem;
-
   if (existingCartItem) {
     const newQuantity = existingCartItem.quantity + quantity;
     if (newQuantity > availableStockQuantity) {
         throw new ApiError(400, "Requested quantity exceeds available stock (" + availableStockQuantity + ")");
     }
 
-    cartItem = await cartModel.updateCartItemQuantity(
+    await cartModel.updateCartItemQuantity(
       userId,
       productId,
       newQuantity
@@ -55,12 +53,14 @@ exports.addItemToCart = async ({ userId, productId, quantity }) => {
     if (quantity > availableStockQuantity) {
         throw new ApiError(400, "Requested quantity exceeds available stock (" + availableStockQuantity + ")");
     }
-    cartItem = await cartModel.createCartItem({
+    await cartModel.createCartItem({
       userId,
       productId,
       quantity,
     });
   }
+
+  const cartItem = await cartModel.getCartItemWithProductByUserIdAndProductId(userId, productId);
 
   return {
     message: "Item added to cart successfully",
@@ -103,11 +103,13 @@ exports.updateCartItemQuantity = async ({ userId, productId, quantity }) => {
     throw new ApiError(400, "Requested quantity exceeds available stock (" + availableStockQuantity + ")");
   }
 
-  const updatedCartItem = await cartModel.updateCartItemQuantity(
+  await cartModel.updateCartItemQuantity(
     userId,
     productId,
     quantity
   );
+  
+  const updatedCartItem = await cartModel.getCartItemWithProductByUserIdAndProductId(userId, productId);
 
   return {
     message: "Cart item quantity updated successfully",

@@ -25,6 +25,28 @@ exports.getCartItemsByUserId = async (userId) => {
   return result.rows.map(mapCartItemWithProduct);
 };
 
+exports.getCartItemWithProductByUserIdAndProductId = async (userId, productId) => {
+  const result = await pool.query(
+    `
+    SELECT
+      ci.cart_item_id,
+      ci.user_id,
+      ci.product_id,
+      ci.quantity,
+      ci.added_at,
+      p.name AS product_name,
+      p.current_price,
+      p.quantity_in_stocks
+    FROM cart_items ci
+    INNER JOIN products p
+      ON ci.product_id = p.product_id
+    WHERE ci.user_id = $1 AND ci.product_id = $2
+    `,
+    [userId, productId]
+  );
+
+  return mapCartItemWithProduct(result.rows[0]);
+};
 
 exports.getCartItemByUserIdAndProductId = async (userId, productId) => {
   const result = await pool.query(

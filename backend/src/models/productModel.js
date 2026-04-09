@@ -1,17 +1,6 @@
 const pool = require("../config/db");
 const { mapProduct } = require("../utils/mappers");
-
-const getOrderByClause = (sort) => {
-  switch (sort) {
-    case "price_asc":
-      return "ORDER BY current_price ASC NULLS LAST";
-    case "price_desc":
-      return "ORDER BY current_price DESC NULLS LAST";
-    default:
-      return "ORDER BY created_at DESC";
-  }
-};
-
+const { getOrderByClause } = require("../utils/sorter");
 
 exports.getAllProducts = async (sort) => {
   const result = await pool.query(
@@ -23,13 +12,13 @@ exports.getAllProducts = async (sort) => {
   return result.rows.map(mapProduct);
 };
 
-exports.getProductsByCategoryName = async (category_name) => {
+exports.getProductsByCategoryName = async (category_name, sort) => {
   const result = await pool.query(
     `SELECT p.*
      FROM products p
      INNER JOIN categories c ON p.category_id = c.category_id
      WHERE c.category_name = $1
-     ORDER BY p.created_at DESC`,
+     ${getOrderByClause(sort)}`,
     [category_name]
   );
 
@@ -50,6 +39,25 @@ exports.getProductById = async (productId) => {
     [productId]
   );
 
+  return mapProduct(result.rows[0]);
+};
+
+
+exports.getProductsByIds = async (productIds, sort) => {
+  const result = await pool.query(
+    `
+    SELECT *
+    FROM products
+    WHERE product_id = ANY($1::uuid[])
+    ${getOrderByClause(sort)}
+    `,
+    [productIds]
+  );
+
+  return result.rows.map(mapProduct);
+};
+
+
 exports.searchProductsByNameOrDescription = async (searchTerm, sort) => {
   const likePattern = "%" + searchTerm + "%";
 
@@ -61,34 +69,6 @@ exports.searchProductsByNameOrDescription = async (searchTerm, sort) => {
     [likePattern]
   );
 
-  return result.rows;
+  return result.rows.map(mapProduct);
 };
 
-
-// exports.getAllProducts = async () => {
-//   const result = await pool.query(`
-//     SELECT
-//       product_id,
-//       category_id,
-//       name,
-//       model,
-//       serial_number,
-//       description,
-//       quantity_in_stocks,
-//       base_price,
-//       current_price,
-//       warranty_status,
-//       distributor_info,
-//       berth_count,
-//       fuel_type,
-//       weight_kg,
-//       has_kitchen,
-//       discount_rate,
-//       created_at,
-//       updated_at
-//     FROM products
-//     ORDER BY created_at DESC
-//   `);
-
-  return mapProduct(result.rows[0]);
-};

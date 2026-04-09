@@ -19,6 +19,17 @@ exports.getProductsByCategoryName = async (req, res, next) => {
 }
 
 
+exports.getProductsByIds = async (req, res, next) => {
+  try {
+    const result = await productService.getProductsByIds(req.body);
+
+    res.status(200).json(result);
+  } catch (err) {
+    next(err);
+  }
+};
+
+
 exports.searchProductsByNameOrDescription = async (req, res, next) => {
     try {
         const result = await productService.searchProductsByNameOrDescription(req.query);
