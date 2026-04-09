@@ -1,4 +1,5 @@
 const cartModel = require("../models/cartModel");
+const productModel = require("../models/productModel");
 const ApiError = require("../utils/ApiError");
 
 exports.getCart = async (userId) => {
@@ -56,5 +57,40 @@ exports.addItemToCart = async ({ userId, productId, quantity }) => {
   return {
     message: "Item added to cart successfully",
     cartItem,
+  };
+};
+
+
+exports.updateCartItemQuantity = async ({ userId, productId, quantity }) => {
+  if (!productId) {
+    throw new ApiError(400, "Product ID is required");
+  }
+
+  if (quantity === undefined || quantity === null) {
+    throw new ApiError(400, "Quantity is required");
+  }
+
+  if (!Number.isInteger(quantity) || quantity <= 0) {
+    throw new ApiError(400, "Quantity must be a positive integer");
+  }
+
+  const existingCartItem = await cartModel.getCartItemByUserIdAndProductId(
+    userId,
+    productId
+  );
+
+  if (!existingCartItem) {
+    throw new ApiError(404, "Cart item not found");
+  }
+
+  const updatedCartItem = await cartModel.updateCartItemQuantity(
+    userId,
+    productId,
+    quantity
+  );
+
+  return {
+    message: "Cart item quantity updated successfully",
+    cartItem: updatedCartItem,
   };
 };

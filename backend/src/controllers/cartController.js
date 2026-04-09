@@ -28,3 +28,21 @@ exports.addItemToCart = async (req, res, next) => {
     next(err);
   }
 };
+
+exports.updateCartItemQuantity = async (req, res, next) => {
+  try {
+    const userId = req.user.userId;
+    const { productId } = req.params;
+    const { quantity } = req.body;
+
+    const result = await cartService.updateCartItemQuantity({
+      userId,
+      productId,
+      quantity,
+    });
+
+    res.status(200).json(result);
+  } catch (err) {
+    next(err);
+  }
+};

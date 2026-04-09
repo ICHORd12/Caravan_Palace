@@ -33,7 +33,6 @@ exports.getProductById = async (productId) => {
       quantity_in_stocks
     FROM products
     WHERE product_id = $1
-    LIMIT 1
     `,
     [productId]
   );
