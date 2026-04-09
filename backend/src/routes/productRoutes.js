@@ -5,7 +5,6 @@ const router = express.Router();
 
 router.get("/all", productController.getAllProducts);
 router.get("/category_name", productController.getProductsByCategoryName);
-router.get("/category_id", productController.getProductsByCategoryId);
 router.get("/search", productController.searchProductsByNameOrDescription);
 
 module.exports = router;

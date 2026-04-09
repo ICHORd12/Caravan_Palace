@@ -1,16 +1,6 @@
 const productModel = require("../models/productModel")
 const ApiError = require("../utils/ApiError");
-
-const normalizeSort = (sort) => {
-    if (!sort) {
-        return undefined;
-    }
-    const validSorts = ["price_asc", "price_desc"];
-    if (!validSorts.includes(sort)) {
-        throw new ApiError(400, "Invalid sort parameter. Valid values are: " + validSorts.join(", "));
-    }
-    return sort;
-}
+const { normalizeSort } = require("../utils/sorter");
 
 exports.getAllProducts = async({sort}) => {
     const normalizedSort = normalizeSort(sort);
@@ -25,7 +15,8 @@ exports.getAllProducts = async({sort}) => {
     };  
 };
 
-exports.getProductsByCategoryName = async ({category_name}) => {
+exports.getProductsByCategoryName = async ({category_name, sort}) => {
+    const normalizedSort = normalizeSort(sort);
     const products = await productModel.getProductsByCategoryName(category_name);
 
     if (products.length === 0) {
