@@ -1,4 +1,5 @@
 const pool = require("../config/db");
+const { mapCartItem } = require("../utils/mapItem");
 
 exports.getCartItemsByUserId = async (userId) => {
   const result = await pool.query(
@@ -15,14 +16,7 @@ exports.getCartItemsByUserId = async (userId) => {
     [userId]
   );
 
-  return result.rows;
-
-//   return result.rows.map((row) => ({
-//     cartItemId: row.cart_item_id,
-//     productId: row.product_id,
-//     quantity: row.quantity,
-//     addedAt: row.added_at,
-//   }));
+  return result.rows.map(mapCartItem);
 };
 
 
@@ -36,7 +30,7 @@ exports.getCartItemByUserIdAndProductId = async (userId, productId) => {
     [userId, productId]
   );
 
-  return result.rows[0] || null;
+  return mapCartItem(result.rows[0]);
 };
 
 
@@ -50,7 +44,7 @@ exports.createCartItem = async ({ userId, productId, quantity }) => {
     [userId, productId, quantity]
   );
 
-  return result.rows[0];
+  return mapCartItem(result.rows[0]);
 };
 
 
@@ -65,7 +59,7 @@ exports.updateCartItemQuantity = async (userId, productId, quantity) => {
     [userId, productId, quantity]
   );
 
-  return result.rows[0];
+  return mapCartItem(result.rows[0]);
 };
 
 
@@ -79,7 +73,7 @@ exports.deleteCartItem = async (userId, productId) => {
     [userId, productId]
   );
 
-  return result.rows[0] || null;
+  return mapCartItem(result.rows[0]);
 };
 
 
@@ -93,5 +87,5 @@ exports.clearCart = async (userId) => {
     [userId]
   );
 
-  return result.rows;
+  return result.rows.map(mapCartItem);
 };
