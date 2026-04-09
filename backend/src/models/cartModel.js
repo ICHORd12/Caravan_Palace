@@ -1,5 +1,5 @@
 const pool = require("../config/db");
-const { mapCartItem } = require("../utils/mapItem");
+const { mapCartItem } = require("../utils/map");
 
 exports.getCartItemsByUserId = async (userId) => {
   const result = await pool.query(

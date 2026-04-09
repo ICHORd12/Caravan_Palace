@@ -1,4 +1,5 @@
 const pool = require("../config/db");
+const { mapProduct } = require("../utils/map");
 
 exports.getAllProducts = async () => {
   const result = await pool.query(
@@ -7,7 +8,7 @@ exports.getAllProducts = async () => {
      ORDER BY created_at DESC`
     );
 
-  return result.rows;
+  return result.rows.map(mapProduct);
 };
 
 exports.getProductsByCategoryName = async (category_name) => {
@@ -20,7 +21,7 @@ exports.getProductsByCategoryName = async (category_name) => {
     [category_name]
   );
 
-  return result.rows;
+  return result.rows.map(mapProduct);
 };
 
 exports.getProductById = async (productId) => {
@@ -37,7 +38,7 @@ exports.getProductById = async (productId) => {
     [productId]
   );
 
-  return result.rows[0] || null;
+  return mapProduct(result.rows[0]);
 };
 
 // exports.getAllProducts = async () => {

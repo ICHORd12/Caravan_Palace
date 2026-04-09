@@ -31,7 +31,7 @@ exports.addItemToCart = async ({ userId, productId, quantity }) => {
     throw new ApiError(404, "Product not found");
   }
 
-  let availableStockQuantity = product.quantity_in_stocks;
+  let availableStockQuantity = product.quantityInStocks;
 
   const existingCartItem = await cartModel.getCartItemByUserIdAndProductId(
     userId,
@@ -97,7 +97,7 @@ exports.updateCartItemQuantity = async ({ userId, productId, quantity }) => {
     throw new ApiError(404, "Cart item not found");
   }
 
-  let availableStockQuantity = product.quantity_in_stocks;
+  let availableStockQuantity = product.quantityInStocks;
 
   if (quantity > availableStockQuantity) {
     throw new ApiError(400, "Requested quantity exceeds available stock (" + availableStockQuantity + ")");
@@ -192,7 +192,7 @@ exports.mergeCart = async ({ userId, items }) => {
       continue;
     }
 
-    let availableStockQuantity = product.quantity_in_stocks;
+    let availableStockQuantity = product.quantityInStocks;
 
     if (stockQuantity <= 0) {
       adjustments.push({
