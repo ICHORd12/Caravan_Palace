@@ -9,7 +9,7 @@ exports.getMe = async (userId) => {
   }
 
   return {
-    id: user.user_id,
+    id: user.userId,
     email: user.email,
   };
 };

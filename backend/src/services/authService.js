@@ -31,7 +31,7 @@ exports.register = async ({
   return {
     message: "User created successfully",
     user: {
-      id: user.user_id,
+      id: user.userId,
       name: user.name,
       email: user.email,
       role: user.role,
@@ -53,7 +53,7 @@ exports.login = async ({ email, password }) => {
   }
 
   const token = generateToken({
-    userId: user.user_id,
+    userId: user.userId,
     role: user.role,
   });
 
@@ -61,7 +61,7 @@ exports.login = async ({ email, password }) => {
     message: "Login successful",
     token,
     user: {
-      id: user.user_id,
+      id: user.userId,
       name: user.name,
       email: user.email,
       role: user.role,

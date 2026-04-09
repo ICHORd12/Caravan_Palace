@@ -194,7 +194,7 @@ exports.mergeCart = async ({ userId, items }) => {
 
     let availableStockQuantity = product.quantityInStocks;
 
-    if (stockQuantity <= 0) {
+    if (availableStockQuantity <= 0) {
       adjustments.push({
         productId: productId,
         requestedQuantity: parsedQuantity,
