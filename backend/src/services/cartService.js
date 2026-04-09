@@ -52,6 +52,9 @@ exports.addItemToCart = async ({ userId, productId, quantity }) => {
       newQuantity
     );
   } else {
+    if (quantity > availableStock) {
+        throw new ApiError(400, "Requested quantity exceeds available stock (" + availableStock + ")");
+    }
     cartItem = await cartModel.createCartItem({
       userId,
       productId,
@@ -132,5 +135,15 @@ exports.deleteCartItem = async ({ userId, productId }) => {
   return {
     message: "Cart item deleted successfully",
     deletedItem: deletedItem,
+  };
+};
+
+
+exports.clearCart = async (userId) => {
+  const deletedItems = await cartModel.clearCart(userId);
+
+  return {
+    message: "Cart cleared successfully",
+    deletedItems: deletedItems,
   };
 };

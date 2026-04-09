@@ -62,3 +62,15 @@ exports.deleteCartItem = async (req, res, next) => {
     next(err);
   }
 };
+
+exports.clearCart = async (req, res, next) => {
+  try {
+    const userId = req.user.userId;
+
+    const result = await cartService.clearCart(userId);
+
+    res.status(200).json(result);
+  } catch (err) {
+    next(err);
+  }
+};

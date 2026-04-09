@@ -25,6 +25,7 @@ exports.getCartItemsByUserId = async (userId) => {
 //   }));
 };
 
+
 exports.getCartItemByUserIdAndProductId = async (userId, productId) => {
   const result = await pool.query(
     `
@@ -38,6 +39,7 @@ exports.getCartItemByUserIdAndProductId = async (userId, productId) => {
   return result.rows[0] || null;
 };
 
+
 exports.createCartItem = async ({ userId, productId, quantity }) => {
   const result = await pool.query(
     `
@@ -50,6 +52,7 @@ exports.createCartItem = async ({ userId, productId, quantity }) => {
 
   return result.rows[0];
 };
+
 
 exports.updateCartItemQuantity = async (userId, productId, quantity) => {
   const result = await pool.query(
@@ -65,6 +68,7 @@ exports.updateCartItemQuantity = async (userId, productId, quantity) => {
   return result.rows[0];
 };
 
+
 exports.deleteCartItem = async (userId, productId) => {
   const result = await pool.query(
     `
@@ -76,4 +80,18 @@ exports.deleteCartItem = async (userId, productId) => {
   );
 
   return result.rows[0] || null;
+};
+
+
+exports.clearCart = async (userId) => {
+  const result = await pool.query(
+    `
+    DELETE FROM cart_items
+    WHERE user_id = $1
+    RETURNING *
+    `,
+    [userId]
+  );
+
+  return result.rows;
 };
