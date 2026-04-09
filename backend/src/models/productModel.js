@@ -1,5 +1,5 @@
 const pool = require("../config/db");
-const { mapProduct } = require("../utils/map");
+const { mapProduct } = require("../utils/mappers");
 
 exports.getAllProducts = async () => {
   const result = await pool.query(
@@ -40,31 +40,3 @@ exports.getProductById = async (productId) => {
 
   return mapProduct(result.rows[0]);
 };
-
-// exports.getAllProducts = async () => {
-//   const result = await pool.query(`
-//     SELECT
-//       product_id,
-//       category_id,
-//       name,
-//       model,
-//       serial_number,
-//       description,
-//       quantity_in_stocks,
-//       base_price,
-//       current_price,
-//       warranty_status,
-//       distributor_info,
-//       berth_count,
-//       fuel_type,
-//       weight_kg,
-//       has_kitchen,
-//       discount_rate,
-//       created_at,
-//       updated_at
-//     FROM products
-//     ORDER BY created_at DESC
-//   `);
-
-//   return result.rows;
-// };

@@ -1,5 +1,5 @@
 const pool = require("../config/db");
-const { mapUser } = require("../utils/map");
+const { mapUser } = require("../utils/mappers");
 
 exports.findByEmail = async (email) => {
   const result = await pool.query(
