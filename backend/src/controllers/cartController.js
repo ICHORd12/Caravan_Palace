@@ -74,3 +74,19 @@ exports.clearCart = async (req, res, next) => {
     next(err);
   }
 };
+
+exports.mergeCart = async (req, res, next) => {
+  try {
+    const userId = req.user.userId;
+    const { items } = req.body;
+
+    const result = await cartService.mergeCart({
+      userId,
+      items,
+    });
+
+    res.status(200).json(result);
+  } catch (err) {
+    next(err);
+  }
+};

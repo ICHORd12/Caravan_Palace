@@ -9,5 +9,6 @@ router.post("/items", authMiddleware, cartController.addItemToCart);
 router.patch("/items/:productId", authMiddleware, cartController.updateCartItemQuantity);
 router.delete("/items/:productId", authMiddleware, cartController.deleteCartItem);
 router.delete("/", authMiddleware, cartController.clearCart);
+router.post("/merge", authMiddleware, cartController.mergeCart);
 
 module.exports = router;
