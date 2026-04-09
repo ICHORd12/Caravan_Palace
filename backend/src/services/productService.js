@@ -25,12 +25,11 @@ exports.getAllProducts = async({sort}) => {
     };  
 };
 
-exports.getProductsByCategoryId = async ({category_id, sort}) => {
-    const normalizedSort = normalizeSort(sort);
-    const products = await productModel.getProductsByCategoryId(category_id, normalizedSort);
+exports.getProductsByCategoryName = async ({category_name}) => {
+    const products = await productModel.getProductsByCategoryName(category_name);
 
-    if (!products) {
-        throw new ApiError(404, "There is no product with given category id in database ");
+    if (products.length === 0) {
+        throw new ApiError(404, "There is no product with given category name in database ");
     }
 
     return {
