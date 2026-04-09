@@ -408,11 +408,11 @@ Status: `201 Created`
 {
     "message": "Item added to cart successfully",
     "cartItem": {
-        "cartItemId": "2a1cc08e-479d-4bb0-add0-d94581e0a676",
+        "cartItemId": "be5f68c9-e343-42a7-a139-0f69dd8d2054",
         "userId": "b3c3f74e-4aba-4e46-8e5c-53c344f2d259",
         "productId": "8924ed90-3acb-4e39-a9a5-5c47a84255e9",
-        "quantity": 4,
-        "addedAt": "2026-04-09T15:02:55.921Z"
+        "quantity": 1,
+        "addedAt": "2026-04-09T16:22:09.366Z"
     }
 }
 ```
@@ -455,11 +455,16 @@ Status: `200 OK`
 {
     "message": "Cart item quantity updated successfully",
     "cartItem": {
-        "cartItemId": "2a1cc08e-479d-4bb0-add0-d94581e0a676",
+        "cartItemId": "7a69e6cc-b930-467a-a258-1da0f22c4a81",
         "userId": "b3c3f74e-4aba-4e46-8e5c-53c344f2d259",
         "productId": "8924ed90-3acb-4e39-a9a5-5c47a84255e9",
         "quantity": 5,
-        "addedAt": "2026-04-09T15:02:55.921Z"
+        "addedAt": "2026-04-09T16:22:46.496Z",
+        "product": {
+            "name": "Eco Camper Van",
+            "currentPrice": "479999.99",
+            "quantityInStocks": 8
+        }
     }
 }
 ```
