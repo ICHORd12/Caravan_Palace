@@ -34,3 +34,15 @@ exports.mapProduct = (row) => {
     updatedAt: row.updated_at,
   };
 };
+
+exports.mapUser = (row) => {
+  if (!row) return null;
+
+  return {
+    userId: row.user_id,
+    name: row.name,
+    email: row.email,
+    role: row.role,
+    // password intentionally not included
+  };
+};

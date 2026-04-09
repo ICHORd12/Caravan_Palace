@@ -1,4 +1,5 @@
 const pool = require("../config/db");
+const { mapUser } = require("../utils/map");
 
 exports.findByEmail = async (email) => {
   const result = await pool.query(
@@ -7,7 +8,15 @@ exports.findByEmail = async (email) => {
      WHERE email = $1`,
     [email]
   );
-  return result.rows[0];
+
+  const row = result.rows[0];
+  if (!row) return null
+
+  const user = mapUser(row);
+  return {
+    ...user,
+    password: row.password,
+  };
 };
 
 exports.findById = async (id) => {
@@ -17,7 +26,7 @@ exports.findById = async (id) => {
      WHERE user_id = $1`,
     [id]
   );
-  return result.rows[0];
+  return mapUser(result.rows[0]);
 };
 
 exports.createUser = async ({
@@ -35,5 +44,5 @@ exports.createUser = async ({
      RETURNING user_id, name, email, role`,
     [name, email, passwordHash, tax_id, home_address, role]
   );
-  return result.rows[0];
+  return mapUser(result.rows[0]);
 };
