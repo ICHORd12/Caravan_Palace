@@ -31,6 +31,8 @@ exports.addItemToCart = async ({ userId, productId, quantity }) => {
     throw new ApiError(404, "Product not found");
   }
 
+  let availableStock = product.quantity_in_stocks;
+
   const existingCartItem = await cartModel.getCartItemByUserIdAndProductId(
     userId,
     productId
@@ -40,6 +42,9 @@ exports.addItemToCart = async ({ userId, productId, quantity }) => {
 
   if (existingCartItem) {
     const newQuantity = existingCartItem.quantity + quantity;
+    if (newQuantity > availableStock) {
+        throw new ApiError(400, "Requested quantity exceeds available stock (" + availableStock + ")");
+    }
 
     cartItem = await cartModel.updateCartItemQuantity(
       userId,
@@ -72,6 +77,18 @@ exports.updateCartItemQuantity = async ({ userId, productId, quantity }) => {
 
   if (!Number.isInteger(quantity) || quantity <= 0) {
     throw new ApiError(400, "Quantity must be a positive integer");
+  }
+
+  const product = await productModel.getProductById(productId);
+
+  if (!product) {
+    throw new ApiError(404, "Product not found");
+  }
+
+  let availableStock = product.quantity_in_stocks;
+
+  if (quantity > availableStock) {
+    throw new ApiError(400, "Requested quantity exceeds available stock (" + availableStock + ")");
   }
 
   const existingCartItem = await cartModel.getCartItemByUserIdAndProductId(
