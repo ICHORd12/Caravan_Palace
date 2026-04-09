@@ -23,6 +23,24 @@ exports.getProductsByCategoryName = async (category_name) => {
   return result.rows;
 };
 
+exports.getProductById = async (productId) => {
+  const result = await pool.query(
+    `
+    SELECT 
+      product_id,
+      name,
+      current_price,
+      quantity_in_stocks
+    FROM products
+    WHERE product_id = $1
+    LIMIT 1
+    `,
+    [productId]
+  );
+
+  return result.rows[0] || null;
+};
+
 // exports.getAllProducts = async () => {
 //   const result = await pool.query(`
 //     SELECT
