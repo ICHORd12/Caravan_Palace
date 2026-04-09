@@ -1,22 +1,28 @@
 const pool = require("../config/db");
-const { mapCartItem } = require("../utils/mappers");
+const { mapCartItem, mapCartItemWithProduct } = require("../utils/mappers");
 
 exports.getCartItemsByUserId = async (userId) => {
   const result = await pool.query(
     `
-    SELECT 
+    SELECT
       ci.cart_item_id,
+      ci.user_id,
       ci.product_id,
       ci.quantity,
-      ci.added_at
+      ci.added_at,
+      p.name AS product_name,
+      p.current_price,
+      p.quantity_in_stocks
     FROM cart_items ci
+    INNER JOIN products p
+      ON ci.product_id = p.product_id
     WHERE ci.user_id = $1
     ORDER BY ci.added_at ASC
     `,
     [userId]
   );
 
-  return result.rows.map(mapCartItem);
+  return result.rows.map(mapCartItemWithProduct);
 };
 
 

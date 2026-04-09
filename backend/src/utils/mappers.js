@@ -10,6 +10,23 @@ exports.mapCartItem = (row) => {
   };
 };
 
+exports.mapCartItemWithProduct = (row) => {
+  if (!row) return null;
+
+  return {
+    cartItemId: row.cart_item_id,
+    userId: row.user_id,
+    productId: row.product_id,
+    quantity: row.quantity,
+    addedAt: row.added_at,
+    product: {
+      name: row.product_name,
+      currentPrice: row.current_price,
+      quantityInStocks: row.quantity_in_stocks,
+    },
+  };
+};
+
 exports.mapProduct = (row) => {
   if (!row) return null;
 
