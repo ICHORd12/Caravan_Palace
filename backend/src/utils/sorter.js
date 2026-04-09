@@ -1,4 +1,4 @@
-const normalizeSort = (sort) => {
+exports.normalizeSort = (sort) => {
     if (!sort) {
         return undefined;
     }
@@ -9,7 +9,7 @@ const normalizeSort = (sort) => {
     return sort;
 }
 
-const getOrderByClause = (sort) => {
+exports.getOrderByClause = (sort) => {
   switch (sort) {
     case "price_asc":
       return "ORDER BY current_price ASC NULLS LAST";

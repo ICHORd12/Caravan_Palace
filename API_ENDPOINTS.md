@@ -159,6 +159,21 @@ Status: `200 OK`
 
 Fetches all products.
 
+#### Optional Sort Parameter
+
+- `sort`: optional
+- Allowed values:
+  - `price_asc`
+  - `price_desc`
+
+#### Request Example
+
+Current backend reads `sort` from query params for this endpoint:
+
+```http
+GET /api/v2/products/all?sort=price_asc
+```
+
 #### Success Response
 
 Status: `201 Created`
@@ -207,6 +222,7 @@ Fetches products by category name.
 
 - This route is defined as `GET`.
 - But the current backend reads `category_name` from `req.body`, not from query params.
+- The backend also accepts optional `sort` in the same request body.
 - In standard HTTP usage, `GET` requests usually do not send a body.
 - For frontend usage, it would be safer if backend later changes this to query-based usage like `?category_name=...`.
 
@@ -214,9 +230,17 @@ Fetches products by category name.
 
 ```json
 {
-  "category_name": "Camper Vans"
+  "category_name": "Camper Vans",
+  "sort": "price_desc"
 }
 ```
+
+#### Optional Sort Parameter
+
+- `sort`: optional
+- Allowed values:
+  - `price_asc`
+  - `price_desc`
 
 #### Success Response
 
@@ -253,6 +277,71 @@ Status: `201 Created`
 #### Common Errors
 
 - `404` if no products match the given category
+
+---
+
+### `POST /api/v2/products/by-ids`
+
+Fetches products by a list of product ids.
+
+#### Request Body
+
+```json
+{
+  "productIds": [
+    "8924ed90-3acb-4e39-a9a5-5c47a84255e9",
+    "8c322b6b-db04-44cb-83f1-c84324e1b857"
+  ],
+  "sort": "price_asc"
+}
+```
+
+#### Request Fields
+
+- `productIds`: required array of product UUIDs
+- `sort`: optional
+
+#### Allowed Sort Values
+
+- `price_asc`
+- `price_desc`
+
+#### Success Response
+
+Status: `200 OK`
+
+```json
+{
+  "message": "Products fetched successfully",
+  "products": [
+    {
+      "productId": "8924ed90-3acb-4e39-a9a5-5c47a84255e9",
+      "categoryId": "ff28bce6-284e-4c65-8557-0416f4274679",
+      "name": "Eco Camper Van",
+      "model": "2025",
+      "serialNumber": "SN-123",
+      "description": "Product description",
+      "quantityInStocks": 8,
+      "basePrice": 500000,
+      "currentPrice": 479999.99,
+      "warrantyStatus": "3 Years",
+      "distributorInfo": "Distributor name",
+      "berthCount": 4,
+      "fuelType": "Diesel",
+      "weightKg": 2500,
+      "hasKitchen": true,
+      "discountRate": 5,
+      "createdAt": "2026-04-09T00:00:00.000Z",
+      "updatedAt": "2026-04-09T00:00:00.000Z"
+    }
+  ]
+}
+```
+
+#### Common Errors
+
+- `400` if `productIds` is not an array
+- `400` if `sort` is invalid
 
 ---
 
@@ -549,6 +638,7 @@ Status: `200 OK`
 - `GET /api/v2/auth/test`
 - `GET /api/v2/products/all`
 - `GET /api/v2/products/category_name`
+- `POST /api/v2/products/by-ids`
 
 ### Protected Endpoints
 
@@ -565,8 +655,12 @@ Status: `200 OK`
 1. Login returns a JWT token. Store it and send it as `Authorization: Bearer <token>`.
 2. Product endpoints currently return status `201` instead of `200`.
 3. `GET /products/category_name` currently expects `category_name` in request body, which is unusual for a GET endpoint.
-4. `/users/me` currently returns only:
+4. Product sorting supports:
+   - `price_asc`
+   - `price_desc`
+5. `POST /products/by-ids` accepts `productIds` array and optional `sort`.
+6. `/users/me` currently returns only:
    - `id`
    - `email`
-5. Cart item payloads use `productId` in path params and bodies.
+7. Cart item payloads use `productId` in path params and bodies.
 
