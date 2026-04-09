@@ -85,12 +85,6 @@ exports.updateCartItemQuantity = async ({ userId, productId, quantity }) => {
     throw new ApiError(404, "Product not found");
   }
 
-  let availableStock = product.quantity_in_stocks;
-
-  if (quantity > availableStock) {
-    throw new ApiError(400, "Requested quantity exceeds available stock (" + availableStock + ")");
-  }
-
   const existingCartItem = await cartModel.getCartItemByUserIdAndProductId(
     userId,
     productId
@@ -98,6 +92,12 @@ exports.updateCartItemQuantity = async ({ userId, productId, quantity }) => {
 
   if (!existingCartItem) {
     throw new ApiError(404, "Cart item not found");
+  }
+
+  let availableStock = product.quantity_in_stocks;
+
+  if (quantity > availableStock) {
+    throw new ApiError(400, "Requested quantity exceeds available stock (" + availableStock + ")");
   }
 
   const updatedCartItem = await cartModel.updateCartItemQuantity(
@@ -109,5 +109,28 @@ exports.updateCartItemQuantity = async ({ userId, productId, quantity }) => {
   return {
     message: "Cart item quantity updated successfully",
     cartItem: updatedCartItem,
+  };
+};
+
+
+exports.deleteCartItem = async ({ userId, productId }) => {
+  if (!productId) {
+    throw new ApiError(400, "Product ID is required");
+  }
+
+  const existingCartItem = await cartModel.getCartItemByUserIdAndProductId(
+    userId,
+    productId
+  );
+
+  if (!existingCartItem) {
+    throw new ApiError(404, "Cart item not found");
+  }
+
+  const deletedItem = await cartModel.deleteCartItem(userId, productId);
+
+  return {
+    message: "Cart item deleted successfully",
+    deletedItem: deletedItem,
   };
 };

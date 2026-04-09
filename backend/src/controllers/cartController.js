@@ -46,3 +46,19 @@ exports.updateCartItemQuantity = async (req, res, next) => {
     next(err);
   }
 };
+
+exports.deleteCartItem = async (req, res, next) => {
+  try {
+    const userId = req.user.userId;
+    const { productId } = req.params;
+
+    const result = await cartService.deleteCartItem({
+      userId,
+      productId,
+    });
+
+    res.status(200).json(result);
+  } catch (err) {
+    next(err);
+  }
+};

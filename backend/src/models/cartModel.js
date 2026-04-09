@@ -64,3 +64,16 @@ exports.updateCartItemQuantity = async (userId, productId, quantity) => {
 
   return result.rows[0];
 };
+
+exports.deleteCartItem = async (userId, productId) => {
+  const result = await pool.query(
+    `
+    DELETE FROM cart_items
+    WHERE user_id = $1 AND product_id = $2
+    RETURNING *
+    `,
+    [userId, productId]
+  );
+
+  return result.rows[0] || null;
+};
