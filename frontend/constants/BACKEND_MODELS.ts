@@ -20,10 +20,10 @@ export type Caravan = {
 }
 
 
-type cartProduct ={
+type CartProduct = {
     name: string,
     currentPrice: string,
-    quantityInStocks: number // To Be Deleted Later In Backend
+    quantityInStocks: number 
 }
 
 export type CartItem = {
@@ -32,7 +32,25 @@ export type CartItem = {
     productId: string; 
     quantity: number;
     addedAt: string;
-    product: cartProduct;
+    product: CartProduct;
+}
+
+export type FetchProductDetailsResponse = {
+    message: string,
+    products: Caravan[]
+}
+
+type Adjustment = {
+    productId: string,
+    requestedQuantity: number,
+    finalQuantity: number,
+    reason: string
+}
+
+export type MergeBackendCartResponse = {
+    message: string,
+    items: CartItem[],
+    adjustments: Adjustment[]
 }
 
 

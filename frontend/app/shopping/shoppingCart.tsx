@@ -20,9 +20,11 @@ import {
     MERGE_BACKEND_CART_END_POINT,
     UPDATE_QUANTITY_END_POINT
 } from '@/constants/API';
-import { CartItem } from '@/constants/BACKEND_MODELS';
+
+import { Caravan, CartItem } from '@/constants/BACKEND_MODELS';
 import { useToast } from '@/context/ToastContext';
 import { useTransition } from '@/context/TransitionContext';
+import { FetchProductDetailsResponse, MergeBackendCartResponse } from '@/constants/BACKEND_MODELS';
 //#endregion
 
 export default function ShoppingCart() {
@@ -42,7 +44,7 @@ export default function ShoppingCart() {
     });
 
     //#region API FUNCTIONS 
-    async function apiFetchProductDetails(items: { id: string, quantity: number }[]): Promise<CartItem[]> 
+    async function apiFetchProductDetails(items: { id: string, quantity: number }[]): Promise<Caravan[]> 
     {
         if (items.length === 0) return [];
         
@@ -58,17 +60,20 @@ export default function ShoppingCart() {
                 body: JSON.stringify({ productIds: ids }) 
             });
 
-            if (!response.ok) throw new Error('Failed to fetch product details');
+            let result: FetchProductDetailsResponse = {message: "", products: []}
+            if (!response.ok)
+            {
+                showToast('Failed to fetch product details', 'error')
+            }
+            else
+            {
+                result = await response.json();
+            }
             
-            const products = await response.json();
-            
-            console.log("Fetch Product Details: ", products)
-
-            // Map the products into cart model
-            return []
+            return result.products;
 
         } catch (error) {
-            console.error("Error fetching product details:", error);
+            showToast('Failed to fetch product details', 'error')
             return [];
         }
     };
@@ -92,12 +97,17 @@ export default function ShoppingCart() {
                 body: JSON.stringify({ items: payload.length > 0 ? payload : [] })
             });
 
-            if (!response.ok) throw new Error('Failed to merge backend cart');
-            
-            const products = await response.json();
-            console.log("Merge Backend", products)
+            let result: MergeBackendCartResponse = {message: "", items: [], adjustments: []};
+            if (!response.ok) 
+            {
+                showToast("Failed to merge backend cart", 'error');
+            }
+            else
+            {
+                result = await response.json();
+            }
 
-            return products.items 
+            return result.items;
 
         } catch (error) {
             console.error("Error merging cart:", error);
@@ -117,7 +127,19 @@ export default function ShoppingCart() {
                 // This payload correctly sends the final absolute value (e.g., 5 instead of +1)
                 body: JSON.stringify({ quantity: item.quantity })
             });
-            return response.ok;
+
+            let result: boolean = false;
+            if (!response.ok)
+            {
+                showToast("An Error Occured While Updating Item Quantity", 'error');
+            }
+            else
+            {
+                result = true;
+            }
+
+            return result;
+
         } catch (error) {
             console.error("Error updating quantity:", error);
             return false;
@@ -133,7 +155,19 @@ export default function ShoppingCart() {
                     'Authorization': `Bearer ${token}`
                 }
             });
-            return response.ok;
+
+            let result: boolean = false;
+            if (!response.ok)
+            {
+                showToast("An Error Occured While Deleting Card Item", 'error');
+            }
+            else
+            {
+                result = true;
+            }
+
+            return result;
+
         } catch (error) {
             console.error("Error deleting item:", error);
             return false;
@@ -142,7 +176,8 @@ export default function ShoppingCart() {
     //#endregion
 
     //#region HELPER FUNCTIONS
-    async function clearLocalCart() {
+    async function clearLocalCart() 
+    {
         if (Platform.OS === 'web') {
             // Collect keys first to avoid mutation bugs during iteration
             const keysToRemove: string[] = [];
@@ -159,6 +194,34 @@ export default function ShoppingCart() {
             // the deletion logic would go here!
         }
     }
+
+    function mapCaravansToCartItems(
+        caravans: Caravan[], 
+        localItemsData: { id: string, quantity: number }[]
+    ): CartItem[] {
+        return caravans.map(caravan => {
+            // Find the matching local item to get the saved quantity
+            const localData = localItemsData.find(item => item.id === caravan.productId);
+            
+            // Fallback to 1 if something goes wrong and it isn't found
+            const quantity = localData ? localData.quantity : 1;
+
+            return {
+                // Generate a temporary mock ID for the cart item since it's local
+                cartItemId: `local_cart_${caravan.productId}`, 
+                userId: "guest", // Placeholder since there is no logged-in user
+                productId: caravan.productId,
+                quantity: quantity,
+                addedAt: new Date().toISOString(), // Current timestamp
+                product: {
+                    name: caravan.name,
+                    currentPrice: caravan.currentPrice,
+                    quantityInStocks: caravan.quantityInStocks
+                }
+            };
+        });
+    }
+
     //#endregion
 
     const initializeCart = useCallback(async () => {
@@ -197,8 +260,11 @@ export default function ShoppingCart() {
             if (!isAuth) 
             {
                 // Guest: Fetch product details for the local items
-                const localCart = localItemsData.length > 0 ? await apiFetchProductDetails(localItemsData) : [];
-                setCartItems(localCart);
+                const localCartCaravans = localItemsData.length > 0 ? await apiFetchProductDetails(localItemsData) : [];
+
+                const formattedCartItems = mapCaravansToCartItems(localCartCaravans, localItemsData);
+
+                setCartItems(formattedCartItems);
             } 
             else 
             {
@@ -206,7 +272,6 @@ export default function ShoppingCart() {
                 const backendCart = await apiMergeBackendCart(localItemsData, token!);
                 setCartItems(backendCart); 
                 
-                // NEW: Clear the local storage items so they don't get merged repeatedly
                 if (localItemsData.length > 0) {
                     await clearLocalCart();
                 }
@@ -218,77 +283,116 @@ export default function ShoppingCart() {
         }
     }, []);
 
-    async function updateQuantity (id: string, delta: number)
+
+    async function updateQuantity(id: string, delta: 1 | -1) 
     {
-        const itemIndex = cartItems.findIndex(item => item.productId === id);
-        if (itemIndex === -1) return;
 
-        const currentItem = cartItems[itemIndex];
-        
-        // This calculates the final value (e.g., 4 + 1 = 5) which the backend expects
-        const newQuantity = Math.max(1, currentItem.quantity + delta);
+        const currentItem = cartItems.find(item => item.productId === id);
+        if (!currentItem) return;
 
-        if (newQuantity === currentItem.quantity) return; // Ignore if trying to go below 1
+        const originalQuantity = currentItem.quantity;
+        const newQuantity = Math.max(1, originalQuantity + delta);
 
-        // Optimistic UI Update
-        const updatedCart = [...cartItems];
-        updatedCart[itemIndex].quantity = newQuantity;
-        setCartItems(updatedCart);
+        if (originalQuantity === newQuantity) return;
 
-        // Fetch token based on platform
-        let token = Platform.OS === 'web' 
-            ? window.localStorage.getItem('userToken') 
-            : await SecureStore.getItemAsync('userToken');
+        // Optimistic UI update
+        setCartItems(prevCart => 
+            prevCart.map(item => 
+                item.productId === id 
+                    ? { ...item, quantity: newQuantity } 
+                    : item
+            )
+        );
 
-        if (!token) 
+
+        let token: string | null = null;
+        if (Platform.OS === 'web') 
         {
-            // Logged out: update locally
-            if (Platform.OS === 'web') {
-                window.localStorage.setItem(`cart_${id}`, newQuantity.toString());
-            }
+            token = window.localStorage.getItem('userToken');
         } 
         else 
         {
-            // Logged in: update backend with the absolute new value
-            const success = await apiUpdateQuantity({ id, quantity: newQuantity }, token);
-            if (!success) {
+            token = await SecureStore.getItemAsync('userToken');
+        }
+
+        let isSuccess = false;
+        if (token) 
+        {
+            isSuccess = await apiUpdateQuantity({ id, quantity: newQuantity }, token);
+
+            if (!isSuccess) 
+            {
                 showToast('Failed to update quantity', 'error');
-                setCartItems(cartItems); // Revert optimistic update
+                
+                // Revert using the exact original quantity, not a backward calculation
+                setCartItems(prevCart => 
+                    prevCart.map(item => 
+                        item.productId === id 
+                            ? { ...item, quantity: originalQuantity } 
+                            : item
+                    )
+                );
+            } 
+        }
+        else
+        {
+            if (Platform.OS === 'web') 
+            {
+                window.localStorage.setItem(`cart_${id}`, newQuantity.toString());
             }
         }
     };
 
-    async function removeItem (id: string) 
+    async function removeItem(id: string) 
     {
-        // Optimistic UI Update
-        const previousCart = [...cartItems];
-        const updatedCart = cartItems.filter(item => item.productId !== id);
-        setCartItems(updatedCart);
+        const itemIndex = cartItems.findIndex(item => item.productId === id);
+        if (itemIndex === -1) return;
+        
+        const itemToRemove = cartItems[itemIndex];
 
-        // Fetch token based on platform
-        let token = Platform.OS === 'web' 
-            ? window.localStorage.getItem('userToken') 
-            : await SecureStore.getItemAsync('userToken');
+        // Optimistic UI Update 
+        setCartItems(prevCart => prevCart.filter(item => item.productId !== id));
 
-        if (!token) 
+        let token: string | null = null;
+        if (Platform.OS === 'web') 
         {
-            // Logged out: remove locally
-            if (Platform.OS === 'web') {
-                window.localStorage.removeItem(`cart_${id}`);
-            }
-            showToast('Item removed', 'success');
+            token = window.localStorage.getItem('userToken');
         } 
         else 
         {
-            // Logged in: send delete request to backend
-            const success = await apiDeleteItem({ id }, token);
-            if (success) {
-                showToast('Item removed', 'success');
-            } else {
+            token = await SecureStore.getItemAsync('userToken');
+        }
+
+        let isSuccess = false;
+
+        if (token) 
+        {
+            isSuccess = await apiDeleteItem({ id }, token);
+
+            if (!isSuccess) 
+            {
                 showToast('Failed to remove item', 'error');
-                setCartItems(previousCart); // Revert optimistic update
+                
+                // Safe Revert: Insert the item back exactly where it was
+                setCartItems(prevCart => {
+                    const restoredCart = [...prevCart];
+                    restoredCart.splice(itemIndex, 0, itemToRemove);
+                    return restoredCart;
+                });
+                
+                return; 
             }
         }
+        else
+        {
+            // Local Storage Update
+            if (Platform.OS === 'web' && (!token || isSuccess)) 
+            {
+                window.localStorage.removeItem(`cart_${id}`);
+            }
+        }
+
+        showToast('Item removed', 'success');
     };
 
     function calculateTotal () 
@@ -306,7 +410,7 @@ export default function ShoppingCart() {
         if (fontsLoaded) {
             revealWipe();
         }
-    }, [fontsLoaded, revealWipe]);
+    }, [fontsLoaded, isLoading, revealWipe]);
 
     //#region COMPONENT
     const renderCartItem = ({ item }: { item: CartItem }) => (
@@ -343,7 +447,6 @@ export default function ShoppingCart() {
     if (!fontsLoaded || isLoading) return null;
     const cartTotal = calculateTotal();
 
-
     return (
         <View style={styles.mainContainer}>
             <Navbar />
@@ -371,18 +474,13 @@ export default function ShoppingCart() {
                                 <Text style={styles.summaryValue}>${cartTotal.toFixed(2)}</Text>
                             </View>
 
-                            <View style={styles.summaryRow}>
-                                <Text style={styles.summaryLabel}>Taxes (10%)</Text>
-                                <Text style={styles.summaryValue}>${(cartTotal * 0.10).toFixed(2)}</Text>
-                            </View>
-
                             <View style={[styles.summaryRow, styles.totalRow]}>
                                 <Text style={styles.totalLabel}>Total</Text>
-                                <Text style={styles.totalValue}>${(cartTotal * 1.10).toFixed(2)}</Text>
+                                <Text style={styles.totalValue}>${(cartTotal).toFixed(2)}</Text>
                             </View>
 
                             <TouchableOpacity
-                                style={styles.checkoutBtn}
+                                style={styles.checkoutButton}
                                 onPress={() => {
                                     if (!isAuthenticated) {
                                         router.push('/login');
@@ -392,7 +490,7 @@ export default function ShoppingCart() {
                                     }
                                 }}
                             >
-                                <Text style={styles.checkoutBtnText}>
+                                <Text style={styles.checkoutButtonText}>
                                     {isAuthenticated ? "Checkout" : "Login To Continue"}
                                 </Text>
 
@@ -428,17 +526,17 @@ const styles = StyleSheet.create({
 
     /* TYPOGRAPHY */
     pageTitle: {
+        marginBottom: 20,
         fontFamily: 'Montserrat_700Bold',
         fontSize: 28,
         color: '#283618',
-        marginBottom: 20,
     },
     emptyCartText: {
+        textAlign: 'center',
+        marginTop: 40,
         fontFamily: 'Montserrat_600SemiBold',
         fontSize: 16,
         color: '#606c38',
-        textAlign: 'center',
-        marginTop: 40,
     },
 
     /* CART ITEM CARD */
@@ -486,14 +584,14 @@ const styles = StyleSheet.create({
     quantityContainer: {
         flexDirection: 'row',
         alignItems: 'center',
+        height: 40,
         backgroundColor: '#e9e5d3',
         borderRadius: 8,
         paddingHorizontal: 5,
-        height: 40,
     },
     qtyBtn: {
-        paddingHorizontal: 12,
         paddingVertical: 5,
+        paddingHorizontal: 12,
     },
     qtyBtnText: {
         fontFamily: 'Montserrat_700Bold',
@@ -501,18 +599,18 @@ const styles = StyleSheet.create({
         color: '#283618',
     },
     qtyText: {
+        textAlign: 'center',
+        minWidth: 20,
         fontFamily: 'Montserrat_600SemiBold',
         fontSize: 16,
         color: '#283618',
-        minWidth: 20,
-        textAlign: 'center',
     },
 
     /* SUMMARY SECTION */
     summaryContainer: {
         backgroundColor: '#fefae0',
-        padding: 20,
         borderRadius: 12,
+        padding: 20,
         marginTop: 10,
     },
     summaryRow: {
@@ -531,8 +629,8 @@ const styles = StyleSheet.create({
         color: '#283618',
     },
     totalRow: {
-        borderTopWidth: 1,
         borderTopColor: '#d6cba6',
+        borderTopWidth: 1,
         paddingTop: 15,
         marginTop: 5,
     },
@@ -546,72 +644,17 @@ const styles = StyleSheet.create({
         fontSize: 20,
         color: '#bc4749',
     },
-    checkoutBtn: {
-        backgroundColor: '#283618',
-        padding: 15,
-        borderRadius: 8,
+    checkoutButton: {
         alignItems: 'center',
+        backgroundColor: '#283618',
+        borderRadius: 8,
+        padding: 15,
         marginTop: 20,
     },
-    checkoutBtnText: {
+    checkoutButtonText: {
         fontFamily: 'Montserrat_700Bold',
         fontSize: 18,
         color: '#fefae0',
     },
-
-    /* MODAL STYLES */
-    modalOverlay: {
-        flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.5)',
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: 20,
-    },
-    modalContent: {
-        backgroundColor: '#fefae0',
-        padding: 25,
-        borderRadius: 12,
-        width: '100%',
-        maxWidth: 400,
-    },
-    modalTitle: {
-        fontFamily: 'Montserrat_700Bold',
-        fontSize: 20,
-        color: '#283618',
-        marginBottom: 10,
-        textAlign: 'center',
-    },
-    modalBody: {
-        fontFamily: 'Montserrat_400Regular',
-        fontSize: 14,
-        color: '#606c38',
-        marginBottom: 20,
-        textAlign: 'center',
-        lineHeight: 20,
-    },
-    modalBtnPrimary: {
-        backgroundColor: '#283618',
-        padding: 15,
-        borderRadius: 8,
-        alignItems: 'center',
-        marginBottom: 10,
-    },
-    modalBtnTextPrimary: {
-        fontFamily: 'Montserrat_700Bold',
-        fontSize: 14,
-        color: '#fefae0',
-    },
-    modalBtnSecondary: {
-        backgroundColor: '#e9e5d3',
-        padding: 15,
-        borderRadius: 8,
-        alignItems: 'center',
-        marginBottom: 10,
-    },
-    modalBtnTextSecondary: {
-        fontFamily: 'Montserrat_600SemiBold',
-        fontSize: 14,
-        color: '#283618',
-    }
 });
 //#endregion
