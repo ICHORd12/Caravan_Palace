@@ -77,7 +77,7 @@ export default function Login() {
                 
                 setEmail('');
                 setPassword('');
-                navigateWithWipe('/'); // Navigate to home after successful login
+                navigateWithWipe('/'); 
 
             }
             else 

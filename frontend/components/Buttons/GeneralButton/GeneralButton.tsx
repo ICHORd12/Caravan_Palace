@@ -6,10 +6,11 @@ import { styles } from './GeneralButton.styles';
 type GeneralButtonProps = {
     textStyle?: StyleProp<TextStyle>;
     title: string;
+    disabled?: boolean;
     onPress: () => void;
 };
 
-const GeneralButton = ({textStyle, title, onPress}: GeneralButtonProps) => {
+const GeneralButton = ({textStyle, title, disabled=false, onPress}: GeneralButtonProps) => {
     const [isHovered, setIsHovered] = useState(false); // Used for underline style
     const hoverAnim = useRef(new Animated.Value(0)).current;
 
@@ -50,10 +51,12 @@ const GeneralButton = ({textStyle, title, onPress}: GeneralButtonProps) => {
             onPressIn={handleHoverIn}
             onPressOut={handleHoverOut}
             onPress={onPress}
+            disabled={disabled}
         >
             <Animated.Text style={[
                 styles.GeneralButton,
                 isHovered && styles.GeneralButtonHovered,
+                disabled && styles.GeneralButtonDisabled,
                 textStyle,
                 {
                     transform: [

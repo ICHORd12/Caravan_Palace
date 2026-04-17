@@ -1,6 +1,6 @@
 //#region IMPORTS
 import { useFocusEffect } from 'expo-router';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Alert, FlatList, LayoutChangeEvent, Platform, StyleSheet, Text, View } from 'react-native';
 
 import {
@@ -17,46 +17,22 @@ import Navbar from '@/components/Navbar/Navbar';
 import ProductCard from '@/components/ProductCard/ProductCard';
 import SearchBar from '@/components/SearchBar/SearchBar';
 
-import { API_BASE_URL, PRODUCTS_END_POINT } from '@/constants/API';
-import { Caravan } from '@/constants/BACKEND_MODELS';
+import { API_BASE_URL, PRODUCTS_END_POINT, GET_BACKEND_CART } from '@/constants/API';
+import { Caravan, FetchProductsAllResponse, GetBackendCartResponse } from '@/constants/BACKEND_MODELS';
 import { DEBUG } from '@/constants/CONSTANTS';
+import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/context/ToastContext';
 import { useTransition } from '@/context/TransitionContext';
+import getLocalCartMap from '@/functions/getLocalCartMap';
+import calculateCardDimensions from '@/functions/calculateCardDimensions';
 //#endregion
-
 
 //#region MOCK FILTER DATA
-const modelData = [
-    {label: 'Model 1', value: 'model1'},
-    {label: 'Model 2', value: 'model2'}
-];
-const priceData = [
-    {label: 'Under $20,000', value: 'under_20k'},
-    {label: '$20,000 - $40,000', value: '20k_to_40k'}
-];
-const fuelData = [
-    {label: 'Gasoline', value: 'gasoline'},
-    {label: 'Diesel', value: 'diesel'}
-];
-const weightData = [
-    {label: 'Lightweight', value: 'lightweight'},
-    {label: 'Standard', value: 'standard'}
-];
-const kitchenData = [
-    {label: 'Yes', value: 'yes'},
-    {label: 'No', value: 'no'}
-];
-
-const sortOptions = [
-    { label: 'Newest to Oldest', value: 'date_desc' },
-    { label: 'Oldest to Newest', value: 'date_asc' },
-    { label: 'Price: High to Low', value: 'price_desc' },
-    { label: 'Price: Low to High', value: 'price_asc' },
-];
+import { modelData, priceData, fuelData, weightData, kitchenData, sortOptions } from '@/constants/MOCKDATA'
 //#endregion
 
 
-//#region CONSTANTS
+//#region LOCAL CONSTANTS
 const MIN_CARD_WIDTH = 280;
 const GAP_WIDTH = 15;
 const MARGIN = 20;
@@ -68,20 +44,31 @@ interface fetchProductsInput {
     payload: Object; 
     API_BASE_URL: string; 
     PRODUCTS_END_POINT: string;
+    signal: AbortSignal 
 }
 
-interface calculateCardDimensionsInput {
-    containerWidth: number, 
-    MARGIN: number, 
-    GAP_WIDTH: number, 
-    MIN_CARD_WIDTH: number
+interface getQuantityInformationInput {
+    API_BASE_URL: string; 
+    GET_BACKEND_CART: string;
+    signal: AbortSignal 
 }
+
 //#endregion
 
 
-export default function caravans() {
+export default function Caravans() {
+    if (DEBUG) console.log("LOG:: caravans Component Rendered")
+    
+    const { token, isAuthenticated } = useAuth();
     const { showToast } = useToast();
     const { revealWipe } = useTransition();
+
+    const [containerWidth, setContainerWidth] = useState(0);
+    const [caravans, setCaravans] = useState<Caravan[]>([]);
+    const [cartQuantity, setCartQuantity] = useState<Record<string, number>>();
+    // Tracks which specific product IDs are currently awaiting a backend response
+    const [updatingItems, setUpdatingItems] = useState<Record<string, boolean>>({});
+    const [isCaravansLoaded, setisCaravansLoaded] = useState(false);
 
     const [isLoading, setIsLoading] = useState(false);
 
@@ -96,16 +83,13 @@ export default function caravans() {
     const [searchQuery, setSearchQuery] = useState("");
     const [sortOption, setSortOption] = useState("date_desc");
 
-    // Main Data
-    const [caravans, setCaravans] = useState<Caravan[]>([]);
-    const [containerWidth, setContainerWidth] = useState(0);
-
     let [fontsLoaded] = useFonts({
         Montserrat_700Bold,
         Montserrat_400Regular,
         Montserrat_600SemiBold,
     });
 
+    
 
     function clearFilters() 
     {
@@ -115,46 +99,174 @@ export default function caravans() {
         setSelectedWeights([]);
         setSelectedHasKitchens([]);
 
-        if (DEBUG) console.log("Executed: clearFilters");
+        if (DEBUG) console.log("LOG::Executed: clearFilters");
     }
 
-    const fetchProducts = useCallback(async ({ payload, API_BASE_URL, PRODUCTS_END_POINT }: fetchProductsInput) => {
-        setIsLoading(true);
+    function calculateContainerWidth(event: LayoutChangeEvent) 
+    {
+        const width = event.nativeEvent.layout.width;
+        setContainerWidth(width);
+
+        if (DEBUG) console.log("LOG::Executed: calculateContainerWidth");
+    }
+
+    
+    async function getQuantityInformation({ API_BASE_URL, GET_BACKEND_CART, signal }: getQuantityInformationInput) {
+        if (DEBUG) console.log("LOG::executed: getQuantityInformation");
+
+        const localCart = getLocalCartMap();
+
+        if (isAuthenticated) {
+            const _token = token
+
+            try {
+                const response = await fetch(`${API_BASE_URL}${GET_BACKEND_CART}`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${_token}`
+                    },
+                    signal: signal
+                });
+
+                if (response.ok) {
+                    const data: GetBackendCartResponse = await response.json();
+
+                    // Map backend items to our Record<string, number> state
+                    const newCartState: Record<string, number> = {};
+                    data.items.forEach(item => {
+                        newCartState[item.productId] = item.quantity;
+                    });
+                    
+                    setCartQuantity(newCartState);
+                }
+                else
+                {
+                    setCartQuantity({});
+                }
+            } catch (error: any) {
+                if (error.name !== 'AbortError') {
+                    console.error("Failed to merge cart:", error);
+                }
+            }
+        } else {
+            // Not authenticated: just populate state directly from local storage
+            setCartQuantity(localCart);
+        }
+    }
+
+    
+    async function handleUpdateQuantity(productId: string, newAmount: number) {
+        // Prevent race conditions: Ignore clicks if this specific item is already updating
+        if (updatingItems[productId]) return;
+
+        const validatedAmount = Math.max(0, newAmount);
+
+        // Keep track of the previous amount in case we need to revert
+        const previousAmount = cartQuantity?.[productId] || 0;
+
+        // 1. Update UI State immediately (Optimistic Update)
+        setCartQuantity((prev = {}) => {
+            const updatedCart = { ...prev };
+            if (validatedAmount === 0) {
+                delete updatedCart[productId];
+            } else {
+                updatedCart[productId] = validatedAmount;
+            }
+            return updatedCart;
+        });
+
+        // 2. Persist Changes
+        if (!isAuthenticated) {
+            // Unauthenticated: save to local storage
+            if (Platform.OS === 'web') {
+                if (validatedAmount === 0) {
+                    window.localStorage.removeItem(`cart_${productId}`);
+                } else {
+                    window.localStorage.setItem(`cart_${productId}`, validatedAmount.toString());
+                }
+            }
+        } else {
+            // Authenticated: Fire off an API call to update backend cart
+            setUpdatingItems(prev => ({ ...prev, [productId]: true })); // Lock the item
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/v2/cart/items/${productId}`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ quantity: validatedAmount })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                if (DEBUG) console.log(`LOG:: Successfully updated product ${productId} to quantity ${validatedAmount}`);
+
+            } catch (error) {
+                console.error("Failed to update cart item:", error);
+                showToast('Failed to update cart. Reverting changes.', 'error');
+                
+                // Revert UI State if backend fails
+                setCartQuantity((prev = {}) => {
+                    const revertedCart = { ...prev };
+                    if (previousAmount === 0) {
+                        delete revertedCart[productId];
+                    } else {
+                        revertedCart[productId] = previousAmount;
+                    }
+                    return revertedCart;
+                });
+            } finally {
+                // Unlock the item regardless of success or failure
+                setUpdatingItems(prev => ({ ...prev, [productId]: false })); 
+            }
+        }
+    }
+
+    async function fetchProducts({payload, API_BASE_URL, PRODUCTS_END_POINT, signal}: fetchProductsInput)
+    {
+        setisCaravansLoaded(false);
 
         try {
             const response = await fetch(`${API_BASE_URL}${PRODUCTS_END_POINT}`, {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
-                }
-                // Note: If you have a payload for filtering, you'd apply it here via query params or body depending on your API
+                },
+                signal: signal, 
             });
-
+            
             if (response.ok) 
             {
-                const data = await response.json();
-                console.log("Backend returned:", data); 
+                const data: FetchProductsAllResponse = await response.json();
                 setCaravans(data.products || []);
             } 
             else 
             {
-                if (response.status === 404) 
-                {
-                    showToast('ERROR 404');
-                } 
-                else 
-                {
-                    showToast('ERROR: Else');
-                }
+                if (response.status === 404) showToast('ERROR 404');
+                else showToast('ERROR: Else');
             }
-        } catch (error) {
-            console.error('Fetch error:', error);
-            Alert.alert('Network Error', 'Could not connect to the server.');
+
+        } catch(err: any) {
+            if (err.name === 'AbortError') 
+            {
+                if (DEBUG) console.log("Fetch aborted: User left the screen.");
+                return; 
+            }
+            showToast('Something went wrong while fetching products', 'error');
         } finally {
-            setIsLoading(false);
-            if (DEBUG) console.log("Executed: fetchProducts");
+            if (!signal?.aborted) 
+            {
+                setisCaravansLoaded(true);
+            }
+
+            if (DEBUG) console.log("LOG::Executed: fetchProducts");
         }
-    }, [showToast]);
+    } 
 
     function onApplyFilter() 
     {
@@ -171,48 +283,45 @@ export default function caravans() {
         console.log("Sending the following filters to backend:");
         console.log(JSON.stringify(filterPayload, null, 2));
 
-        fetchProducts({ payload: filterPayload, API_BASE_URL, PRODUCTS_END_POINT });
-
-        if (DEBUG) console.log("Executed: onApplyFilter");
+        if (DEBUG) console.log("LOG::Executed: onApplyFilter");
     }
 
-    function calculateContainerWidth(event: LayoutChangeEvent) 
-    {
-        const width = event.nativeEvent.layout.width;
-        setContainerWidth(width);
-
-        if (DEBUG) console.log("Executed: calculateContainerWidth");
-    }
-
-    function calculateCardDimensions({containerWidth, MARGIN, GAP_WIDTH, MIN_CARD_WIDTH}: calculateCardDimensionsInput) 
-    {
-        let _dynamicCardWidth = MIN_CARD_WIDTH;
-        let _rowCount = 1;
-        if (containerWidth > 0) 
-        {
-            const rawItemsPerRow = (containerWidth - (MARGIN * 2) + GAP_WIDTH) / (MIN_CARD_WIDTH + GAP_WIDTH);
-            _rowCount = Math.floor(rawItemsPerRow);
-            _rowCount = Math.max(1, _rowCount || 1);
-
-            _dynamicCardWidth = Math.floor((containerWidth - (MARGIN * 2) - (_rowCount - 1) * GAP_WIDTH) / _rowCount);
-        }
-
-        if (DEBUG) console.log("Executed: calculateCardDimensions");
-        
-        return { 
-            dynamicCardWidth: _dynamicCardWidth, 
-            rowCount: _rowCount 
-        };
-    }
-
+    
     useFocusEffect(
         useCallback(() => {
-            if (fontsLoaded) {
-                revealWipe();
-                fetchProducts({payload: {}, API_BASE_URL, PRODUCTS_END_POINT});
-            }
-        }, [fontsLoaded, fetchProducts, revealWipe])
+            const controller = new AbortController();
+
+            fetchProducts({
+                payload: {},
+                API_BASE_URL,
+                PRODUCTS_END_POINT,
+                signal: controller.signal
+            });
+
+            getQuantityInformation({
+                API_BASE_URL,
+                GET_BACKEND_CART,
+                signal: controller.signal
+            });
+
+            return () => controller.abort();
+        }, [isAuthenticated, token])
     );
+
+    useEffect(() => {
+        if (fontsLoaded && isCaravansLoaded) {
+            revealWipe();
+            if (DEBUG) console.log("LOG:: revealWipe triggered!");
+        }
+
+        if (DEBUG) console.log("LOG::Executed: useEffect");
+
+    }, [fontsLoaded, isCaravansLoaded, revealWipe]);
+
+
+    if (!fontsLoaded || !isCaravansLoaded) {
+        return <View></View>; 
+    }
     
     const { dynamicCardWidth, rowCount } = calculateCardDimensions({containerWidth, MARGIN, GAP_WIDTH, MIN_CARD_WIDTH});
     
@@ -329,6 +438,11 @@ export default function caravans() {
                                     <ProductCard 
                                         dimensionStyle={{ width: dynamicCardWidth, height: 400 }} 
                                         caravan={item} 
+                                        // Pass specific quantity (fallback to 0 if undefined)
+                                        quantity={cartQuantity?.[item.productId] || 0}
+                                        // Pass updater callback
+                                        disabled={!!updatingItems[item.productId]}
+                                        onUpdateQuantity={(newAmount) => handleUpdateQuantity(item.productId, newAmount)}
                                     />
                                 )}
                                 ListEmptyComponent={

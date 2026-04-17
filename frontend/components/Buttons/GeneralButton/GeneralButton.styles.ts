@@ -9,5 +9,8 @@ export const styles = StyleSheet.create({
   },
   GeneralButtonHovered: {
     textDecorationLine: 'underline', 
+  },
+  GeneralButtonDisabled: {
+    opacity: 0.5
   }
 });

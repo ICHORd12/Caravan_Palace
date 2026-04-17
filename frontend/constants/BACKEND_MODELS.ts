@@ -1,3 +1,10 @@
+/*
+
+These are the types that directly associated with the backend.   
+Usually responses.       
+                                        
+*/
+
 export type Caravan = {
     productId: string,
     categoryId: string,
@@ -40,6 +47,11 @@ export type FetchProductDetailsResponse = {
     products: Caravan[]
 }
 
+export type FetchProductsAllResponse = {
+    message: string,
+    products: Caravan[]
+}
+
 type Adjustment = {
     productId: string,
     requestedQuantity: number,
@@ -51,6 +63,11 @@ export type MergeBackendCartResponse = {
     message: string,
     items: CartItem[],
     adjustments: Adjustment[]
+}
+
+export type GetBackendCartResponse = {
+    message: string,
+    items: CartItem[]
 }
 
 

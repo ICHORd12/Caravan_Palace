@@ -44,14 +44,14 @@ export const TransitionProvider = ({ children }: { children: React.ReactNode }) 
     const revealWipe = useCallback(() => {
         setAnchor('right');
 
-        setTimeout(() => {
+        requestAnimationFrame(() => {
             Animated.timing(wipeWidth, {
                 toValue: 0,
                 duration: 400,
                 useNativeDriver: false,
                 easing: Easing.inOut(Easing.ease),
             }).start();
-        }, 10); 
+        }); 
     }, [wipeWidth]);
 
     // 3. Memoize the context value
@@ -63,7 +63,8 @@ export const TransitionProvider = ({ children }: { children: React.ReactNode }) 
             
             <Animated.View style={[
                 styles.globalWipe,
-                anchor === 'left' ? { left: 0 } : { right: 0 },
+                // Explicitly set the opposite side to undefined so they don't fight
+                anchor === 'left' ? { left: 0, right: undefined } : { right: 0, left: undefined },
                 {
                     width: wipeWidth.interpolate({
                         inputRange: [0, 100],
@@ -77,7 +78,10 @@ export const TransitionProvider = ({ children }: { children: React.ReactNode }) 
 
 const styles = StyleSheet.create({
     globalWipe: {
-        ...StyleSheet.absoluteFillObject,
+        position: 'absolute',
+        top: 0,
+        bottom: 0,
+        // Removed absoluteFillObject to prevent left/right conflicts
         backgroundColor: '#a94c0f', 
         zIndex: 99999,  
         elevation: 999, 

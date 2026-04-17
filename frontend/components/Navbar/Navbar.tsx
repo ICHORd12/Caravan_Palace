@@ -71,7 +71,10 @@ export default function Navbar({ navbarContainerStyle, navbarLinksStyle, loginRe
                 )}
 
                 {pathname !== '/login' && pathname !== '/register' && (
+                    <>
+                    <GeneralButton textStyle={styles.caravansTextStyle} title="CARAVANS" onPress={() => navigateWithWipe('/shopping/caravans')} />
                     <GeneralButton textStyle={styles.shopTextStyle} title="SHOP" onPress={() => navigateWithWipe('/shopping/shoppingCart')} />
+                    </>
                 )}
 
                 

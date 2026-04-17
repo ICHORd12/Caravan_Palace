@@ -5,12 +5,16 @@ import { TransitionProvider } from '../context/TransitionContext';
 
 export default function RootLayout() {
     return (
-        <AuthProvider>
-            <TransitionProvider>
-                <ToastProvider>
+        <TransitionProvider>
+            <ToastProvider>
+                <AuthProvider>
+
+
                     <Stack screenOptions={{ headerShown: false }} />
-                </ToastProvider>
-            </TransitionProvider>
-        </AuthProvider>
+
+
+                </AuthProvider>
+            </ToastProvider>
+        </TransitionProvider>
     );
 }

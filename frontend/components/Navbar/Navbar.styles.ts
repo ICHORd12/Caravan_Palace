@@ -10,6 +10,9 @@ export const styles = StyleSheet.create({
     shopTextStyle: {
         color: '#5b0f79',
     },
+    caravansTextStyle: {
+        color: '#50310c',
+    },
     navbarLinks: {
         flexDirection: 'row',
         gap: 40,
