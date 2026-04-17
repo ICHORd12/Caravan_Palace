@@ -155,6 +155,200 @@ Status: `200 OK`
 
 ---
 
+### `GET /api/v2/users/me/addresses`
+
+Returns all addresses of the authenticated user.
+
+#### Auth
+
+- Required
+
+#### Success Response
+
+Status: `200 OK`
+
+```json
+{
+  "message": "Addresses fetched successfully",
+  "addresses": [
+    {
+      "addressId": 10,
+      "userId": 1,
+      "label": "Home",
+      "fullAddress": "Istanbul",
+      "isDefault": true,
+      "createdAt": "2026-04-17T10:00:00.000Z",
+      "updatedAt": "2026-04-17T10:00:00.000Z"
+    }
+  ]
+}
+```
+
+#### Common Errors
+
+- `401` if token is missing
+- `401` if token is invalid
+
+---
+
+### `POST /api/v2/users/me/addresses`
+
+Creates a new address for the authenticated user.
+
+#### Auth
+
+- Required
+
+#### Request Body
+
+```json
+{
+  "label": "Work",
+  "fullAddress": "Levent, Istanbul",
+  "isDefault": false
+}
+```
+
+#### Notes
+
+- `label` and `fullAddress` are required and cannot be empty.
+- `isDefault` is optional. If omitted, it defaults to `false`.
+- If this is the first address for the user, backend automatically sets it as default.
+- If `isDefault` is `true`, backend clears previous default and makes this one default.
+
+#### Success Response
+
+Status: `201 Created`
+
+```json
+{
+  "message": "Address created successfully",
+  "address": {
+    "addressId": 11,
+    "userId": 1,
+    "label": "Work",
+    "fullAddress": "Levent, Istanbul",
+    "isDefault": false,
+    "createdAt": "2026-04-17T11:30:00.000Z",
+    "updatedAt": "2026-04-17T11:30:00.000Z"
+  }
+}
+```
+
+#### Common Errors
+
+- `400` if `label` is missing/invalid/empty
+- `400` if `fullAddress` is missing/invalid/empty
+- `400` if `isDefault` is present but not boolean
+- `401` if token is missing
+- `401` if token is invalid
+
+---
+
+### `PATCH /api/v2/users/me/addresses/:addressId`
+
+Updates an address of the authenticated user.
+
+#### Auth
+
+- Required
+
+#### Path Params
+
+- `addressId`: target address id
+
+#### Request Body
+
+All fields are optional, but at least one must be provided.
+
+```json
+{
+  "label": "Home 2",
+  "fullAddress": "Kadikoy, Istanbul",
+  "isDefault": true
+}
+```
+
+#### Notes
+
+- If `isDefault` is set to `true`, backend clears previous default and makes this address default.
+- If the address is currently default, setting `isDefault` to `false` is rejected to prevent having no default address.
+
+#### Success Response
+
+Status: `200 OK`
+
+```json
+{
+  "message": "Address updated successfully",
+  "address": {
+    "addressId": 11,
+    "userId": 1,
+    "label": "Home 2",
+    "fullAddress": "Kadikoy, Istanbul",
+    "isDefault": true,
+    "createdAt": "2026-04-17T11:30:00.000Z",
+    "updatedAt": "2026-04-17T12:00:00.000Z"
+  }
+}
+```
+
+#### Common Errors
+
+- `400` if no updatable fields are sent
+- `400` if any provided field is invalid
+- `400` if trying to unset the current default address (`isDefault: false`)
+- `401` if token is missing
+- `401` if token is invalid
+- `404` if address is not found for the authenticated user
+
+---
+
+### `DELETE /api/v2/users/me/addresses/:addressId`
+
+Deletes an address of the authenticated user.
+
+#### Auth
+
+- Required
+
+#### Path Params
+
+- `addressId`: target address id
+
+#### Notes
+
+- Deleting the last remaining address is rejected.
+- If the deleted address is default and other addresses remain, backend automatically promotes the most recently created remaining address as the new default.
+
+#### Success Response
+
+Status: `200 OK`
+
+```json
+{
+  "message": "Address deleted successfully",
+  "deletedAddress": {
+    "addressId": 11,
+    "userId": 1,
+    "label": "Work",
+    "fullAddress": "Levent, Istanbul",
+    "isDefault": false,
+    "createdAt": "2026-04-17T11:30:00.000Z",
+    "updatedAt": "2026-04-17T11:30:00.000Z"
+  }
+}
+```
+
+#### Common Errors
+
+- `400` if trying to delete the last address
+- `401` if token is missing
+- `401` if token is invalid
+- `404` if address is not found for the authenticated user
+
+---
+
 ## Product Endpoints
 
 ### `GET /api/v2/products/all`
