@@ -280,6 +280,68 @@ Status: `201 Created`
 
 ---
 
+### `GET /api/v2/products/search`
+
+Searches products by name or description.
+
+#### Required Query Parameter
+
+- `q`: search text (required)
+
+#### Optional Sort Parameter
+
+- `sort`: optional
+- Allowed values:
+  - `price_asc`
+  - `price_desc`
+
+#### Request Example
+
+Current backend reads both `q` and `sort` from query params for this endpoint:
+
+```http
+GET /api/v2/products/search?q=camper&sort=price_desc
+```
+
+#### Success Response
+
+Status: `200 OK`
+
+```json
+{
+  "message": "Products fetched successfully",
+  "products": [
+    {
+      "productId": "8924ed90-3acb-4e39-a9a5-5c47a84255e9",
+      "categoryId": "ff28bce6-284e-4c65-8557-0416f4274679",
+      "name": "Eco Camper Van",
+      "model": "2025",
+      "serialNumber": "SN-123",
+      "description": "Product description",
+      "quantityInStocks": 8,
+      "basePrice": 500000,
+      "currentPrice": 479999.99,
+      "warrantyStatus": "3 Years",
+      "distributorInfo": "Distributor name",
+      "berthCount": 4,
+      "fuelType": "Diesel",
+      "weightKg": 2500,
+      "hasKitchen": true,
+      "discountRate": 5,
+      "createdAt": "2026-04-09T00:00:00.000Z",
+      "updatedAt": "2026-04-09T00:00:00.000Z"
+    }
+  ]
+}
+```
+
+#### Common Errors
+
+- `400` if query parameter `q` is missing or empty
+- `400` if `sort` is invalid
+
+---
+
 ### `POST /api/v2/products/by-ids`
 
 Fetches products by a list of product ids.
@@ -643,6 +705,7 @@ Status: `200 OK`
 - `GET /api/v2/auth/test`
 - `GET /api/v2/products/all`
 - `GET /api/v2/products/category_name`
+- `GET /api/v2/products/search`
 - `POST /api/v2/products/by-ids`
 
 ### Protected Endpoints
@@ -668,4 +731,5 @@ Status: `200 OK`
    - `id`
    - `email`
 7. Cart item payloads use `productId` in path params and bodies.
+8. `GET /products/search` expects query parameter `q` and optional `sort` in query string.
 
