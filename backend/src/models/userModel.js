@@ -36,8 +36,10 @@ exports.createUser = async ({
   tax_id,
   home_address,
   role,
-}) => {
-  const result = await pool.query(
+}, dbClient) => {
+  const queryRunner = dbClient || pool;
+
+  const result = await queryRunner.query(
     `INSERT INTO users 
      (name, email, password, tax_id, home_address, role)
      VALUES ($1, $2, $3, $4, $5, $6)

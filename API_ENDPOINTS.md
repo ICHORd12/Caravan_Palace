@@ -48,6 +48,8 @@ Creates a new user account.
 #### Notes
 
 - `role` is optional. If not sent, backend defaults it to `"customer"`.
+- `home_address` is used to create the user's first row in the `addresses` table as a default address (`label = "Home"`, `is_default = true`).
+- Backend currently keeps compatibility by still writing `home_address` to the `users` table as well.
 
 #### Success Response
 
