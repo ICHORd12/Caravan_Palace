@@ -16,7 +16,7 @@ exports.validateCheckout = async ({ userId }) => {
   const stockIssues = [];
 
   for (const item of cartItems) {
-    const product = await productModel.getProductById(item.product_id);
+    const product = await productModel.getProductById(item.productId);
 
     if (!product) {
       stockIssues.push({
@@ -28,7 +28,7 @@ exports.validateCheckout = async ({ userId }) => {
       continue;
     }
 
-    if (item.quantity > product.quantity_in_stocks) {
+    if (item.quantity > product.quantityInStocks) {
       stockIssues.push({
         productId: product.productId,
         productName: product.productName,

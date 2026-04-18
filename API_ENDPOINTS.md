@@ -921,9 +921,67 @@ Status: `200 OK`
 
 All payment endpoints require authentication.
 
+### `POST /api/v2/checkout/validate`
+
+Validates the authenticated user's cart just before checkout to make sure every item is still available in stock.
+
+#### Auth
+
+- Required
+
+#### Request Body
+
+No request body is required.
+
+#### Notes
+
+- The backend reads the authenticated user's current cart.
+- If the cart is empty, validation fails.
+- If any product is missing or the requested quantity is greater than the currently available stock, the endpoint returns `isValid: false`.
+- This endpoint does not create an order, charge a card, or modify stock.
+
+#### Success Response
+
+Status: `200 OK`
+
+When checkout validation passes:
+
+```json
+{
+  "isValid": true,
+  "message": "Stock validation passed"
+}
+```
+
+When checkout validation finds stock issues:
+
+```json
+{
+  "isValid": false,
+  "message": "Some items are out of stock",
+  "details": [
+    {
+      "productId": "8924ed90-3acb-4e39-a9a5-5c47a84255e9",
+      "productName": "Eco Camper Van",
+      "requestedQuantity": 2,
+      "availableQuantity": 1
+    }
+  ]
+}
+```
+
+#### Common Errors
+
+- `400` if authenticated user id is missing in request context
+- `400` if the cart is empty
+- `401` if token is missing
+- `401` if token is invalid
+
+---
+
 ### `POST /api/v2/payments/`
 
-Processes a mock card payment for the authenticated user.
+Processes the authenticated user's checkout payment, creates an order, decreases stock, and clears the cart.
 
 #### Auth
 
@@ -933,7 +991,7 @@ Processes a mock card payment for the authenticated user.
 
 ```json
 {
-  "amount": 479999.99,
+  "deliveryAddress": "Levent, Istanbul",
   "card": {
     "cardNumber": "4111 1111 1111 1111",
     "cardHolderName": "John Doe",
@@ -946,7 +1004,7 @@ Processes a mock card payment for the authenticated user.
 
 #### Notes
 
-- `amount` is required and must be greater than `0`.
+- `deliveryAddress` is required and cannot be empty.
 - `card` is required and must be a JSON object.
 - `card.cardNumber` must contain 13 to 19 digits after spaces and hyphens are removed, and it must pass Luhn validation.
 - `card.cardHolderName` is required and cannot be empty.
@@ -954,7 +1012,9 @@ Processes a mock card payment for the authenticated user.
 - `card.expiryYear` must be an integer between `2000` and `2100`.
 - The card expiry date must not be in the past.
 - `card.cvv` must be 3 or 4 digits.
-- This endpoint currently returns a mock success payload and exposes only the last 4 digits of the card number in the response.
+- The backend calculates the total amount from the current cart items. The client does not send `amount`.
+- Before creating the order, the backend re-checks stock using locked product rows inside a transaction.
+- If payment succeeds, the backend creates an order, creates order items, decreases product stock, and clears the user's cart.
 
 #### Success Response
 
@@ -969,6 +1029,13 @@ Status: `200 OK`
     "cardLast4": "1111",
     "cardHolderName": "John Doe",
     "status": "success"
+  },
+  "order": {
+    "orderId": "7e8f8f62-4a2f-4a60-bec5-3bfdfb879c1b",
+    "customerId": "b3c3f74e-4aba-4e46-8e5c-53c344f2d259",
+    "cardLast4": "1111",
+    "totalPrice": 479999.99,
+    "deliveryAddress": "Levent, Istanbul"
   }
 }
 ```
@@ -976,9 +1043,11 @@ Status: `200 OK`
 #### Common Errors
 
 - `400` if authenticated user id is missing in request context
-- `400` if `amount` is missing, not numeric, or less than or equal to `0`
+- `400` if `deliveryAddress` is missing or empty
+- `400` if the cart is empty
 - `400` if `card` is missing or not an object
 - `400` if any card field is missing or invalid
+- `400` if some cart items are out of stock
 - `401` if token is missing
 - `401` if token is invalid
 
@@ -1005,6 +1074,7 @@ Status: `200 OK`
 - `DELETE /api/v2/cart/items/:productId`
 - `DELETE /api/v2/cart/`
 - `POST /api/v2/cart/merge`
+- `POST /api/v2/checkout/validate`
 - `POST /api/v2/payments/`
 
 ## Important Implementation Notes For Frontend
@@ -1019,4 +1089,6 @@ Status: `200 OK`
 6. `/users/me` returns a wrapped profile payload with `message` and `user`.
 7. Cart item payloads use `productId` in path params and bodies.
 8. `GET /products/search` expects query parameter `q` and optional `sort` in query string.
+9. `POST /checkout/validate` is the pre-payment stock safety check for the current cart.
+10. `POST /payments/` now computes the total from the cart on the backend and creates an order on success.
 
