@@ -142,7 +142,7 @@ exports.deleteCartItem = async ({ userId, productId }) => {
 
 
 exports.clearCart = async (userId) => {
-  const deletedItems = await cartModel.clearCart(userId);
+  const deletedItems = await cartModel.clearCartByUserId(userId);
 
   return {
     message: "Cart cleared successfully",

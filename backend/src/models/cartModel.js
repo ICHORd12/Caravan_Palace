@@ -107,10 +107,9 @@ exports.deleteCartItem = async (userId, productId) => {
 };
 
 
-exports.clearCart = async (userId, client) => {
+exports.clearCartByUserId = async (userId, client) => {
   const executor = client || pool;
-  
-  const result = await executer.query(
+  const result = await executor.query(
     `
     DELETE FROM cart_items
     WHERE user_id = $1
