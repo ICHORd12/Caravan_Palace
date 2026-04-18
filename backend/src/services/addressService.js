@@ -1,52 +1,7 @@
 const pool = require("../config/db");
 const addressModel = require("../models/addressModel");
 const ApiError = require("../utils/ApiError");
-
-const hasOwn = (obj, key) => Object.prototype.hasOwnProperty.call(obj, key);
-
-const validateRequiredString = (value, fieldName) => {
-  if (typeof value !== "string") {
-    throw new ApiError(400, `${fieldName} is required`);
-  }
-
-  const trimmedValue = value.trim();
-
-  if (!trimmedValue) {
-    throw new ApiError(400, `${fieldName} cannot be empty`);
-  }
-
-  return trimmedValue;
-};
-
-const validateOptionalString = (value, fieldName) => {
-  if (typeof value !== "string") {
-    throw new ApiError(400, `${fieldName} must be a string`);
-  }
-
-  const trimmedValue = value.trim();
-
-  if (!trimmedValue) {
-    throw new ApiError(400, `${fieldName} cannot be empty`);
-  }
-
-  return trimmedValue;
-};
-
-const validateOptionalBoolean = (value, fieldName) => {
-  if (typeof value !== "boolean") {
-    throw new ApiError(400, `${fieldName} must be a boolean`);
-  }
-
-  return value;
-};
-
-const validateObjectPayload = (value) => {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    throw new ApiError(400, "Request body must be a JSON object");
-  }
-
-  return value;
-};
+const {hasOwn, validateRequiredString, validateOptionalString, validateOptionalBoolean, validateObjectPayload} = require("../utils/validators");
 
 exports.getAddresses = async (userId) => {
   const addresses = await addressModel.getAddressesByUserId(userId);
