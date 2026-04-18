@@ -1,7 +1,7 @@
 const pool = require("../config/db");
 const addressModel = require("../models/addressModel");
 const ApiError = require("../utils/ApiError");
-const {hasOwn, validateRequiredString, validateOptionalString, validateOptionalBoolean, validateObjectPayload} = require("../utils/validators");
+const {hasOwn, validateRequiredString, validateOptionalString, validateOptionalBoolean, validateObjectPayload} = require("../utils/addressValidators");
 
 exports.getAddresses = async (userId) => {
   const addresses = await addressModel.getAddressesByUserId(userId);

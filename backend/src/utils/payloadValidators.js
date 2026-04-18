@@ -1,4 +1,4 @@
-const ApiError = require("../utils/ApiError");
+const ApiError = require("./ApiError");
 
 exports.hasOwn = (obj, key) => Object.prototype.hasOwnProperty.call(obj, key);
 
