@@ -48,6 +48,8 @@ Creates a new user account.
 #### Notes
 
 - `role` is optional. If not sent, backend defaults it to `"customer"`.
+- `home_address` is used to create the user's first row in the `addresses` table as a default address (`label = "Home"`, `is_default = true`).
+- Backend currently keeps compatibility by still writing `home_address` to the `users` table as well.
 
 #### Success Response
 
@@ -140,8 +142,33 @@ Status: `200 OK`
 
 ```json
 {
-  "id": 1,
-  "email": "john@example.com"
+  "message": "User fetched successfully",
+  "user": {
+    "id": 1,
+    "name": "John Doe",
+    "email": "john@example.com",
+    "taxId": "1234567890",
+    "role": "customer",
+    "createdAt": "2026-04-09T00:00:00.000Z",
+    "addresses": [
+      {
+        "addressId": 10,
+        "label": "Home",
+        "fullAddress": "Istanbul, ...",
+        "isDefault": true,
+        "createdAt": "2026-04-17T10:00:00.000Z",
+        "updatedAt": "2026-04-17T10:00:00.000Z"
+      },
+      {
+        "addressId": 11,
+        "label": "Office",
+        "fullAddress": "Ankara, ...",
+        "isDefault": false,
+        "createdAt": "2026-04-16T10:00:00.000Z",
+        "updatedAt": "2026-04-16T10:00:00.000Z"
+      }
+    ]
+  }
 }
 ```
 
@@ -150,6 +177,200 @@ Status: `200 OK`
 - `401` if token is missing
 - `401` if token is invalid
 - `404` if user is not found
+
+---
+
+### `GET /api/v2/users/me/addresses`
+
+Returns all addresses of the authenticated user.
+
+#### Auth
+
+- Required
+
+#### Success Response
+
+Status: `200 OK`
+
+```json
+{
+  "message": "Addresses fetched successfully",
+  "addresses": [
+    {
+      "addressId": 10,
+      "userId": 1,
+      "label": "Home",
+      "fullAddress": "Istanbul",
+      "isDefault": true,
+      "createdAt": "2026-04-17T10:00:00.000Z",
+      "updatedAt": "2026-04-17T10:00:00.000Z"
+    }
+  ]
+}
+```
+
+#### Common Errors
+
+- `401` if token is missing
+- `401` if token is invalid
+
+---
+
+### `POST /api/v2/users/me/addresses`
+
+Creates a new address for the authenticated user.
+
+#### Auth
+
+- Required
+
+#### Request Body
+
+```json
+{
+  "label": "Work",
+  "fullAddress": "Levent, Istanbul",
+  "isDefault": false
+}
+```
+
+#### Notes
+
+- `label` and `fullAddress` are required and cannot be empty.
+- `isDefault` is optional. If omitted, it defaults to `false`.
+- If this is the first address for the user, backend automatically sets it as default.
+- If `isDefault` is `true`, backend clears previous default and makes this one default.
+
+#### Success Response
+
+Status: `201 Created`
+
+```json
+{
+  "message": "Address created successfully",
+  "address": {
+    "addressId": 11,
+    "userId": 1,
+    "label": "Work",
+    "fullAddress": "Levent, Istanbul",
+    "isDefault": false,
+    "createdAt": "2026-04-17T11:30:00.000Z",
+    "updatedAt": "2026-04-17T11:30:00.000Z"
+  }
+}
+```
+
+#### Common Errors
+
+- `400` if `label` is missing/invalid/empty
+- `400` if `fullAddress` is missing/invalid/empty
+- `400` if `isDefault` is present but not boolean
+- `401` if token is missing
+- `401` if token is invalid
+
+---
+
+### `PATCH /api/v2/users/me/addresses/:addressId`
+
+Updates an address of the authenticated user.
+
+#### Auth
+
+- Required
+
+#### Path Params
+
+- `addressId`: target address id
+
+#### Request Body
+
+All fields are optional, but at least one must be provided.
+
+```json
+{
+  "label": "Home 2",
+  "fullAddress": "Kadikoy, Istanbul",
+  "isDefault": true
+}
+```
+
+#### Notes
+
+- If `isDefault` is set to `true`, backend clears previous default and makes this address default.
+- If the address is currently default, setting `isDefault` to `false` is rejected to prevent having no default address.
+
+#### Success Response
+
+Status: `200 OK`
+
+```json
+{
+  "message": "Address updated successfully",
+  "address": {
+    "addressId": 11,
+    "userId": 1,
+    "label": "Home 2",
+    "fullAddress": "Kadikoy, Istanbul",
+    "isDefault": true,
+    "createdAt": "2026-04-17T11:30:00.000Z",
+    "updatedAt": "2026-04-17T12:00:00.000Z"
+  }
+}
+```
+
+#### Common Errors
+
+- `400` if no updatable fields are sent
+- `400` if any provided field is invalid
+- `400` if trying to unset the current default address (`isDefault: false`)
+- `401` if token is missing
+- `401` if token is invalid
+- `404` if address is not found for the authenticated user
+
+---
+
+### `DELETE /api/v2/users/me/addresses/:addressId`
+
+Deletes an address of the authenticated user.
+
+#### Auth
+
+- Required
+
+#### Path Params
+
+- `addressId`: target address id
+
+#### Notes
+
+- Deleting the last remaining address is rejected.
+- If the deleted address is default and other addresses remain, backend automatically promotes the most recently created remaining address as the new default.
+
+#### Success Response
+
+Status: `200 OK`
+
+```json
+{
+  "message": "Address deleted successfully",
+  "deletedAddress": {
+    "addressId": 11,
+    "userId": 1,
+    "label": "Work",
+    "fullAddress": "Levent, Istanbul",
+    "isDefault": false,
+    "createdAt": "2026-04-17T11:30:00.000Z",
+    "updatedAt": "2026-04-17T11:30:00.000Z"
+  }
+}
+```
+
+#### Common Errors
+
+- `400` if trying to delete the last address
+- `401` if token is missing
+- `401` if token is invalid
+- `404` if address is not found for the authenticated user
 
 ---
 
@@ -277,6 +498,68 @@ Status: `201 Created`
 #### Common Errors
 
 - `404` if no products match the given category
+
+---
+
+### `GET /api/v2/products/search`
+
+Searches products by name or description.
+
+#### Required Query Parameter
+
+- `q`: search text (required)
+
+#### Optional Sort Parameter
+
+- `sort`: optional
+- Allowed values:
+  - `price_asc`
+  - `price_desc`
+
+#### Request Example
+
+Current backend reads both `q` and `sort` from query params for this endpoint:
+
+```http
+GET /api/v2/products/search?q=camper&sort=price_desc
+```
+
+#### Success Response
+
+Status: `200 OK`
+
+```json
+{
+  "message": "Products fetched successfully",
+  "products": [
+    {
+      "productId": "8924ed90-3acb-4e39-a9a5-5c47a84255e9",
+      "categoryId": "ff28bce6-284e-4c65-8557-0416f4274679",
+      "name": "Eco Camper Van",
+      "model": "2025",
+      "serialNumber": "SN-123",
+      "description": "Product description",
+      "quantityInStocks": 8,
+      "basePrice": 500000,
+      "currentPrice": 479999.99,
+      "warrantyStatus": "3 Years",
+      "distributorInfo": "Distributor name",
+      "berthCount": 4,
+      "fuelType": "Diesel",
+      "weightKg": 2500,
+      "hasKitchen": true,
+      "discountRate": 5,
+      "createdAt": "2026-04-09T00:00:00.000Z",
+      "updatedAt": "2026-04-09T00:00:00.000Z"
+    }
+  ]
+}
+```
+
+#### Common Errors
+
+- `400` if query parameter `q` is missing or empty
+- `400` if `sort` is invalid
 
 ---
 
@@ -643,6 +926,7 @@ Status: `200 OK`
 - `GET /api/v2/auth/test`
 - `GET /api/v2/products/all`
 - `GET /api/v2/products/category_name`
+- `GET /api/v2/products/search`
 - `POST /api/v2/products/by-ids`
 
 ### Protected Endpoints
@@ -664,8 +948,7 @@ Status: `200 OK`
    - `price_asc`
    - `price_desc`
 5. `POST /products/by-ids` accepts `productIds` array and optional `sort`.
-6. `/users/me` currently returns only:
-   - `id`
-   - `email`
+6. `/users/me` returns a wrapped profile payload with `message` and `user`.
 7. Cart item payloads use `productId` in path params and bodies.
+8. `GET /products/search` expects query parameter `q` and optional `sort` in query string.
 

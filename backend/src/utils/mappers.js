@@ -59,7 +59,23 @@ exports.mapUser = (row) => {
     userId: row.user_id,
     name: row.name,
     email: row.email,
+    taxId: row.tax_id,
     role: row.role,
+    createdAt: row.created_at,
     // password intentionally not included
+  };
+};
+
+exports.mapAddress = (row) => {
+  if (!row) return null;
+
+  return {
+    addressId: row.address_id,
+    userId: row.user_id,
+    label: row.label,
+    fullAddress: row.full_address,
+    isDefault: row.is_default,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
   };
 };
