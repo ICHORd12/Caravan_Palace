@@ -2,7 +2,6 @@ const checkoutService = require("../services/checkoutService");
 
 exports.validateCheckout = async (req, res, next) => {
   try {
-    console.log(req);
     const result = await checkoutService.validateCheckout({
       userId: req.user.userId,
     });
