@@ -2,8 +2,8 @@ const paymentService = require("../services/paymentService");
 
 exports.payWithCard = async (req, res, next) => {
   try {
-    const result = await paymentService.processMockPayment({
-      userId: req.user.id,
+    const result = await paymentService.processPayment({
+      userId: req.user.userId,
       card: req.body.card,
       amount: req.body.amount,
     });

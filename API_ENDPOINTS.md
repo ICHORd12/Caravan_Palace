@@ -917,6 +917,73 @@ Status: `200 OK`
 
 ---
 
+## Payment Endpoints
+
+All payment endpoints require authentication.
+
+### `POST /api/v2/payments/`
+
+Processes a mock card payment for the authenticated user.
+
+#### Auth
+
+- Required
+
+#### Request Body
+
+```json
+{
+  "amount": 479999.99,
+  "card": {
+    "cardNumber": "4111 1111 1111 1111",
+    "cardHolderName": "John Doe",
+    "expiryMonth": 12,
+    "expiryYear": 2028,
+    "cvv": "123"
+  }
+}
+```
+
+#### Notes
+
+- `amount` is required and must be greater than `0`.
+- `card` is required and must be a JSON object.
+- `card.cardNumber` must contain 13 to 19 digits after spaces and hyphens are removed, and it must pass Luhn validation.
+- `card.cardHolderName` is required and cannot be empty.
+- `card.expiryMonth` must be an integer between `1` and `12`.
+- `card.expiryYear` must be an integer between `2000` and `2100`.
+- The card expiry date must not be in the past.
+- `card.cvv` must be 3 or 4 digits.
+- This endpoint currently returns a mock success payload and exposes only the last 4 digits of the card number in the response.
+
+#### Success Response
+
+Status: `200 OK`
+
+```json
+{
+  "message": "Payment successful",
+  "payment": {
+    "userId": "b3c3f74e-4aba-4e46-8e5c-53c344f2d259",
+    "amount": 479999.99,
+    "cardLast4": "1111",
+    "cardHolderName": "John Doe",
+    "status": "success"
+  }
+}
+```
+
+#### Common Errors
+
+- `400` if authenticated user id is missing in request context
+- `400` if `amount` is missing, not numeric, or less than or equal to `0`
+- `400` if `card` is missing or not an object
+- `400` if any card field is missing or invalid
+- `401` if token is missing
+- `401` if token is invalid
+
+---
+
 ## Quick Frontend Summary
 
 ### Public Endpoints
@@ -938,6 +1005,7 @@ Status: `200 OK`
 - `DELETE /api/v2/cart/items/:productId`
 - `DELETE /api/v2/cart/`
 - `POST /api/v2/cart/merge`
+- `POST /api/v2/payments/`
 
 ## Important Implementation Notes For Frontend
 
