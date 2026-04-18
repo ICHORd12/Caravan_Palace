@@ -59,7 +59,9 @@ exports.mapUser = (row) => {
     userId: row.user_id,
     name: row.name,
     email: row.email,
+    taxId: row.tax_id,
     role: row.role,
+    createdAt: row.created_at,
     // password intentionally not included
   };
 };

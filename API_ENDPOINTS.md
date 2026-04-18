@@ -142,8 +142,33 @@ Status: `200 OK`
 
 ```json
 {
-  "id": 1,
-  "email": "john@example.com"
+  "message": "User fetched successfully",
+  "user": {
+    "id": 1,
+    "name": "John Doe",
+    "email": "john@example.com",
+    "taxId": "1234567890",
+    "role": "customer",
+    "createdAt": "2026-04-09T00:00:00.000Z",
+    "addresses": [
+      {
+        "addressId": 10,
+        "label": "Home",
+        "fullAddress": "Istanbul, ...",
+        "isDefault": true,
+        "createdAt": "2026-04-17T10:00:00.000Z",
+        "updatedAt": "2026-04-17T10:00:00.000Z"
+      },
+      {
+        "addressId": 11,
+        "label": "Office",
+        "fullAddress": "Ankara, ...",
+        "isDefault": false,
+        "createdAt": "2026-04-16T10:00:00.000Z",
+        "updatedAt": "2026-04-16T10:00:00.000Z"
+      }
+    ]
+  }
 }
 ```
 
@@ -923,9 +948,7 @@ Status: `200 OK`
    - `price_asc`
    - `price_desc`
 5. `POST /products/by-ids` accepts `productIds` array and optional `sort`.
-6. `/users/me` currently returns only:
-   - `id`
-   - `email`
+6. `/users/me` returns a wrapped profile payload with `message` and `user`.
 7. Cart item payloads use `productId` in path params and bodies.
 8. `GET /products/search` expects query parameter `q` and optional `sort` in query string.
 

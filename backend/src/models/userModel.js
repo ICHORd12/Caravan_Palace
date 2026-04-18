@@ -21,7 +21,7 @@ exports.findByEmail = async (email) => {
 
 exports.findById = async (id) => {
   const result = await pool.query(
-    `SELECT user_id, name, email, role
+    `SELECT user_id, name, email, tax_id, role, created_at
      FROM users
      WHERE user_id = $1`,
     [id]
