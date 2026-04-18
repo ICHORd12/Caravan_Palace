@@ -1,8 +1,10 @@
 const pool = require("../config/db");
 const { mapCartItem, mapCartItemWithProduct } = require("../utils/mappers");
 
-exports.getCartItemsByUserId = async (userId) => {
-  const result = await pool.query(
+exports.getCartItemsByUserId = async (userId, client) => {
+  const executor = client || pool;
+
+  const result = await executor.query(
     `
     SELECT
       ci.cart_item_id,
@@ -105,8 +107,10 @@ exports.deleteCartItem = async (userId, productId) => {
 };
 
 
-exports.clearCart = async (userId) => {
-  const result = await pool.query(
+exports.clearCart = async (userId, client) => {
+  const executor = client || pool;
+  
+  const result = await executer.query(
     `
     DELETE FROM cart_items
     WHERE user_id = $1

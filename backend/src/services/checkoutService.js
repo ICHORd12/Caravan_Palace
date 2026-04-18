@@ -20,8 +20,8 @@ exports.validateCheckout = async ({ userId }) => {
 
     if (!product) {
       stockIssues.push({
-        productId: item.product_id,
-        productName: item.name || "Unknown product",
+        productId: item.productId,
+        productName: item.productName || "Unknown product",
         requestedQuantity: item.quantity,
         availableQuantity: 0,
       });
@@ -30,10 +30,10 @@ exports.validateCheckout = async ({ userId }) => {
 
     if (item.quantity > product.quantity_in_stocks) {
       stockIssues.push({
-        productId: product.product_id,
-        productName: product.name,
+        productId: product.productId,
+        productName: product.productName,
         requestedQuantity: item.quantity,
-        availableQuantity: product.quantity_in_stocks,
+        availableQuantity: product.quantityInStocks,
       });
     }
   }

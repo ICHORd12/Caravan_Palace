@@ -5,7 +5,7 @@ exports.payWithCard = async (req, res, next) => {
     const result = await paymentService.processPayment({
       userId: req.user.userId,
       card: req.body.card,
-      amount: req.body.amount,
+      deliveryAddress: req.body.deliveryAddress,
     });
 
     res.status(200).json(result);
