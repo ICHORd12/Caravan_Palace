@@ -12,7 +12,7 @@ exports.getCart = async (userId) => {
 };
 
 
-exports.addItemToCart = async ({ userId, productId, quantity }) => {
+exports.setCartItemQuantity = async ({ userId, productId, quantity }) => {
   if (!productId) {
     throw new ApiError(400, "Product ID is required");
   }
@@ -21,8 +21,33 @@ exports.addItemToCart = async ({ userId, productId, quantity }) => {
     throw new ApiError(400, "Quantity is required");
   }
 
-  if (!Number.isInteger(quantity) || quantity <= 0) {
-    throw new ApiError(400, "Quantity must be a positive integer");
+  const parsedQuantity = Number(quantity);
+
+  if (!Number.isInteger(parsedQuantity)) {
+    throw new ApiError(400, "Quantity must be an integer");
+  }
+
+  const existingCartItem = await cartModel.getCartItemByUserIdAndProductId(
+    userId,
+    productId
+  );
+
+  if (parsedQuantity <= 0) {
+    if (existingCartItem) {
+      await cartModel.deleteCartItem(userId, productId);
+
+      return {
+        message: "Cart item removed successfully",
+        cartItem: null,
+      };
+    }
+
+    else {
+      return {
+        message: "There is no cart item with the given productId: " + productId,
+        cartItem: null
+      }
+    }
   }
 
   const product = await productModel.getProductById(productId);
@@ -31,39 +56,30 @@ exports.addItemToCart = async ({ userId, productId, quantity }) => {
     throw new ApiError(404, "Product not found");
   }
 
-  let availableStockQuantity = product.quantityInStocks;
+  const availableStockQuantity = product.quantityInStocks;
 
-  const existingCartItem = await cartModel.getCartItemByUserIdAndProductId(
-    userId,
-    productId
-  );
+  if (parsedQuantity > availableStockQuantity) {
+    throw new ApiError(
+      400,
+      "Requested quantity exceeds available stock (" + availableStockQuantity + ")"
+    );
+  }
 
   if (existingCartItem) {
-    const newQuantity = existingCartItem.quantity + quantity;
-    if (newQuantity > availableStockQuantity) {
-        throw new ApiError(400, "Requested quantity exceeds available stock (" + availableStockQuantity + ")");
-    }
-
-    await cartModel.updateCartItemQuantity(
-      userId,
-      productId,
-      newQuantity
-    );
+    await cartModel.updateCartItemQuantity(userId, productId, parsedQuantity);
   } else {
-    if (quantity > availableStockQuantity) {
-        throw new ApiError(400, "Requested quantity exceeds available stock (" + availableStockQuantity + ")");
-    }
     await cartModel.createCartItem({
       userId,
       productId,
-      quantity,
+      quantity: parsedQuantity,
     });
   }
 
-  const cartItem = await cartModel.getCartItemWithProductByUserIdAndProductId(userId, productId);
+  const cartItem =
+    await cartModel.getCartItemWithProductByUserIdAndProductId(userId, productId);
 
   return {
-    message: "Item added to cart successfully",
+    message: "Cart item quantity set successfully",
     cartItem,
   };
 };
@@ -142,7 +158,7 @@ exports.deleteCartItem = async ({ userId, productId }) => {
 
 
 exports.clearCart = async (userId) => {
-  const deletedItems = await cartModel.clearCart(userId);
+  const deletedItems = await cartModel.clearCartByUserId(userId);
 
   return {
     message: "Cart cleared successfully",

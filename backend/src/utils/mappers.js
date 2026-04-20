@@ -79,3 +79,28 @@ exports.mapAddress = (row) => {
     updatedAt: row.updated_at,
   };
 };
+
+exports.mapOrder = (row) => {
+  return {
+    orderId: row.order_id,
+    customerId: row.customer_id,
+    cardLast4: row.card_last4,
+    totalPrice: Number(row.total_price),
+    invoiceNumber: row.invoice_number,
+    status: row.status,
+    deliveryAddress: row.delivery_address,
+    orderDate: row.order_date,
+  };
+}
+
+exports.mapOrderItem = (row) => {
+  return {
+    orderItemId: row.order_item_id,
+    orderId: row.order_id,
+    productId: row.product_id,
+    quantity: row.quantity,
+    purchasedPrice: Number(row.purchased_price),
+    isDelivered: row.is_delivered,
+  };
+}
+

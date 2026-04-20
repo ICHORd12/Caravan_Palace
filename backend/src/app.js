@@ -11,7 +11,7 @@ app.use(cors());
 
 app.use(express.json());
 app.use(debugLogger)
-app.use("/api/v2", routes);
+app.use("/api/v3", routes);
 
 app.use(notFoundMiddleware);
 app.use(errorMiddleware);
