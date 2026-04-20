@@ -5,7 +5,7 @@ const authMiddleware = require("../middlewares/authMiddleware");
 const router = express.Router();
 
 router.get("/", authMiddleware, cartController.getCart);
-router.post("/items", authMiddleware, cartController.addItemToCart);
+router.post("/items", authMiddleware, cartController.setCartItemQuantity);
 router.patch("/items/:productId", authMiddleware, cartController.updateCartItemQuantity);
 router.delete("/items/:productId", authMiddleware, cartController.deleteCartItem);
 router.delete("/", authMiddleware, cartController.clearCart);

@@ -12,12 +12,12 @@ exports.getCart = async (req, res, next) => {
   }
 };
 
-exports.addItemToCart = async (req, res, next) => {
+exports.setCartItemQuantity = async (req, res, next) => {
   try {
     const userId = req.user.userId;
     const { productId, quantity } = req.body;
 
-    const result = await cartService.addItemToCart({
+    const result = await cartService.setCartItemQuantity({
       userId,
       productId,
       quantity,
