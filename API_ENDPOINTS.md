@@ -4,8 +4,8 @@ This document summarizes the backend API endpoints currently implemented in the 
 
 ## Base URL
 
-- Base path: `/api/v2`
-- Example local URL: `http://localhost:<PORT>/api/v2`
+- Base path: `/api/v3`
+- Example local URL: `http://localhost:<PORT>/api/v3`
 
 ## General Notes
 
@@ -28,7 +28,7 @@ Authorization: Bearer <token>
 
 ## Auth Endpoints
 
-### `POST /api/v2/auth/register`
+### `POST /api/v3/auth/register`
 
 Creates a new user account.
 
@@ -73,7 +73,7 @@ Status: `201 Created`
 
 ---
 
-### `POST /api/v2/auth/login`
+### `POST /api/v3/auth/login`
 
 Logs a user in and returns a JWT token.
 
@@ -110,7 +110,7 @@ Status: `200 OK`
 
 ---
 
-### `GET /api/v2/auth/test`
+### `GET /api/v3/auth/test`
 
 Simple test endpoint.
 
@@ -128,7 +128,7 @@ Test route works
 
 ## User Endpoints
 
-### `GET /api/v2/users/me`
+### `GET /api/v3/users/me`
 
 Returns the currently authenticated user.
 
@@ -180,7 +180,7 @@ Status: `200 OK`
 
 ---
 
-### `GET /api/v2/users/me/addresses`
+### `GET /api/v3/users/me/addresses`
 
 Returns all addresses of the authenticated user.
 
@@ -216,7 +216,7 @@ Status: `200 OK`
 
 ---
 
-### `POST /api/v2/users/me/addresses`
+### `POST /api/v3/users/me/addresses`
 
 Creates a new address for the authenticated user.
 
@@ -270,7 +270,7 @@ Status: `201 Created`
 
 ---
 
-### `PATCH /api/v2/users/me/addresses/:addressId`
+### `PATCH /api/v3/users/me/addresses/:addressId`
 
 Updates an address of the authenticated user.
 
@@ -329,7 +329,7 @@ Status: `200 OK`
 
 ---
 
-### `DELETE /api/v2/users/me/addresses/:addressId`
+### `DELETE /api/v3/users/me/addresses/:addressId`
 
 Deletes an address of the authenticated user.
 
@@ -376,7 +376,7 @@ Status: `200 OK`
 
 ## Product Endpoints
 
-### `GET /api/v2/products/all`
+### `GET /api/v3/products/all`
 
 Fetches all products.
 
@@ -392,7 +392,7 @@ Fetches all products.
 Current backend reads `sort` from query params for this endpoint:
 
 ```http
-GET /api/v2/products/all?sort=price_asc
+GET /api/v3/products/all?sort=price_asc
 ```
 
 #### Success Response
@@ -435,7 +435,7 @@ Note: the current backend returns `201`, even though this is a read endpoint.
 
 ---
 
-### `GET /api/v2/products/category_name`
+### `GET /api/v3/products/category_name`
 
 Fetches products by category name.
 
@@ -501,7 +501,7 @@ Status: `201 Created`
 
 ---
 
-### `GET /api/v2/products/search`
+### `GET /api/v3/products/search`
 
 Searches products by name or description.
 
@@ -521,7 +521,7 @@ Searches products by name or description.
 Current backend reads both `q` and `sort` from query params for this endpoint:
 
 ```http
-GET /api/v2/products/search?q=camper&sort=price_desc
+GET /api/v3/products/search?q=camper&sort=price_desc
 ```
 
 #### Success Response
@@ -563,7 +563,7 @@ Status: `200 OK`
 
 ---
 
-### `POST /api/v2/products/by-ids`
+### `POST /api/v3/products/by-ids`
 
 Fetches products by a list of product ids.
 
@@ -632,7 +632,7 @@ Status: `200 OK`
 
 All cart endpoints require authentication.
 
-### `GET /api/v2/cart/`
+### `GET /api/v3/cart/`
 
 Returns the authenticated user's cart items.
 
@@ -666,9 +666,13 @@ Status: `200 OK`
 
 ---
 
-### `POST /api/v2/cart/items`
+### `POST /api/v3/cart/items`
 
-Adds an item to the cart. If the product already exists in the cart, backend increases the quantity.
+Sets the quantity for a cart item. This endpoint now behaves like an upsert:
+
+- if the product is not in the cart and `quantity > 0`, it creates the cart item
+- if the product is already in the cart and `quantity > 0`, it replaces the existing quantity with the provided value
+- if `quantity <= 0`, it removes the cart item if it exists
 
 #### Auth
 
@@ -678,7 +682,7 @@ Adds an item to the cart. If the product already exists in the cart, backend inc
 
 ```json
 {
-  "productId": 12,
+  "productId": "8924ed90-3acb-4e39-a9a5-5c47a84255e9",
   "quantity": 2
 }
 ```
@@ -689,14 +693,37 @@ Status: `201 Created`
 
 ```json
 {
-    "message": "Item added to cart successfully",
+    "message": "Cart item quantity set successfully",
     "cartItem": {
         "cartItemId": "be5f68c9-e343-42a7-a139-0f69dd8d2054",
         "userId": "b3c3f74e-4aba-4e46-8e5c-53c344f2d259",
         "productId": "8924ed90-3acb-4e39-a9a5-5c47a84255e9",
-        "quantity": 1,
-        "addedAt": "2026-04-09T16:22:09.366Z"
+        "quantity": 2,
+        "addedAt": "2026-04-09T16:22:09.366Z",
+        "product": {
+            "name": "Eco Camper Van",
+            "currentPrice": "479999.99",
+            "quantityInStocks": 8
+        }
     }
+}
+```
+
+If `quantity <= 0` and the item exists, the endpoint removes it and returns:
+
+```json
+{
+    "message": "Cart item removed successfully",
+    "cartItem": null
+}
+```
+
+If `quantity <= 0` and the item does not exist, the endpoint still returns `201`:
+
+```json
+{
+    "message": "There is no cart item with the given productId: 8924ed90-3acb-4e39-a9a5-5c47a84255e9",
+    "cartItem": null
 }
 ```
 
@@ -704,13 +731,13 @@ Status: `201 Created`
 
 - `400` if `productId` is missing
 - `400` if `quantity` is missing
-- `400` if `quantity` is not a positive integer
+- `400` if `quantity` is not an integer
 - `400` if requested quantity exceeds stock
 - `404` if product does not exist
 
 ---
 
-### `PATCH /api/v2/cart/items/:productId`
+### `PATCH /api/v3/cart/items/:productId`
 
 Updates quantity for one cart item.
 
@@ -763,7 +790,7 @@ Status: `200 OK`
 
 ---
 
-### `DELETE /api/v2/cart/items/:productId`
+### `DELETE /api/v3/cart/items/:productId`
 
 Deletes one item from the cart.
 
@@ -799,7 +826,7 @@ Status: `200 OK`
 
 ---
 
-### `DELETE /api/v2/cart/`
+### `DELETE /api/v3/cart/`
 
 Clears the entire cart for the authenticated user.
 
@@ -828,7 +855,7 @@ Status: `200 OK`
 
 ---
 
-### `POST /api/v2/cart/merge`
+### `POST /api/v3/cart/merge`
 
 Merges guest cart items into the authenticated user's cart.
 
@@ -921,7 +948,7 @@ Status: `200 OK`
 
 All payment endpoints require authentication.
 
-### `POST /api/v2/checkout/validate`
+### `POST /api/v3/checkout/validate`
 
 Validates the authenticated user's cart just before checkout to make sure every item is still available in stock.
 
@@ -979,7 +1006,7 @@ When checkout validation finds stock issues:
 
 ---
 
-### `POST /api/v2/payments/`
+### `POST /api/v3/payments/`
 
 Processes the authenticated user's checkout payment, creates an order, decreases stock, and clears the cart.
 
@@ -1057,25 +1084,25 @@ Status: `200 OK`
 
 ### Public Endpoints
 
-- `POST /api/v2/auth/register`
-- `POST /api/v2/auth/login`
-- `GET /api/v2/auth/test`
-- `GET /api/v2/products/all`
-- `GET /api/v2/products/category_name`
-- `GET /api/v2/products/search`
-- `POST /api/v2/products/by-ids`
+- `POST /api/v3/auth/register`
+- `POST /api/v3/auth/login`
+- `GET /api/v3/auth/test`
+- `GET /api/v3/products/all`
+- `GET /api/v3/products/category_name`
+- `GET /api/v3/products/search`
+- `POST /api/v3/products/by-ids`
 
 ### Protected Endpoints
 
-- `GET /api/v2/users/me`
-- `GET /api/v2/cart/`
-- `POST /api/v2/cart/items`
-- `PATCH /api/v2/cart/items/:productId`
-- `DELETE /api/v2/cart/items/:productId`
-- `DELETE /api/v2/cart/`
-- `POST /api/v2/cart/merge`
-- `POST /api/v2/checkout/validate`
-- `POST /api/v2/payments/`
+- `GET /api/v3/users/me`
+- `GET /api/v3/cart/`
+- `POST /api/v3/cart/items`
+- `PATCH /api/v3/cart/items/:productId`
+- `DELETE /api/v3/cart/items/:productId`
+- `DELETE /api/v3/cart/`
+- `POST /api/v3/cart/merge`
+- `POST /api/v3/checkout/validate`
+- `POST /api/v3/payments/`
 
 ## Important Implementation Notes For Frontend
 
@@ -1091,4 +1118,5 @@ Status: `200 OK`
 8. `GET /products/search` expects query parameter `q` and optional `sort` in query string.
 9. `POST /checkout/validate` is the pre-payment stock safety check for the current cart.
 10. `POST /payments/` now computes the total from the cart on the backend and creates an order on success.
+
 
