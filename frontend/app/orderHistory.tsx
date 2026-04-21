@@ -1,3 +1,4 @@
+import { useRouter } from 'expo-router';
 import React, { useState, useEffect } from 'react';
 import { View, Text, FlatList, TouchableOpacity, Alert, Platform, StyleSheet } from 'react-native';
 import {
@@ -11,7 +12,7 @@ import Navbar from '@/components/Navbar/Navbar';
 import OrderStatus, { StatusType } from '../components/OrderStatus/OrderStatus';
 
 export type ExtendedStatus = StatusType | 'Cancelled' | 'Refund Requested';
-
+//MOCK DATA - Later to be replaced with real API calls
 const INITIAL_MOCK_ORDERS = [
   {
     id: '7e8f8f62-4a2f-4a60-bec5-3bfdfb879c1b',
@@ -32,8 +33,9 @@ const INITIAL_MOCK_ORDERS = [
     status: 'Processing' as ExtendedStatus,
   },
 ];
-
+//MOCK DATA END
 export default function OrderHistoryScreen() {
+    const router = useRouter();
   const [orders, setOrders] = useState(INITIAL_MOCK_ORDERS);
 
   let [fontsLoaded] = useFonts({
@@ -70,6 +72,10 @@ export default function OrderHistoryScreen() {
       </View>
       
       <Text style={styles.priceText}>${item.totalPrice.toLocaleString()}</Text>
+      
+      <TouchableOpacity onPress={() => router.push(`/order/${item.id}`)}>
+          <Text style={styles.viewDetailsText}>View Details →</Text>
+      </TouchableOpacity>
 
       {(item.status === 'Processing' || item.status === 'In-transit' || item.status === 'Delivered') && (
         <OrderStatus status={item.status as StatusType} />
@@ -212,5 +218,12 @@ const styles = StyleSheet.create({
     fontFamily: 'Montserrat_600SemiBold',
     fontSize: 14,
     color: '#bc4749',
-  }
+  },
+  viewDetailsText: {
+    marginBottom: 16,
+    fontFamily: 'Montserrat_600SemiBold',
+    fontSize: 14,
+    color: '#606c38',
+    textDecorationLine: 'underline',
+  },
 });
