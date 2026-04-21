@@ -58,6 +58,26 @@ exports.getProductsByIds = async (productIds, sort) => {
 };
 
 
+exports.getProductByIdForUpdate = async (productId, client) => {
+  const executor = client || pool;
+
+  const result = await executor.query(
+    `
+    SELECT
+      product_id,
+      name,
+      current_price,
+      quantity_in_stocks
+    FROM products
+    WHERE product_id = $1
+    FOR UPDATE
+    `,
+    [productId]
+  );
+
+  return mapProduct(result.rows[0] || null);
+};
+
 exports.searchProductsByNameOrDescription = async (searchTerm, sort) => {
   const likePattern = "%" + searchTerm + "%";
 
@@ -70,5 +90,27 @@ exports.searchProductsByNameOrDescription = async (searchTerm, sort) => {
   );
 
   return result.rows.map(mapProduct);
+};
+
+
+exports.decreaseStock = async ({ productId, quantity }, client) => {
+  const executor = client || pool;
+
+  const result = await executor.query(
+    `
+    UPDATE products
+    SET quantity_in_stocks = quantity_in_stocks - $1
+    WHERE product_id = $2
+      AND quantity_in_stocks >= $1
+    RETURNING product_id, quantity_in_stocks
+    `,
+    [quantity, productId]
+  );
+
+  if (result.rowCount === 0) {
+    throw new Error("Failed to decrease stock");
+  }
+
+  return result.rows[0];
 };
 

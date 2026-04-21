@@ -1,4 +1,6 @@
 const userModel = require("../models/userModel");
+const addressModel = require("../models/addressModel");
+const pool = require("../config/db");
 const { hashPassword, comparePassword } = require("../utils/hash");
 const { generateToken } = require("../utils/token");
 const ApiError = require("../utils/ApiError");
@@ -19,14 +21,41 @@ exports.register = async ({
 
   const passwordHash = await hashPassword(password);
 
-  const user = await userModel.createUser({
-    name,
-    email,
-    passwordHash,
-    tax_id,
-    home_address,
-    role,
-  });
+  const client = await pool.connect();
+  let user;
+
+  try {
+    await client.query("BEGIN");
+
+    user = await userModel.createUser(
+      {
+        name,
+        email,
+        passwordHash,
+        tax_id,
+        home_address,
+        role,
+      },
+      client
+    );
+
+    await addressModel.createAddress(
+      {
+        userId: user.userId,
+        label: "Home",
+        fullAddress: home_address,
+        isDefault: true,
+      },
+      client
+    );
+
+    await client.query("COMMIT");
+  } catch (err) {
+    await client.query("ROLLBACK");
+    throw err;
+  } finally {
+    client.release();
+  }
 
   return {
     message: "User created successfully",
