@@ -9,4 +9,4 @@ First, install packages (skip if already installed):
 
 After installation:
 1. **Backend:** `cd backend && npm run dev`
-2. **Frontend:** `cd frontend && npm run dev`
+2. **Frontend:** `cd frontend && npx expo start`
