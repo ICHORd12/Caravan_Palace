@@ -17,8 +17,8 @@ import Navbar from '@/components/Navbar/Navbar';
 import ProductCard from '@/components/ProductCard/ProductCard';
 import SearchBar from '@/components/SearchBar/SearchBar';
 
-import { API_BASE_URL, PRODUCTS_END_POINT, GET_BACKEND_CART } from '@/constants/API';
-import { Caravan, FetchProductsAllResponse, GetBackendCartResponse } from '@/constants/BACKEND_MODELS';
+import { API_BASE_URL, PRODUCTS_END_POINT, GET_BACKEND_CART, DELETE_ITEM_END_POINT, UPDATE_QUANTITY_END_POINT } from '@/constants/API';
+import { Caravan, FetchProductsAllResponse, GetBackendCartResponse } from '@/models/BACKEND_MODELS';
 import { DEBUG } from '@/constants/CONSTANTS';
 import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/context/ToastContext';
@@ -110,7 +110,6 @@ export default function Caravans() {
         if (DEBUG) console.log("LOG::Executed: calculateContainerWidth");
     }
 
-    
     async function getQuantityInformation({ API_BASE_URL, GET_BACKEND_CART, signal }: getQuantityInformationInput) {
         if (DEBUG) console.log("LOG::executed: getQuantityInformation");
 
@@ -155,78 +154,91 @@ export default function Caravans() {
         }
     }
 
-    
-    async function handleUpdateQuantity(productId: string, newAmount: number) {
-        // Prevent race conditions: Ignore clicks if this specific item is already updating
+    // Unified backend for update quantity is needed
+    async function handleUpdateQuantity(productId: string, newAmount: number) 
+    {
         if (updatingItems[productId]) return;
 
-        const validatedAmount = Math.max(0, newAmount);
 
-        // Keep track of the previous amount in case we need to revert
+        // quantityInStocks
+        const validatedAmount = Math.max(0, newAmount);
         const previousAmount = cartQuantity?.[productId] || 0;
 
-        // 1. Update UI State immediately (Optimistic Update)
+        // (Optimistic Update)
         setCartQuantity((prev = {}) => {
             const updatedCart = { ...prev };
-            if (validatedAmount === 0) {
-                delete updatedCart[productId];
-            } else {
-                updatedCart[productId] = validatedAmount;
-            }
+
+            if (validatedAmount === 0) delete updatedCart[productId];
+            else updatedCart[productId] = validatedAmount;
+            
             return updatedCart;
         });
 
-        // 2. Persist Changes
-        if (!isAuthenticated) {
-            // Unauthenticated: save to local storage
-            if (Platform.OS === 'web') {
-                if (validatedAmount === 0) {
-                    window.localStorage.removeItem(`cart_${productId}`);
-                } else {
-                    window.localStorage.setItem(`cart_${productId}`, validatedAmount.toString());
-                }
+        if (!isAuthenticated) 
+        {
+            if (Platform.OS === 'web') 
+            {
+                if (validatedAmount === 0) window.localStorage.removeItem(`cart_${productId}`);
+                else window.localStorage.setItem(`cart_${productId}`, validatedAmount.toString());
             }
-        } else {
-            // Authenticated: Fire off an API call to update backend cart
-            setUpdatingItems(prev => ({ ...prev, [productId]: true })); // Lock the item
+        } 
+        else 
+        {
+            setUpdatingItems(prev => ({ ...prev, [productId]: true })); 
 
             try {
-                const response = await fetch(`${API_BASE_URL}/api/v2/cart/items/${productId}`, {
-                    method: 'PATCH',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify({ quantity: validatedAmount })
-                });
-
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
+                let response: Response;
+                if (validatedAmount === 0)
+                {
+                    response = await fetch(`${API_BASE_URL}${DELETE_ITEM_END_POINT}/${productId}`, {
+                        method: 'DELETE',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                        },
+                        body: JSON.stringify({ quantity: validatedAmount })
+                    });
                 }
-                
+                else
+                {
+                    response = await fetch(`${API_BASE_URL}/api/v2/cart/items`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                        },
+                        body: JSON.stringify({ productId: productId, quantity: validatedAmount })
+                    });
+                }
+
+                if (!response.ok) 
+                {
+                    const errorData = await response.json();
+                    throw new Error(`Error! ${errorData.message}`);
+                }
+
                 if (DEBUG) console.log(`LOG:: Successfully updated product ${productId} to quantity ${validatedAmount}`);
 
             } catch (error) {
                 console.error("Failed to update cart item:", error);
-                showToast('Failed to update cart. Reverting changes.', 'error');
+                showToast(`${error}`, 'error');
                 
                 // Revert UI State if backend fails
                 setCartQuantity((prev = {}) => {
                     const revertedCart = { ...prev };
-                    if (previousAmount === 0) {
-                        delete revertedCart[productId];
-                    } else {
-                        revertedCart[productId] = previousAmount;
-                    }
+                    
+                    if (previousAmount === 0) delete revertedCart[productId];
+                    else revertedCart[productId] = previousAmount;
+                    
                     return revertedCart;
                 });
+
             } finally {
-                // Unlock the item regardless of success or failure
                 setUpdatingItems(prev => ({ ...prev, [productId]: false })); 
             }
         }
     }
-
+       
     async function fetchProducts({payload, API_BASE_URL, PRODUCTS_END_POINT, signal}: fetchProductsInput)
     {
         setisCaravansLoaded(false);

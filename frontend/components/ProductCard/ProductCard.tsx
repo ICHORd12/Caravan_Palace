@@ -1,5 +1,5 @@
 import WrappedGeneralButton from '@/components/Buttons/GeneralButtonWithWrapper/GeneralButtonWithWrapper';
-import { Caravan } from '@/constants/BACKEND_MODELS';
+import { Caravan } from '@/models/BACKEND_MODELS';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
