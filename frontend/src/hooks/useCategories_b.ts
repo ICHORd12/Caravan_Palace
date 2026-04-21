@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '../services/supabaseClient';
 
 export interface Category {
   id: string;
@@ -14,16 +13,16 @@ export function useCategories() {
   useEffect(() => {
     async function fetchCategories() {
       try {
-        const { data, error } = await supabase
-          .from('categories')
-          .select('*');
+        // Change this URL to match your backend's category route
+        const response = await fetch('http://localhost:8080/api/v1/categories');
 
-        if (error) {
-          throw error;
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
         }
 
+        const data = await response.json();
+
         if (data) {
-          // Map the database columns to our frontend interface
           const mappedCategories: Category[] = data.map((item: any) => ({
             id: item.category_id,
             name: item.category_name
@@ -32,8 +31,8 @@ export function useCategories() {
           setCategories(mappedCategories);
         }
       } catch (err: any) {
-        console.error("Supabase fetching error:", err.message);
-        setError("Could not load categories.");
+        console.error("Backend fetching error:", err.message);
+        setError("Could not load categories from the server.");
       } finally {
         setIsLoading(false);
       }
