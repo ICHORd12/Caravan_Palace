@@ -5,6 +5,7 @@ import { Animated, Easing, Platform, StyleSheet } from 'react-native';
 interface TransitionContextType {
     navigateWithWipe: (path: string) => void;
     revealWipe: () => void;
+    setWipe: () => void;
 }
 
 const TransitionContext = createContext<TransitionContextType | null>(null);
@@ -54,8 +55,21 @@ export const TransitionProvider = ({ children }: { children: React.ReactNode }) 
         }); 
     }, [wipeWidth]);
 
+    const setWipe = useCallback(() => {
+        setAnchor('left');
+
+        requestAnimationFrame(() => {
+            Animated.timing(wipeWidth, {
+                toValue: 100,
+                duration: 400,
+                useNativeDriver: false,
+                easing: Easing.inOut(Easing.ease),
+            }).start();
+        }); 
+    }, [wipeWidth]);
+
     // 3. Memoize the context value
-    const contextValue = useMemo(() => ({ navigateWithWipe, revealWipe }), [navigateWithWipe, revealWipe]);
+    const contextValue = useMemo(() => ({ navigateWithWipe, revealWipe, setWipe }), [navigateWithWipe, revealWipe, setWipe]);
 
     return (
         <TransitionContext.Provider value={contextValue}>

@@ -53,6 +53,11 @@ interface getQuantityInformationInput {
     signal: AbortSignal 
 }
 
+export interface UpdateQuantityInput {
+    productId: string;
+    delta: number;
+}
+
 //#endregion
 
 
@@ -65,11 +70,10 @@ export default function Caravans() {
 
     const [containerWidth, setContainerWidth] = useState(0);
     const [caravans, setCaravans] = useState<Caravan[]>([]);
-    const [cartQuantity, setCartQuantity] = useState<Record<string, number>>();
-    // Tracks which specific product IDs are currently awaiting a backend response
+    const [cartQuantity, setCartQuantity] = useState<Record<string, number>>({});
+
     const [updatingItems, setUpdatingItems] = useState<Record<string, boolean>>({});
     const [isCaravansLoaded, setisCaravansLoaded] = useState(false);
-
     const [isLoading, setIsLoading] = useState(false);
 
     // Filter
@@ -90,7 +94,6 @@ export default function Caravans() {
     });
 
     
-
     function clearFilters() 
     {
         setSelectedModels([]);
@@ -110,135 +113,192 @@ export default function Caravans() {
         if (DEBUG) console.log("LOG::Executed: calculateContainerWidth");
     }
 
+
+    //#region QUANTITY INFORMATION
+
+
+    function getQuantityInformationNotAuth(localCartMap: Record<string, number>)
+    {
+        setCartQuantity(localCartMap);
+    }
+
+    async function getQuantityInformationAuth({ API_BASE_URL, GET_BACKEND_CART, signal }: getQuantityInformationInput)
+    {
+        const _token = token
+
+        try {
+            const response = await fetch(`${API_BASE_URL}${GET_BACKEND_CART}`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${_token}`
+                },
+                signal: signal
+            });
+
+            if (response.ok) 
+            {
+                const data: GetBackendCartResponse = await response.json();
+
+                const newCartState: Record<string, number> = {};
+                data.items.forEach(item => {
+                    newCartState[item.productId] = item.quantity;
+                });
+                
+                setCartQuantity(newCartState);
+            }
+            else
+            {
+                setCartQuantity({});
+            }
+        } catch (error: any) {
+            if (error.name !== 'AbortError') 
+            {
+                console.error("Failed to merge cart:", error);
+            }
+        }
+    }
+
     async function getQuantityInformation({ API_BASE_URL, GET_BACKEND_CART, signal }: getQuantityInformationInput) {
         if (DEBUG) console.log("LOG::executed: getQuantityInformation");
 
-        const localCart = getLocalCartMap();
+        const localCartMap = getLocalCartMap();
 
-        if (isAuthenticated) {
-            const _token = token
-
-            try {
-                const response = await fetch(`${API_BASE_URL}${GET_BACKEND_CART}`, {
-                    method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${_token}`
-                    },
-                    signal: signal
-                });
-
-                if (response.ok) {
-                    const data: GetBackendCartResponse = await response.json();
-
-                    // Map backend items to our Record<string, number> state
-                    const newCartState: Record<string, number> = {};
-                    data.items.forEach(item => {
-                        newCartState[item.productId] = item.quantity;
-                    });
-                    
-                    setCartQuantity(newCartState);
-                }
-                else
-                {
-                    setCartQuantity({});
-                }
-            } catch (error: any) {
-                if (error.name !== 'AbortError') {
-                    console.error("Failed to merge cart:", error);
-                }
-            }
-        } else {
-            // Not authenticated: just populate state directly from local storage
-            setCartQuantity(localCart);
-        }
-    }
-
-    // Unified backend for update quantity is needed
-    async function handleUpdateQuantity(productId: string, newAmount: number) 
-    {
-        if (updatingItems[productId]) return;
-
-
-        // quantityInStocks
-        const validatedAmount = Math.max(0, newAmount);
-        const previousAmount = cartQuantity?.[productId] || 0;
-
-        // (Optimistic Update)
-        setCartQuantity((prev = {}) => {
-            const updatedCart = { ...prev };
-
-            if (validatedAmount === 0) delete updatedCart[productId];
-            else updatedCart[productId] = validatedAmount;
-            
-            return updatedCart;
-        });
-
-        if (!isAuthenticated) 
+        if (isAuthenticated) 
         {
-            if (Platform.OS === 'web') 
-            {
-                if (validatedAmount === 0) window.localStorage.removeItem(`cart_${productId}`);
-                else window.localStorage.setItem(`cart_${productId}`, validatedAmount.toString());
-            }
+            getQuantityInformationAuth({API_BASE_URL: API_BASE_URL, GET_BACKEND_CART: GET_BACKEND_CART, signal: signal});
         } 
         else 
         {
-            setUpdatingItems(prev => ({ ...prev, [productId]: true })); 
-
-            try {
-                let response: Response;
-                if (validatedAmount === 0)
-                {
-                    response = await fetch(`${API_BASE_URL}${DELETE_ITEM_END_POINT}/${productId}`, {
-                        method: 'DELETE',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${token}`
-                        },
-                        body: JSON.stringify({ quantity: validatedAmount })
-                    });
-                }
-                else
-                {
-                    response = await fetch(`${API_BASE_URL}/api/v2/cart/items`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${token}`
-                        },
-                        body: JSON.stringify({ productId: productId, quantity: validatedAmount })
-                    });
-                }
-
-                if (!response.ok) 
-                {
-                    const errorData = await response.json();
-                    throw new Error(`Error! ${errorData.message}`);
-                }
-
-                if (DEBUG) console.log(`LOG:: Successfully updated product ${productId} to quantity ${validatedAmount}`);
-
-            } catch (error) {
-                console.error("Failed to update cart item:", error);
-                showToast(`${error}`, 'error');
-                
-                // Revert UI State if backend fails
-                setCartQuantity((prev = {}) => {
-                    const revertedCart = { ...prev };
-                    
-                    if (previousAmount === 0) delete revertedCart[productId];
-                    else revertedCart[productId] = previousAmount;
-                    
-                    return revertedCart;
-                });
-
-            } finally {
-                setUpdatingItems(prev => ({ ...prev, [productId]: false })); 
-            }
+            // Not authenticated: just populate state directly from local storage
+            getQuantityInformationNotAuth(localCartMap)
         }
     }
-       
+
+    //#endregion
+
+
+    //#region UPDATE QUANTITY
+    async function updateQuantityNotAuth({productId, delta}: UpdateQuantityInput)
+    {
+        setUpdatingItems(prev => ({ ...prev, [productId]: true })); 
+
+        const targetItem = caravans.find(item => item.productId === productId);
+        const quantityInStocks: number = targetItem ? targetItem.quantityInStocks : 0;
+        const currentQuantity: number = cartQuantity[productId] || 0;
+        const targetQuantity: number = currentQuantity + delta;
+
+
+        if (targetQuantity > quantityInStocks) 
+        {
+            showToast('There is not enough stock!', 'error');
+        }
+        else
+        {
+            if (Platform.OS === 'web') 
+            {
+                if (targetQuantity <= 0) window.localStorage.removeItem(`cart_${productId}`);
+                else window.localStorage.setItem(`cart_${productId}`, targetQuantity.toString());
+            }
+
+            if (targetQuantity <= 0) 
+            {
+                setCartQuantity(prev => {
+                    const newCart = { ...prev };
+                    delete newCart[productId];
+                    return newCart;
+                });
+            } 
+            else 
+            {
+                setCartQuantity(prev => {
+                    const newCart = { ...prev };
+                    newCart[productId] = targetQuantity;
+                    return newCart;
+                });
+            }
+        }
+        
+        setUpdatingItems(prev => ({ ...prev, [productId]: false })); 
+        return;
+    }
+    
+    async function updateQuantityAuth({productId, delta}: UpdateQuantityInput)
+    {
+        setUpdatingItems(prev => ({ ...prev, [productId]: true })); 
+
+        const currentQuantity: number = cartQuantity?.[productId] || 0;
+
+        if (currentQuantity === undefined)
+        {
+            showToast('Cart Item Does Not Exist', 'error');
+            return;
+        }
+
+        console.log("current: ", currentQuantity);
+        console.log("Delta: ", delta);
+
+        let targetQuantity: number = currentQuantity;
+        if (delta === -2)       targetQuantity = 0;
+        else if (delta === -1)  targetQuantity = targetQuantity - 1;
+        else if (delta === 1)   targetQuantity = targetQuantity + 1;
+        
+        console.log(targetQuantity);
+
+        try {
+            const response = await fetch(`${API_BASE_URL}${UPDATE_QUANTITY_END_POINT}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ productId: productId, quantity: targetQuantity})
+            });
+
+            const responseData = await response.json();
+            if (response.ok)
+            {
+                if (targetQuantity <= 0) 
+                {
+                    setCartQuantity(prev => {
+                        const newCart = { ...prev };
+                        delete newCart[productId];
+                        return newCart;
+                    });
+                } 
+                else 
+                {
+                    setCartQuantity(prev => {
+                        const newCart = { ...prev };
+                        newCart[productId] = targetQuantity;
+                        return newCart;
+                    });
+                }
+            }
+            else
+            {
+                showToast(`${responseData.message}`, 'error');
+            }
+        } catch(error) {
+            showToast(`${error}`, 'error');
+        } finally {
+            setUpdatingItems(prev => ({ ...prev, [productId]: false })); 
+        }
+
+    }
+    
+    async function updateQuantity({productId, delta}: UpdateQuantityInput)
+    {
+        if (!isAuthenticated)   updateQuantityNotAuth({productId: productId, delta: delta});
+        else                    updateQuantityAuth({productId: productId, delta: delta});
+    }
+    
+    //#endregion
+
+
+    //#region FETCH PRODUCTS
+
+
     async function fetchProducts({payload, API_BASE_URL, PRODUCTS_END_POINT, signal}: fetchProductsInput)
     {
         setisCaravansLoaded(false);
@@ -280,6 +340,8 @@ export default function Caravans() {
         }
     } 
 
+    //#endregion
+
     function onApplyFilter() 
     {
         const filterPayload = {
@@ -317,6 +379,7 @@ export default function Caravans() {
             });
 
             return () => controller.abort();
+
         }, [isAuthenticated, token])
     );
 
@@ -339,7 +402,7 @@ export default function Caravans() {
     
     return (
         <View style={styles.mainContainer}>
-            <Navbar />
+            <Navbar/>
 
             <View style={styles.contentContainer}>
                 <View style={styles.filterContainer}>
@@ -454,7 +517,7 @@ export default function Caravans() {
                                         quantity={cartQuantity?.[item.productId] || 0}
                                         // Pass updater callback
                                         disabled={!!updatingItems[item.productId]}
-                                        onUpdateQuantity={(newAmount) => handleUpdateQuantity(item.productId, newAmount)}
+                                        onUpdateQuantity={(newAmount) => updateQuantity({productId: item.productId, delta: newAmount})}
                                     />
                                 )}
                                 ListEmptyComponent={

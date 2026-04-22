@@ -14,10 +14,11 @@ import {UpdateQuantityInput} from '@/app/shopping/shoppingCart'
 
 interface ShopCardProps {
     cartItem: CartItemFE;
+    disabled: boolean;
     updateQuantity: ({productId, delta}: UpdateQuantityInput) => void;
 }
 
-function ShopCard({ cartItem, updateQuantity }: ShopCardProps)
+function ShopCard({ cartItem, disabled=false, updateQuantity }: ShopCardProps)
 {
     return(
          <View style={styles.cartCard}>
@@ -34,13 +35,13 @@ function ShopCard({ cartItem, updateQuantity }: ShopCardProps)
 
             <View style={styles.quantityContainer}>
 
-                <TouchableOpacity style={styles.qtyBtn} onPress={() => updateQuantity({productId: cartItem.productId, delta: -1 })}>
+                <TouchableOpacity disabled={disabled} style={[styles.qtyBtn, disabled && {opacity: 0.6}]} onPress={() => updateQuantity({productId: cartItem.productId, delta: -1 })}>
                     <Text style={styles.qtyBtnText}>-</Text>
                 </TouchableOpacity>
 
                 <Text style={styles.qtyText}>{cartItem.quantity}</Text>
 
-                <TouchableOpacity style={styles.qtyBtn} onPress={() => updateQuantity({productId: cartItem.productId, delta: 1 })}>
+                <TouchableOpacity disabled={disabled} style={[styles.qtyBtn, disabled && {opacity: 0.6}]} onPress={() => updateQuantity({productId: cartItem.productId, delta: 1 })}>
                     <Text style={styles.qtyBtnText}>+</Text>
                 </TouchableOpacity>
 
