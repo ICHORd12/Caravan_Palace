@@ -23,3 +23,19 @@ exports.createOrderItem = async (
 
   return mapOrderItem(result.rows[0]);
 };
+
+exports.getOrderItemsByOrderId = async (orderId, client) => {
+  const executor = client || pool;
+
+  const result = await executor.query(
+    `
+    SELECT *
+    FROM order_items
+    WHERE order_id = $1
+    ORDER BY order_item_id ASC
+    `,
+    [orderId]
+  );
+
+  return result.rows.map(mapOrderItem);
+};
