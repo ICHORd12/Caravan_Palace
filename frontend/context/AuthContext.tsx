@@ -3,6 +3,7 @@ import React, { createContext, useContext, useEffect, useState, useCallback } fr
 import { Platform } from 'react-native';
 
 import { useToast } from '@/context/ToastContext';
+import { useTransition } from '@/context/TransitionContext';
 import { API_BASE_URL, MERGE_BACKEND_CART_END_POINT, TOKEN_VALIDATE} from '@/constants/API';
 import getLocalCartMap from '@/functions/getLocalCartMap';
 import deleteLocalCart from '@/functions/deleteLocalCart';
@@ -25,12 +26,14 @@ export const useAuth = () => {
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const { showToast } = useToast();
+    const { navigateWithWipe } = useTransition();
 
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [token, setToken] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true); // ADDED: Start in a loading state
 
     const logout = useCallback(async () => {
+        
         if (Platform.OS === 'web') {
             localStorage.removeItem('userToken');
         } else {
@@ -42,6 +45,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Delete all cache
         const localCart: Record<string, number> = getLocalCartMap();
         deleteLocalCart(localCart);
+        
     }, []);
 
     useEffect(() => {

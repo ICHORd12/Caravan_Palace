@@ -27,7 +27,7 @@ export type Caravan = {
 }
 
 
-type CartProduct = {
+export type CartProduct = {
     name: string,
     currentPrice: string,
     quantityInStocks: number 
@@ -69,5 +69,7 @@ export type GetBackendCartResponse = {
     message: string,
     items: CartItem[]
 }
+
+
 
 

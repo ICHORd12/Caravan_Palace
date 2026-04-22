@@ -24,11 +24,11 @@ interface NavbarProps {
 }
 
 
-export default function Navbar({ navbarContainerStyle, navbarLinksStyle, loginRegisterButtonStyle }: NavbarProps) 
+export default function Navbar({ navbarContainerStyle, navbarLinksStyle, loginRegisterButtonStyle}: NavbarProps) 
 {
     const pathname = usePathname();
     const { isAuthenticated, logout } = useAuth();
-    const { navigateWithWipe } = useTransition();
+    const { setWipe, navigateWithWipe, revealWipe } = useTransition();
     
     const isAuthScreen = pathname === '/login' || pathname === '/register';
 
@@ -51,7 +51,9 @@ export default function Navbar({ navbarContainerStyle, navbarLinksStyle, loginRe
                         // IF LOGGED IN
                         <>
                             <GeneralButton title="MY ACCOUNT" onPress={() => navigateWithWipe('/')} />
-                            <GeneralButton title="LOGOUT" onPress={logout} />
+                            <GeneralButton title="LOGOUT" onPress={() => {
+                                logout();
+                            }} />
                         </>
                     ) 
                     : 
