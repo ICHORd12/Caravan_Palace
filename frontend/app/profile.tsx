@@ -49,6 +49,9 @@ export default function Profile() {
 
     useEffect(() => {
         authTracker.current = isAuthenticated;
+        if (!isAuthenticated) {
+            navigateWithWipe('/login');
+        }
     }, [isAuthenticated]);
 
     useFocusEffect(

@@ -3,7 +3,7 @@ import React, { createContext, useCallback, useContext, useMemo, useRef, useStat
 import { Animated, Easing, Platform, StyleSheet } from 'react-native';
 
 interface TransitionContextType {
-    navigateWithWipe: (path: string) => void;
+    navigateWithWipe: (path: string, onFull?: () => void) => void;
     revealWipe: () => void;
     setWipe: () => void;
 }
@@ -23,7 +23,7 @@ export const TransitionProvider = ({ children }: { children: React.ReactNode }) 
     const [anchor, setAnchor] = useState<'left' | 'right'>('left');
 
     // 1. Wrap navigateWithWipe in useCallback
-    const navigateWithWipe = useCallback((path: string) => {
+    const navigateWithWipe = useCallback((path: string, onFull?: () => void) => {
         if (Platform.OS === 'web') {
             if (typeof document !== 'undefined' && document.activeElement) {
                 (document.activeElement as HTMLElement).blur();
@@ -36,6 +36,7 @@ export const TransitionProvider = ({ children }: { children: React.ReactNode }) 
             useNativeDriver: false,
             easing: Easing.inOut(Easing.ease),
         }).start(() => {
+            if (onFull) onFull();
             // @ts-ignore
             router.push(path);
         });

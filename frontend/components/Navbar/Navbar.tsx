@@ -51,7 +51,15 @@ export default function Navbar({ navbarContainerStyle, navbarLinksStyle, loginRe
                         <>
                             <GeneralButton title="MY ACCOUNT" onPress={() => navigateWithWipe('/profile')} />
                             <GeneralButton title="LOGOUT" onPress={() => {
-                                logout();
+                                if (pathname === '/profile') {
+                                    navigateWithWipe('/login', () => logout());
+                                } else {
+                                    setWipe();
+                                    setTimeout(() => {
+                                        logout();
+                                        revealWipe();
+                                    }, 400);
+                                }
                             }} />
                         </>
                     )
