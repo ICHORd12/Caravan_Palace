@@ -23,3 +23,34 @@ exports.createOrder = async (
 
   return mapOrder(result.rows[0]);
 };
+
+exports.getOrdersByCustomerId = async (customerId, client) => {
+  const executor = client || pool;
+
+  const result = await executor.query(
+    `
+    SELECT *
+    FROM orders
+    WHERE customer_id = $1
+    ORDER BY order_date DESC
+    `,
+    [customerId]
+  );
+
+  return result.rows.map(mapOrder);
+};
+
+exports.getOrderByCustomerIdAndOrderId = async (customerId, orderId, client) => {
+  const executor = client || pool;
+
+  const result = await executor.query(
+    `
+    SELECT *
+    FROM orders
+    WHERE customer_id = $1 AND order_id = $2
+    `,
+    [customerId, orderId]
+  );
+
+  return mapOrder(result.rows[0]);
+};

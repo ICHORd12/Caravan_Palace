@@ -1,8 +1,7 @@
 //#region IMPORTS
 import { useFocusEffect, useRouter } from 'expo-router';
-import * as SecureStore from 'expo-secure-store';
-import React, { useCallback, useEffect, useState } from 'react';
-import { FlatList, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Animated, Easing, FlatList, LayoutChangeEvent, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import {
     Montserrat_400Regular,
@@ -12,30 +11,94 @@ import {
 } from '@expo-google-fonts/montserrat';
 
 import Navbar from '@/components/Navbar/Navbar';
+import ShopCard from '@/components/ShopCard/ShopCard';
 
 import {
     API_BASE_URL,
-    DELETE_ITEM_END_POINT,
     FETCH_PRODUCTS_DETAILS_END_POINT,
-    MERGE_BACKEND_CART_END_POINT,
-    UPDATE_QUANTITY_END_POINT
+    GET_BACKEND_CART,
+    UPDATE_QUANTITY_END_POINT,
+    VALIDATE_CART_END_POINT,
+    CART_PAYMENT_END_POINT
 } from '@/constants/API';
 
-import { Caravan, CartItem } from '@/constants/BACKEND_MODELS';
+import { Caravan, CartItem, GetBackendCartResponse } from '@/models/BACKEND_MODELS';
+import { CartItemFE } from '@/models/FRONTEND_MODELS';
 import { useToast } from '@/context/ToastContext';
 import { useTransition } from '@/context/TransitionContext';
-import { FetchProductDetailsResponse, MergeBackendCartResponse } from '@/constants/BACKEND_MODELS';
+import { FetchProductDetailsResponse} from '@/models/BACKEND_MODELS';
+import { useAuth } from '@/context/AuthContext'
+
+
+import getLocalCartMap from '@/functions/getLocalCartMap';
+import mapCaravansToCartItemFEs from '@/functions/mapCaravansToCartItemFEs';
+import mapCartItemsToCartItemFEs from '@/functions/mapCartItemsToCartItemFEs';
+import getLocalCartProductIds from '@/functions/getLocalCartProductIds';
+import WrappedGeneralButton from '@/components/Buttons/GeneralButtonWithWrapper/GeneralButtonWithWrapper';
+import PaymentView from '@/components/PaymentView/PaymentView';
+import GeneralButton from '@/components/Buttons/GeneralButton/GeneralButton';
 //#endregion
 
+
+//#region INPUT DEFINITIONS FOR TYPE HELP
+
+
+export interface UpdateQuantityInput {
+    productId: string;
+    delta: number;
+}
+
+interface PayInput {
+    deliveryAddress: string;
+    card: {
+        cardNumber: string;
+        cardHolderName: string;
+        expiryYear: number;
+        expiryMonth: number;
+        cvv: string;
+    }
+}
+
+//#endregion
+
+
 export default function ShoppingCart() {
-    const { showToast } = useToast();
-    const { revealWipe } = useTransition();
+    const PAYMENT: boolean = true;
+    const CART: boolean = false;
+
     const router = useRouter();
+    const { showToast } = useToast();
+    const { navigateWithWipe, revealWipe } = useTransition();
+    const {token, isAuthenticated} = useAuth();
+    
+
+    const wipeProgress = useRef(new Animated.Value(0)).current;
 
     // State
-    const [cartItems, setCartItems] = useState<CartItem[]>([]);
-    const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [currentView, setCurrentView] = useState(CART);
+    const [containerWidth, setContainerWidth] = useState(0);
+    const [isAnimating, setIsAnimating] = useState(false);
+
+    const [cartItemFEs, setCartItemFEs] = useState<CartItemFE[]>([]);
+    const [updatingItems, setUpdatingItems] = useState<Record<string, boolean>>({});
     const [isLoading, setIsLoading] = useState(true);
+    const [isPressedCartButton, setIsPressedCartButton] = useState(false);
+    const [isPressesPayButton, setIsPressesPayButton] = useState(false);
+
+
+    const [inputErrors, setErrors] = useState<Record<string, string>>({});
+
+    const [cardHolderName, setCardHolderName] = useState("");
+    const [cardNumber, setCardNumber] = useState("");
+    const [cardExpiryYear, setCardExpiryYear] = useState(0);
+    const [cardExpiryMonth, setCardExpiryMonth] = useState(0);
+    const [cardCvv, setCardCvv] = useState("");
+
+    const [addressCountry, setAddressCountry] = useState("");
+    const [addressCity, setAddressCity] = useState("");
+    const [addressStreet, setAddressStreet] = useState("");
+    const [addressZip, setAddressZip] = useState("");
+    const [addressCheckbox, setAddressCheckbox] = useState(false);
 
     let [fontsLoaded] = useFonts({
         Montserrat_700Bold,
@@ -43,462 +106,652 @@ export default function ShoppingCart() {
         Montserrat_600SemiBold,
     });
 
-    //#region API FUNCTIONS 
-    async function apiFetchProductDetails(items: { id: string, quantity: number }[]): Promise<Caravan[]> 
+    //#region WIPE ANIMATION FUNCTIONS
+
+    
+    function onContainerLayout(event: LayoutChangeEvent) 
     {
-        if (items.length === 0) return [];
+        const { width } = event.nativeEvent.layout;
+        setContainerWidth(width);
+
+    }
+
+    function runRevealAnimation(showPayment: boolean, onComplete?: () => void) 
+    {
+        if (containerWidth === 0 || isAnimating) return;
+
+        setIsAnimating(true);
         
-        // Extract IDs as an array for the request body
-        const ids = items.map(item => item.id);
+        Animated.timing(wipeProgress, {
+            toValue: showPayment ? 1 : 0,
+            duration: 500,
+            easing: Easing.inOut(Easing.cubic),
+            useNativeDriver: false,
+        }).start(() => {
+            setIsAnimating(false);
+            if (onComplete) onComplete();
+        });
+
+        setCurrentView(showPayment);
+    }
+    //#endregion
+
+    
+    //#region PAYMENT FUNCTIONS
+
+
+    function onCardHolderNameChange (cardHolder: string):   void {setCardHolderName(cardHolder)};
+    function onCardNumberChange     (cardNumber: string):   void {setCardNumber(cardNumber)};
+    function onCardExpiryYearChange (expiryYear: number):   void {setCardExpiryYear(expiryYear)};
+    function onCardExpiryMonthChange(expiryMonth: number):  void {setCardExpiryMonth(expiryMonth)};
+    function onCardCvvChange        (CVV: string):          void {setCardCvv(CVV)};
+    function onAdressCountryChange  (country: string):      void {setAddressCountry(country)};
+    function onAdressCityChange     (city: string):         void {setAddressCity(city)};
+    function onAdressStreetChange   (street: string):       void {setAddressStreet(street)};
+    function onAdressZipChange      (zip: string):          void {setAddressZip(zip)};
+    function onAdressCheckboxChange (checkbox: boolean):    void {setAddressCheckbox(checkbox)};
+
+    async function validateCart(): Promise<boolean>
+    {
+        let result: boolean = true;
+        try {
+            const response = await fetch(`${API_BASE_URL}${VALIDATE_CART_END_POINT}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+            });
+
+            const responseData = await response.json();
+            if (!response.ok)
+            {   
+                result = false;
+                showToast(responseData.message, 'error');
+            }
+
+        } catch(error) {
+            result = false;
+            showToast('Error Occured', 'error');
+            console.error("LOG::ERROR::", error);
+        } finally {
+            return result;
+        }
+    }
+
+    function validatePaymentInputs(): boolean
+    {
+        let isValid = true;
+        let newErrors: Record<string, string> = {};
+
+        // Validate Name
+        if (cardHolderName.trim().length === 0) {
+            newErrors.cardHolderName = "Name is required";
+            isValid = false;
+        }
+
+        // Validate Card Number 
+        if (cardNumber.length < 19) {
+            newErrors.cardNumber = "Card number must be 16 digits";
+            isValid = false;
+        }
+
+        // Validate Year  
+        if (cardExpiryYear  < 2026) {
+            newErrors.cardExpiryYear = "Year must be valid";
+            isValid = false;
+        }
+
+        if (cardExpiryMonth  > 12 || cardExpiryMonth < 1) {
+            newErrors.cardExpiryMonth = "Month must be valid";
+            isValid = false;
+        }
+
+        // Validate CVV
+        if (cardCvv.length < 3) {
+            newErrors.cardCvv = "CVV must be 3 digits";
+            isValid = false;
+        }
+
+        // Validate Address 
+        if (addressCountry.trim().length === 0) {
+            newErrors.addressCountry = "Country is required";
+            isValid = false;
+        }
+        if (addressCity.trim().length === 0) {
+            newErrors.addressCity = "City is required";
+            isValid = false;
+        }
+        if (addressStreet.trim().length === 0) {
+            newErrors.addressStreet = "Street is required";
+            isValid = false;
+        }
+        if (addressZip.trim().length === 0) {
+            newErrors.addressZip = "Zip is required";
+            isValid = false;
+        }
+
+        setErrors(newErrors);
+        return isValid;
+    };
+
+    function convertCardNumber(): string 
+    {
+        return cardNumber.replace(/-/g, "");
+    }
+
+    function linearizeAddressInputs(): string
+    {
+        const addressParts = [
+            addressStreet.trim(),
+            addressCity.trim(),
+            addressZip.trim(),
+            addressCountry.trim()
+        ];
+
+        return addressParts
+            .filter((part) => part.length > 0)
+            .join(", ");
+    }
+
+    function createPayBody(): PayInput
+    {
+        const address: string = linearizeAddressInputs();
+        return {
+            deliveryAddress: address,
+            card: {
+                cardHolderName: cardHolderName,
+                cardNumber: convertCardNumber(),
+                expiryYear: cardExpiryYear,
+                expiryMonth: cardExpiryMonth,
+                cvv: cardCvv
+            }
+        }
+    }
+    
+    async function pay(): Promise<{result: boolean, message: string}> 
+    {
+        try {
+            const payloadBody: PayInput = createPayBody();
+
+            const response = await fetch(`${API_BASE_URL}${CART_PAYMENT_END_POINT}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(payloadBody)
+            });
+
+            const responseData = await response.json();
+
+            if (!response.ok)
+            {
+                return { result: false, message: responseData.message || 'Payment failed' };
+            }
+            else
+            {
+                return { result: true, message: responseData.message || 'Payment successful' };
+            }
+
+        } catch (error) {
+            showToast('Error Occurred', 'error');
+            console.error("LOG::ERROR::", error);
+            
+            return { 
+                result: false, 
+                message: error instanceof Error ? error.message : 'An unexpected error occurred' 
+            };
+        }
         
+    }
+    //#endregion
+
+
+    //#region FETCH CART
+
+
+    async function fetchCartNotAuth(): Promise<CartItemFE[]>
+    {
+        let cartItemFEs: CartItemFE[] = [];
+        const productIds: string[] = getLocalCartProductIds();
         try {
             const response = await fetch(`${API_BASE_URL}${FETCH_PRODUCTS_DETAILS_END_POINT}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ productIds: ids }) 
+                body: JSON.stringify({ productIds: productIds })
             });
 
-            let result: FetchProductDetailsResponse = {message: "", products: []}
-            if (!response.ok)
+            const responseData: FetchProductDetailsResponse = await response.json();
+            if (response.ok)
             {
-                showToast('Failed to fetch product details', 'error')
+                const caravans: Caravan[] = responseData.products;
+                const localCart: Record<string, number> = getLocalCartMap();
+                cartItemFEs = mapCaravansToCartItemFEs(caravans, localCart);
             }
             else
             {
-                result = await response.json();
+                showToast(`${responseData.message}`, 'error');
             }
-            
-            return result.products;
-
-        } catch (error) {
-            showToast('Failed to fetch product details', 'error')
-            return [];
+        } catch(error) {
+            showToast(`${error}`, 'error');
+        } finally {
+            return cartItemFEs;
         }
-    };
+    }
 
-    async function apiMergeBackendCart(localItems: { id: string, quantity: number }[], token: string): Promise<CartItem[]> 
+    async function fetchCartAuth(): Promise<CartItemFE[]>
     {
+        let cartItemFEs: CartItemFE[] = [];
         try {
-            
-            const payload = localItems.map(item => ({ 
-                productId: item.id, 
-                quantity: item.quantity 
-            }));
+            const response = await fetch(`${API_BASE_URL}${GET_BACKEND_CART}`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                }
+            });
 
-            const response = await fetch(`${API_BASE_URL}${MERGE_BACKEND_CART_END_POINT}`, {
+            const responseData = await response.json();
+            if (response.ok)
+            {
+                cartItemFEs = mapCartItemsToCartItemFEs(responseData.items);
+            }
+            else
+            {
+                showToast(`${responseData.message}`, 'error');
+            }
+        } catch(error) {
+            showToast(`${error}`, 'error');
+        } finally {
+            return cartItemFEs;
+        }
+    }
+
+    async function fetchCart()
+    {
+        setIsLoading(true);
+
+        if (!isAuthenticated)
+        {
+            const cartItemFEsPromise: Promise<CartItemFE[]> = fetchCartNotAuth();
+            const cartItemFEs: CartItemFE[] = await cartItemFEsPromise;
+            setCartItemFEs(cartItemFEs);
+        }
+        else
+        {
+            const cartItemFEsPromise: Promise<CartItemFE[]> = fetchCartAuth();
+            const cartItemFEs: CartItemFE[] = await cartItemFEsPromise;
+            setCartItemFEs(cartItemFEs);
+        }
+
+        setIsLoading(false);
+    }
+
+    //#endregion
+
+
+    //#region UPDATE QUANTITY
+
+
+    async function updateQuantityNotAuth({productId, delta}: UpdateQuantityInput)
+    {
+        setUpdatingItems(prev => ({ ...prev, [productId]: true })); 
+
+        const targetItem = cartItemFEs.find(item => item.productId === productId);
+        const quantityInStocks: number = targetItem ? targetItem.product.quantityInStocks : 0;
+        const currentQuantity: number = targetItem ? targetItem.quantity : 0;
+        const targetQuantity: number = currentQuantity + delta;
+
+        if (targetQuantity > quantityInStocks) 
+        {
+            showToast('There is not enough stock!', 'error');
+            
+        }
+        else
+        {
+            if (Platform.OS === 'web') 
+            {
+                if (targetQuantity === 0) window.localStorage.removeItem(`cart_${productId}`);
+                else window.localStorage.setItem(`cart_${productId}`, targetQuantity.toString());
+            }
+
+            if (targetQuantity === 0) 
+            {
+                setCartItemFEs(prev => prev.filter(item => item.productId !== productId));
+            } 
+            else 
+            {
+                setCartItemFEs(prev => 
+                    prev.map(item => 
+                        item.productId === productId ? { ...item, quantity: targetQuantity } : item
+                    )
+                );
+            }
+        }
+        
+        setUpdatingItems(prev => ({ ...prev, [productId]: false })); 
+        return;
+    }
+
+    async function updateQuantityAuth({productId, delta}: UpdateQuantityInput)
+    {
+        setUpdatingItems(prev => ({ ...prev, [productId]: true })); 
+
+        const oldQuantity: number | undefined = cartItemFEs.find(item => item.productId === productId)?.quantity;
+        if (oldQuantity === undefined)
+        {
+            showToast('Cart Item Does Not Exist', 'error');
+            return;
+        }
+
+        let targetQuantity: number = oldQuantity;
+        if (delta === -2)       targetQuantity = 0;
+        else if (delta === -1)  targetQuantity = targetQuantity - 1;
+        else if (delta === 1)   targetQuantity = targetQuantity + 1;
+    
+        try {
+            const response = await fetch(`${API_BASE_URL}${UPDATE_QUANTITY_END_POINT}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`
                 },
-                
-                body: JSON.stringify({ items: payload.length > 0 ? payload : [] })
+                body: JSON.stringify({ productId: productId, quantity: targetQuantity})
             });
 
-            let result: MergeBackendCartResponse = {message: "", items: [], adjustments: []};
-            if (!response.ok) 
+            const responseData = await response.json();
+            if (response.ok)
             {
-                showToast("Failed to merge backend cart", 'error');
-            }
-            else
-            {
-                result = await response.json();
-            }
-
-            return result.items;
-
-        } catch (error) {
-            console.error("Error merging cart:", error);
-            return [];
-        }
-    };
-
-    async function apiUpdateQuantity(item: { id: string,  quantity: number }, token: string): Promise<boolean>
-    {
-        try {
-            const response = await fetch(`${API_BASE_URL}${UPDATE_QUANTITY_END_POINT}/${item.id}`, {
-                method: 'PATCH',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                // This payload correctly sends the final absolute value (e.g., 5 instead of +1)
-                body: JSON.stringify({ quantity: item.quantity })
-            });
-
-            let result: boolean = false;
-            if (!response.ok)
-            {
-                showToast("An Error Occured While Updating Item Quantity", 'error');
-            }
-            else
-            {
-                result = true;
-            }
-
-            return result;
-
-        } catch (error) {
-            console.error("Error updating quantity:", error);
-            return false;
-        }
-    }
-
-    async function apiDeleteItem(item: {id: string}, token: string): Promise<boolean>
-    {
-        try {
-            const response = await fetch(`${API_BASE_URL}${DELETE_ITEM_END_POINT}/${item.id}`, {
-                method: 'DELETE',
-                headers: {
-                    'Authorization': `Bearer ${token}`
+               if (targetQuantity <= 0) 
+                {
+                    setCartItemFEs(prev => prev.filter(item => item.productId !== productId));
+                } 
+                else 
+                {
+                    setCartItemFEs(prev => 
+                        prev.map(item => 
+                            item.productId === productId ? { ...item, quantity: targetQuantity } : item
+                        )
+                    );
                 }
-            });
-
-            let result: boolean = false;
-            if (!response.ok)
-            {
-                showToast("An Error Occured While Deleting Card Item", 'error');
             }
             else
             {
-                result = true;
+                showToast(`${responseData.message}`, 'error');
             }
-
-            return result;
-
-        } catch (error) {
-            console.error("Error deleting item:", error);
-            return false;
+        } catch(error) {
+            showToast(`${error}`, 'error');
+        } finally {
+            setUpdatingItems(prev => ({ ...prev, [productId]: false })); 
         }
+
     }
+
+    async function updateQuantity({productId, delta}: UpdateQuantityInput)
+    {
+        if (!isAuthenticated)   updateQuantityNotAuth({productId: productId, delta: delta});
+        else                    updateQuantityAuth({productId: productId, delta: delta});
+    }
+    
     //#endregion
 
-    //#region HELPER FUNCTIONS
-    async function clearLocalCart() 
+
+    //#region BUTTON FUNCTIONS
+
+
+    function goBackCartFunction()
     {
-        if (Platform.OS === 'web') {
-            // Collect keys first to avoid mutation bugs during iteration
-            const keysToRemove: string[] = [];
-            for (let i = 0; i < window.localStorage.length; i++) {
-                const key = window.localStorage.key(i);
-                if (key && key.startsWith('cart_')) {
-                    keysToRemove.push(key);
-                }
-            }
-            // Remove them all
-            keysToRemove.forEach(key => window.localStorage.removeItem(key));
-        } else {
-            // If you decide to support local carts for mobile via SecureStore later,
-            // the deletion logic would go here!
-        }
-    }
-
-    function mapCaravansToCartItems(
-        caravans: Caravan[], 
-        localItemsData: { id: string, quantity: number }[]
-    ): CartItem[] {
-        return caravans.map(caravan => {
-            // Find the matching local item to get the saved quantity
-            const localData = localItemsData.find(item => item.id === caravan.productId);
-            
-            // Fallback to 1 if something goes wrong and it isn't found
-            const quantity = localData ? localData.quantity : 1;
-
-            return {
-                // Generate a temporary mock ID for the cart item since it's local
-                cartItemId: `local_cart_${caravan.productId}`, 
-                userId: "guest", // Placeholder since there is no logged-in user
-                productId: caravan.productId,
-                quantity: quantity,
-                addedAt: new Date().toISOString(), // Current timestamp
-                product: {
-                    name: caravan.name,
-                    currentPrice: caravan.currentPrice,
-                    quantityInStocks: caravan.quantityInStocks
-                }
-            };
+        runRevealAnimation(CART, () => {
+            setErrors({});
         });
     }
 
+    async function proceedPaymentButtonFunction()
+    {
+        setIsPressedCartButton(true);
+
+        if (!isAuthenticated)
+        {
+            setIsPressedCartButton(false);
+            navigateWithWipe("/login");
+        }
+        else
+        {
+            const isCartValid: boolean = await validateCart();
+
+            if (isCartValid)
+            {
+                runRevealAnimation(PAYMENT);
+            }
+        }
+
+        setIsPressedCartButton(false);
+    }
+
+    async function doPaymentButtonFunction()
+    {
+        setIsPressesPayButton(true);
+
+        const isPaymentInputsValid = validatePaymentInputs();
+        if (!isPaymentInputsValid)
+        {
+            showToast("Some Inputs Are Not Valid!", 'error');
+        }
+        else
+        {
+            const result = await pay();
+
+            if (!result.result)
+            {
+                showToast(result.message, 'error');
+            }
+            else
+            {
+                fetchCart();
+                runRevealAnimation(CART);
+                showToast(result.message, 'success');
+            }
+        }
+
+        setIsPressesPayButton(false);
+    }
     //#endregion
 
-    const initializeCart = useCallback(async () => {
-        setIsLoading(true);
-        try {
-            // Check Auth Status
-            let token = null;
-            if (Platform.OS === 'web') 
-            {
-                token = window.localStorage.getItem('userToken');
-            } 
-            else 
-            {
-                token = await SecureStore.getItemAsync('userToken');
-            }
 
-            const isAuth = !!token;
-            setIsAuthenticated(isAuth);
-
-            // Get Local Cart Items
-            let localItemsData: { id: string, quantity: number }[] = [];
-            if (Platform.OS === 'web') 
-            {
-                for (let i = 0; i < window.localStorage.length; i++) 
-                {
-                    const key = window.localStorage.key(i);
-                    if (key && key.startsWith('cart_')) 
-                    {
-                        const productId = key.replace('cart_', '');
-                        const quantity = parseInt(window.localStorage.getItem(key) || '0', 10);
-                        if (quantity > 0) localItemsData.push({ id: productId, quantity });
-                    }
-                }
-            }
-
-            if (!isAuth) 
-            {
-                // Guest: Fetch product details for the local items
-                const localCartCaravans = localItemsData.length > 0 ? await apiFetchProductDetails(localItemsData) : [];
-
-                const formattedCartItems = mapCaravansToCartItems(localCartCaravans, localItemsData);
-
-                setCartItems(formattedCartItems);
-            } 
-            else 
-            {
-                // Authenticated: Directly merge raw local items with backend
-                const backendCart = await apiMergeBackendCart(localItemsData, token!);
-                setCartItems(backendCart); 
-                
-                if (localItemsData.length > 0) {
-                    await clearLocalCart();
-                }
-            }
-        } catch (error) {
-            showToast('Error loading cart', 'error');
-        } finally {
-            setIsLoading(false);
-        }
-    }, []);
-
-
-    async function updateQuantity(id: string, delta: 1 | -1) 
-    {
-
-        const currentItem = cartItems.find(item => item.productId === id);
-        if (!currentItem) return;
-
-        const originalQuantity = currentItem.quantity;
-        const newQuantity = Math.max(1, originalQuantity + delta);
-
-        if (originalQuantity === newQuantity) return;
-
-        // Optimistic UI update
-        setCartItems(prevCart => 
-            prevCart.map(item => 
-                item.productId === id 
-                    ? { ...item, quantity: newQuantity } 
-                    : item
-            )
-        );
-
-
-        let token: string | null = null;
-        if (Platform.OS === 'web') 
-        {
-            token = window.localStorage.getItem('userToken');
-        } 
-        else 
-        {
-            token = await SecureStore.getItemAsync('userToken');
-        }
-
-        let isSuccess = false;
-        if (token) 
-        {
-            isSuccess = await apiUpdateQuantity({ id, quantity: newQuantity }, token);
-
-            if (!isSuccess) 
-            {
-                showToast('Failed to update quantity', 'error');
-                
-                // Revert using the exact original quantity, not a backward calculation
-                setCartItems(prevCart => 
-                    prevCart.map(item => 
-                        item.productId === id 
-                            ? { ...item, quantity: originalQuantity } 
-                            : item
-                    )
-                );
-            } 
-        }
-        else
-        {
-            if (Platform.OS === 'web') 
-            {
-                window.localStorage.setItem(`cart_${id}`, newQuantity.toString());
-            }
-        }
-    };
-
-    async function removeItem(id: string) 
-    {
-        const itemIndex = cartItems.findIndex(item => item.productId === id);
-        if (itemIndex === -1) return;
-        
-        const itemToRemove = cartItems[itemIndex];
-
-        // Optimistic UI Update 
-        setCartItems(prevCart => prevCart.filter(item => item.productId !== id));
-
-        let token: string | null = null;
-        if (Platform.OS === 'web') 
-        {
-            token = window.localStorage.getItem('userToken');
-        } 
-        else 
-        {
-            token = await SecureStore.getItemAsync('userToken');
-        }
-
-        let isSuccess = false;
-
-        if (token) 
-        {
-            isSuccess = await apiDeleteItem({ id }, token);
-
-            if (!isSuccess) 
-            {
-                showToast('Failed to remove item', 'error');
-                
-                // Safe Revert: Insert the item back exactly where it was
-                setCartItems(prevCart => {
-                    const restoredCart = [...prevCart];
-                    restoredCart.splice(itemIndex, 0, itemToRemove);
-                    return restoredCart;
-                });
-                
-                return; 
-            }
-        }
-        else
-        {
-            // Local Storage Update
-            if (Platform.OS === 'web' && (!token || isSuccess)) 
-            {
-                window.localStorage.removeItem(`cart_${id}`);
-            }
-        }
-
-        showToast('Item removed', 'success');
-    };
+    //#region HELPER FUNCTIONS
+    
 
     function calculateTotal () 
     {
-        return cartItems.reduce((total, item) => total + (parseFloat(item.product.currentPrice as any) * item.quantity), 0);
+        return cartItemFEs.reduce((total, item) => total + (parseFloat(item.product.currentPrice as any) * item.quantity), 0);
     };
 
+    //#endregion
+    
+
+    //#region LIFE CYCLE
     useFocusEffect(
         useCallback(() => {
-            initializeCart();
-        }, [initializeCart])
+            fetchCart();
+        }, [isAuthenticated])
     );
 
     useEffect(() => {
-        if (fontsLoaded) {
+        if (fontsLoaded && !isLoading) 
+        {
             revealWipe();
         }
+        
     }, [fontsLoaded, isLoading, revealWipe]);
 
-    //#region COMPONENT
-    const renderCartItem = ({ item }: { item: CartItem }) => (
-        <View style={styles.cartCard}>
-            
-            <View style={styles.itemDetails}>
-                <Text style={styles.itemName} numberOfLines={2}>{item.product.name}</Text>
-                <Text style={styles.itemPrice}>${item.product.currentPrice}</Text>
-
-                <TouchableOpacity onPress={() => removeItem(item.productId)}>
-                    <Text style={styles.removeText}>Remove</Text>
-                </TouchableOpacity>
-
-            </View>
-
-            <View style={styles.quantityContainer}>
-
-                <TouchableOpacity style={styles.qtyBtn} onPress={() => updateQuantity(item.productId, -1)}>
-                    <Text style={styles.qtyBtnText}>-</Text>
-                </TouchableOpacity>
-
-                <Text style={styles.qtyText}>{item.quantity}</Text>
-
-                <TouchableOpacity style={styles.qtyBtn} onPress={() => updateQuantity(item.productId, 1)}>
-                    <Text style={styles.qtyBtnText}>+</Text>
-                </TouchableOpacity>
-
-            </View>
-        </View>
-    );
     //#endregion
 
 
     if (!fontsLoaded || isLoading) return null;
+
+    const cartVisibleWidth = wipeProgress.interpolate({
+        inputRange: [0, 1],
+        outputRange: ['100%', '0%'], 
+    });
+
+    // Dynamic Styles
+    const cartViewMaskContainerWidth = {
+        width: cartVisibleWidth,
+    } as const;
+
+    const cartViewContainerWidth = {
+        width: containerWidth
+    } as const;
+
     const cartTotal = calculateTotal();
+
 
     return (
         <View style={styles.mainContainer}>
+
             <Navbar />
 
-            <View style={styles.contentContainer}>
+            <View style={styles.contentContainer} onLayout={onContainerLayout}>
 
-                <Text style={styles.pageTitle}>Your Cart</Text>
 
-                {cartItems.length === 0 ? (
-                    <Text style={styles.emptyCartText}>Your cart is currently empty.</Text>
-                ) : (
-                    <>
-                        <FlatList
-                            data={cartItems}
-                            keyExtractor={(item) => item.productId}
-                            renderItem={renderCartItem}
-                            contentContainerStyle={styles.listContainer}
-                            showsVerticalScrollIndicator={false}
-                        />
+                {(currentView === PAYMENT || isAnimating) &&
+                    (
+                        <View style={styles.commonContainer}>
 
-                        <View style={styles.summaryContainer}>
+                            <Text style={styles.pageTitle}>Payment Information</Text>
 
-                            <View style={styles.summaryRow}>
-                                <Text style={styles.summaryLabel}>Subtotal</Text>
-                                <Text style={styles.summaryValue}>${cartTotal.toFixed(2)}</Text>
+                            <View style={styles.goBackButtonContainer}>
+                                <GeneralButton
+                                    textStyle={styles.genericTextSemiBold}
+                                    title='Go Back To Cart' 
+                                    onPress={() => {goBackCartFunction()}}
+                                />
                             </View>
 
-                            <View style={[styles.summaryRow, styles.totalRow]}>
-                                <Text style={styles.totalLabel}>Total</Text>
-                                <Text style={styles.totalValue}>${(cartTotal).toFixed(2)}</Text>
+                            
+                            <PaymentView
+                                cardHolderName={cardHolderName}
+                                cardNumber={cardNumber}
+                                cardExpiryYear={cardExpiryYear.toString()}
+                                cardExpiryMonth={cardExpiryMonth.toString()}
+                                cardCvv={cardCvv}
+                                addressCountry={addressCountry}
+                                addressCity={addressCity}
+                                addressStreet={addressStreet}
+                                addressZip={addressZip}
+                                addressCheckbox={addressCheckbox}
+                                onCardHolderNameChange={onCardHolderNameChange}
+                                onCardNumberChange={onCardNumberChange}
+                                onCardExpiryYearChange={onCardExpiryYearChange}
+                                onCardExpiryMonthChange={onCardExpiryMonthChange}
+                                onCardCvvChange={onCardCvvChange}
+                                onAdressCountryChange={onAdressCountryChange}
+                                onAdressCityChange={onAdressCityChange}
+                                onAdressStreetChange={onAdressStreetChange}
+                                onAdressZipChange={onAdressZipChange}
+                                onAdressCheckboxChange={onAdressCheckboxChange}
+                                errors={inputErrors}
+                            />
+
+                            <View style={styles.fillObject}></View>
+                            
+                            <View style={styles.payButtonOuterContainer}> 
+                                <View style={styles.summaryRow}>
+                                    <Text style={styles.summaryLabel}>Subtotal</Text>
+                                    <Text style={styles.summaryValue}>${cartTotal.toFixed(2)}</Text>
+                                </View>
+
+                                <View style={[styles.summaryRow, styles.totalRow]}>
+                                    <Text style={styles.totalLabel}>Total</Text>
+                                    <Text style={styles.totalValue}>${(cartTotal).toFixed(2)}</Text>
+                                </View>
+
+                                <View style={styles.payButtonContainer}>
+                                    <WrappedGeneralButton
+                                    title={"Pay"}
+                                    textStyles={styles.payButtonTextStyle}
+                                    wrapperStyles={styles.payButtonWrapperStyle}
+                                    disabled={isPressesPayButton}
+                                    onPress={() => {
+                                        doPaymentButtonFunction()
+                                    }}
+                                    >
+                                    </WrappedGeneralButton>
+                                </View>
                             </View>
-
-                            <TouchableOpacity
-                                style={styles.checkoutButton}
-                                onPress={() => {
-                                    if (!isAuthenticated) {
-                                        router.push('/login');
-                                    } else {
-                                        showToast('Proceeding to payment...', 'success');
-                                        // Navigate to payment screen
-                                    }
-                                }}
-                            >
-                                <Text style={styles.checkoutButtonText}>
-                                    {isAuthenticated ? "Checkout" : "Login To Continue"}
-                                </Text>
-
-                            </TouchableOpacity>
+                            
 
                         </View>
-                    </>
-                )}
+                    )
+                }
+                
+                {(currentView === CART || isAnimating) && 
+                    (   
+                        <Animated.View style={[styles.cartViewMaskContainer, cartViewMaskContainerWidth]}>
+                        
+                            <View style={[styles.commonContainer, {backgroundColor: '#d6cba6'}, cartViewContainerWidth]}>
+
+                                <Text style={styles.pageTitle}>Your Cart</Text>
+
+                                {cartItemFEs.length === 0 ? (
+                                    <Text style={styles.emptyCartText}>Your cart is currently empty.</Text>
+                                ) : (
+                                    <>
+                                        <FlatList
+                                            data={cartItemFEs}
+                                            keyExtractor={(item) => item.productId}
+                                            renderItem={({ item }) => (
+                                                <ShopCard 
+                                                    cartItem={item}
+                                                    disabled={!!updatingItems[item.productId]}
+                                                    updateQuantity={updateQuantity} 
+                                                />
+                                            )}
+                                            contentContainerStyle={styles.listContainer}
+                                            showsVerticalScrollIndicator={true}
+                                        />
+
+                                    
+                                    </>
+                                )}
+
+                                <View style={styles.summaryContainer}>
+
+                                    <View style={styles.summaryRow}>
+                                        <Text style={styles.summaryLabel}>Subtotal</Text>
+                                        <Text style={styles.summaryValue}>${cartTotal.toFixed(2)}</Text>
+                                    </View>
+
+                                    <View style={[styles.summaryRow, styles.totalRow]}>
+                                        <Text style={styles.totalLabel}>Total</Text>
+                                        <Text style={styles.totalValue}>${(cartTotal).toFixed(2)}</Text>
+                                    </View>
+
+                                    <View style={styles.checkoutButtonContainer}>
+                                        <WrappedGeneralButton
+                                        title={(isAuthenticated) ? "Proceed" : "Login To Continue"}
+                                        textStyles={styles.checkoutButtonTextStyle}
+                                        wrapperStyles={styles.checkoutButtonWrapperStyle}
+                                        disabled={isPressedCartButton}
+                                        onPress={() => {
+                                            proceedPaymentButtonFunction()
+                                        }}
+                                        >
+                                        </WrappedGeneralButton>
+                                    </View>
+
+                                </View>
+
+                            </View>
+                        
+                        </Animated.View>
+                        
+                    )
+                }
+
             </View>
 
         </View>
@@ -507,6 +760,7 @@ export default function ShoppingCart() {
 
 //#region STYLES
 const styles = StyleSheet.create({
+
     /* LAYOUTS */
     mainContainer: {
         flex: 1,
@@ -514,17 +768,52 @@ const styles = StyleSheet.create({
     },
     contentContainer: {
         flex: 1,
-        padding: 20,
         maxWidth: 800,
         width: '100%',
         alignSelf: 'center',
+        position: 'relative',
+        overflow: 'hidden',
     },
-    row: {
-        flexDirection: 'row',
-        alignItems: 'center',
+    commonContainer: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+    },
+    goBackButtonContainer: {
+        width: '100%',
+        alignItems: 'flex-start',
+        marginLeft: 5,
+        marginBottom: 5
+    },
+    cartViewMaskContainer: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        overflow: 'hidden',
+        zIndex: 2,
+    },
+    fillObject: {
+        flex: 1,
     },
 
     /* TYPOGRAPHY */
+    genericTextRegular: {
+        fontFamily: 'Montserrat_400Regular',
+        fontSize: 16,
+        margin: 5
+    },
+    genericTextSemiBold: {
+        fontFamily: 'Montserrat_600SemiBold',
+        fontSize: 16,
+        margin: 5
+    },
+    goBackButtonTextStyle: {
+        fontFamily: 'Montserrat_400Regular',
+    },
     pageTitle: {
         marginBottom: 20,
         fontFamily: 'Montserrat_700Bold',
@@ -539,71 +828,34 @@ const styles = StyleSheet.create({
         color: '#606c38',
     },
 
-    /* CART ITEM CARD */
     listContainer: {
-        paddingBottom: 20,
-    },
-    cartCard: {
-        flexDirection: 'row',
-        backgroundColor: '#fefae0',
-        padding: 15,
-        borderRadius: 12,
-        marginBottom: 15,
-        alignItems: 'center',
-    },
-    itemImage: {
-        width: 80,
-        height: 80,
-        borderRadius: 8,
-        backgroundColor: '#e9e5d3',
-    },
-    itemDetails: {
-        flex: 1,
-        marginLeft: 15,
-        justifyContent: 'space-between',
-        height: 80,
-    },
-    itemName: {
-        fontFamily: 'Montserrat_600SemiBold',
-        fontSize: 16,
-        color: '#283618',
-    },
-    itemPrice: {
-        fontFamily: 'Montserrat_700Bold',
-        fontSize: 16,
-        color: '#bc4749',
-    },
-    removeText: {
-        fontFamily: 'Montserrat_400Regular',
-        fontSize: 13,
-        color: '#666',
-        textDecorationLine: 'underline',
+        
     },
 
-    /* QUANTITY CONTROLS */
-    quantityContainer: {
-        flexDirection: 'row',
+    /* PAY BUTTON */
+    payButtonOuterContainer: {
+        backgroundColor: '#fefae0',
+        borderRadius: 12,
+        padding: 20,
+        marginTop: 10,
+        marginBottom: 10
+    },
+    payButtonContainer: {
+        width: '95%',
+        alignSelf: 'center',
+        marginTop: 10
+    },
+    payButtonWrapperStyle: {
         alignItems: 'center',
-        height: 40,
-        backgroundColor: '#e9e5d3',
+        backgroundColor: '#5d0829',
         borderRadius: 8,
-        paddingHorizontal: 5,
+        padding: 15,
+        marginTop: 20,
     },
-    qtyBtn: {
-        paddingVertical: 5,
-        paddingHorizontal: 12,
-    },
-    qtyBtnText: {
+    payButtonTextStyle: {
         fontFamily: 'Montserrat_700Bold',
         fontSize: 18,
-        color: '#283618',
-    },
-    qtyText: {
-        textAlign: 'center',
-        minWidth: 20,
-        fontFamily: 'Montserrat_600SemiBold',
-        fontSize: 16,
-        color: '#283618',
+        color: '#fefae0',
     },
 
     /* SUMMARY SECTION */
@@ -612,6 +864,7 @@ const styles = StyleSheet.create({
         borderRadius: 12,
         padding: 20,
         marginTop: 10,
+        marginBottom: 10
     },
     summaryRow: {
         flexDirection: 'row',
@@ -644,17 +897,26 @@ const styles = StyleSheet.create({
         fontSize: 20,
         color: '#bc4749',
     },
-    checkoutButton: {
+
+
+    checkoutButtonContainer: {
+        width: '95%',
+        alignSelf: 'center',
+        marginTop: 10
+    },
+    checkoutButtonWrapperStyle: {
         alignItems: 'center',
         backgroundColor: '#283618',
         borderRadius: 8,
         padding: 15,
         marginTop: 20,
     },
-    checkoutButtonText: {
+    checkoutButtonTextStyle: {
         fontFamily: 'Montserrat_700Bold',
         fontSize: 18,
         color: '#fefae0',
     },
+
+    
 });
 //#endregion

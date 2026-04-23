@@ -1,5 +1,5 @@
 import WrappedGeneralButton from '@/components/Buttons/GeneralButtonWithWrapper/GeneralButtonWithWrapper';
-import { Caravan } from '@/constants/BACKEND_MODELS';
+import { Caravan } from '@/models/BACKEND_MODELS';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
@@ -46,6 +46,7 @@ export default function ProductCard({ dimensionStyle, caravan, quantity, disable
                         <Text style={styles.specText}>• Fuel: {caravan.fuelType}</Text>
                         <Text style={styles.specText}>• Weight: {caravan.weightKg} kg</Text>
                         <Text style={styles.specText}>• Kitchen: {caravan.hasKitchen ? 'Yes' : 'No'}</Text>
+                        <Text style={styles.specText}>Stock: {caravan.quantityInStocks}</Text>
                     </View>
 
                     {/* Add to Cart / Quantity Manager */}
@@ -56,17 +57,25 @@ export default function ProductCard({ dimensionStyle, caravan, quantity, disable
                                 onPress={() => onUpdateQuantity(1)}
                                 wrapperStyles={styles.addButtonWrapper}
                                 textStyles={styles.addButtonText}
-                                disabled={disabled}
+                                disabled={disabled || caravan.quantityInStocks <= 0}
                             />
                         ) : (
                             <View style={styles.quantityControls}>
-                                <Pressable disabled={disabled} style={[styles.qtyButton, disabled && {opacity: 0.5}]} onPress={() => onUpdateQuantity(quantity - 1)}>
+                                <Pressable 
+                                    disabled={disabled} 
+                                    style={[styles.qtyButton, (disabled) && {opacity: 0.5}]} 
+                                    onPress={() => onUpdateQuantity(-1)}
+                                >
                                     <Ionicons name={quantity === 1 ? "trash-outline" : "remove"} size={18} color="#fefae0" />
                                 </Pressable>
 
                                 <Text style={styles.qtyText}>{quantity}</Text>
 
-                                <Pressable disabled={disabled} style={[styles.qtyButton, disabled && {opacity: 0.5}]} onPress={() => onUpdateQuantity(quantity + 1)}>
+                                <Pressable 
+                                    disabled={disabled || caravan.quantityInStocks <= quantity} 
+                                    style={[styles.qtyButton, (disabled || caravan.quantityInStocks <= quantity) && {opacity: 0.5}]} 
+                                    onPress={() => onUpdateQuantity(1)}
+                                >
                                     <Ionicons name="add" size={18} color="#fefae0" />
                                 </Pressable>
                             </View>

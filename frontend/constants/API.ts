@@ -16,3 +16,6 @@ export const MERGE_BACKEND_CART_END_POINT = `${base}/cart/merge`;
 export const GET_BACKEND_CART = `${base}/cart`;
 export const UPDATE_QUANTITY_END_POINT = `${base}/cart/items`;
 export const DELETE_ITEM_END_POINT = `${base}/cart/items`;
+export const VALIDATE_CART_END_POINT = `${base}/checkout/validate`
+export const CART_PAYMENT_END_POINT = `${base}/payments`
+
