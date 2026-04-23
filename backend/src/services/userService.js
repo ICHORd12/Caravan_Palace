@@ -1,6 +1,7 @@
 const userModel = require("../models/userModel");
 const addressModel = require("../models/addressModel");
 const ApiError = require("../utils/ApiError");
+const { hashPassword } = require("../utils/hash");
 
 exports.getMe = async (userId) => {
   const user = await userModel.findById(userId);
@@ -30,5 +31,32 @@ exports.getMe = async (userId) => {
       createdAt: user.createdAt,
       addresses: profileAddresses,
     },
+  };
+};
+
+exports.updateMe = async (userId, updateData) => {
+  const { name, taxId, password } = updateData;
+  
+  const updatePayload = {};
+  if (name !== undefined) updatePayload.name = name;
+  if (taxId !== undefined) updatePayload.tax_id = taxId;
+  
+  if (password) {
+    updatePayload.passwordHash = await hashPassword(password);
+  }
+
+  if (Object.keys(updatePayload).length === 0) {
+    throw new ApiError(400, "No fields to update");
+  }
+
+  const updatedUser = await userModel.updateUser(userId, updatePayload);
+  
+  if (!updatedUser) {
+    throw new ApiError(404, "User not found or update failed");
+  }
+
+  return {
+    message: "Profile updated successfully",
+    user: updatedUser,
   };
 };
