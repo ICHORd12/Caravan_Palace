@@ -18,4 +18,6 @@ export const UPDATE_QUANTITY_END_POINT = `${base}/cart/items`;
 export const DELETE_ITEM_END_POINT = `${base}/cart/items`;
 export const VALIDATE_CART_END_POINT = `${base}/checkout/validate`
 export const CART_PAYMENT_END_POINT = `${base}/payments`
+export const GET_ORDERS_END_POINT = `${base}/users/me/orders`;
+export const GET_ORDER_DETAILS_END_POINT = `${base}/users/me/orders`;
 

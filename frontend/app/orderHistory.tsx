@@ -1,6 +1,6 @@
-import { useRouter } from 'expo-router';
-import React, { useState, useEffect } from 'react';
-import { View, Text, FlatList, TouchableOpacity, Alert, Platform, StyleSheet } from 'react-native';
+import { useRouter, useFocusEffect } from 'expo-router';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, FlatList, TouchableOpacity, Alert, Platform, StyleSheet, ActivityIndicator } from 'react-native';
 import {
     Montserrat_400Regular,
     Montserrat_600SemiBold,
@@ -10,39 +10,92 @@ import {
 
 import Navbar from '@/components/Navbar/Navbar';
 import OrderStatus, { StatusType } from '../components/OrderStatus/OrderStatus';
+import { useAuth } from '@/context/AuthContext';
+import { useTransition } from '@/context/TransitionContext';
+import { API_BASE_URL, GET_ORDERS_END_POINT } from '@/constants/API';
 
 export type ExtendedStatus = StatusType | 'Cancelled' | 'Refund Requested';
-//MOCK DATA - Later to be replaced with real API calls
-const INITIAL_MOCK_ORDERS = [
-  {
-    id: '7e8f8f62-4a2f-4a60-bec5-3bfdfb879c1b',
-    date: '2026-04-18',
-    totalPrice: 479999.99,
-    status: 'Delivered' as ExtendedStatus,
-  },
-  {
-    id: '1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p',
-    date: '2026-04-20',
-    totalPrice: 120000.00,
-    status: 'In-transit' as ExtendedStatus,
-  },
-  {
-    id: '9z8y7x6w-5v4u-3t2s-1r0q-p9o8n7m6l5k4',
-    date: '2026-04-21',
-    totalPrice: 95000.00,
-    status: 'Processing' as ExtendedStatus,
-  },
-];
-//MOCK DATA END
+
+const mapBackendStatus = (backendStatus: string): ExtendedStatus => {
+  const status = backendStatus.toLowerCase();
+  if (status === 'pending') return 'Processing';
+  if (status === 'shipped') return 'In-transit';
+  if (status === 'delivered') return 'Delivered';
+  if (status === 'cancelled') return 'Cancelled';
+  return 'Processing'; 
+};
+
 export default function OrderHistoryScreen() {
-    const router = useRouter();
-  const [orders, setOrders] = useState(INITIAL_MOCK_ORDERS);
+
+  const [orders, setOrders] = useState<any[]>([]);
+  const [isLoadingOrders, setIsLoadingOrders] = useState(true);
+
+  const { isAuthenticated, token } = useAuth();
+  const router = useRouter();
+  const { revealWipe } = useTransition();
+  const [isAuthChecking, setIsAuthChecking] = useState(true);
 
   let [fontsLoaded] = useFonts({
       Montserrat_700Bold,
       Montserrat_400Regular,
       Montserrat_600SemiBold,
   });
+
+  useEffect(() => {
+      const timer = setTimeout(() => {
+          setIsAuthChecking(false);
+      }, 100); 
+      return () => clearTimeout(timer);
+  }, []);
+
+  const fetchOrders = useCallback(async () => {
+    try {
+      setIsLoadingOrders(true);
+      const response = await fetch(`${API_BASE_URL}${GET_ORDERS_END_POINT}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        
+       
+        const formattedOrders = data.orders.map((backendOrder: any) => ({
+          id: backendOrder.orderId,
+          date: backendOrder.orderDate.split('T')[0], 
+          totalPrice: parseFloat(backendOrder.totalPrice),
+          status: mapBackendStatus(backendOrder.status)
+        }));
+        
+        setOrders(formattedOrders);
+      }
+    } catch (error) {
+      console.error("Failed to fetch orders:", error);
+    } finally {
+      setIsLoadingOrders(false);
+    }
+  }, [token]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!isAuthChecking) {
+        if (!isAuthenticated) {
+          router.replace('/login');
+        } else {
+          fetchOrders();
+        }
+      }
+    }, [isAuthenticated, isAuthChecking, router, fetchOrders])
+  );
+
+  useEffect(() => {
+    if (fontsLoaded && !isAuthChecking && isAuthenticated && !isLoadingOrders) {
+        revealWipe();
+    }
+  }, [fontsLoaded, isAuthChecking, isAuthenticated, isLoadingOrders, revealWipe]);
+
 
   const handleCancelOrder = (orderId: string) => {
     setOrders(prevOrders => 
@@ -64,7 +117,7 @@ export default function OrderHistoryScreen() {
     else Alert.alert('Request Sent', 'Refund request sent to customer support.');
   };
 
-  const renderOrderItem = ({ item }: { item: typeof INITIAL_MOCK_ORDERS[0] }) => (
+  const renderOrderItem = ({ item }: { item: any }) => (
     <View style={styles.card}>
       <View style={styles.cardHeader}>
         <Text style={styles.orderIdText}>Order #{item.id.split('-')[0].toUpperCase()}</Text>
@@ -115,21 +168,27 @@ export default function OrderHistoryScreen() {
     </View>
   );
 
-
-  if (!fontsLoaded) return null;
+  if (!fontsLoaded || isAuthChecking || !isAuthenticated) return null;
 
   return (
     <View style={styles.mainContainer}>
       <Navbar />
       <View style={styles.contentContainer}>
         <Text style={styles.pageTitle}>Your Order History</Text>
-        <FlatList
-          data={orders}
-          keyExtractor={(item) => item.id}
-          renderItem={renderOrderItem}
-          contentContainerStyle={styles.listContainer}
-          showsVerticalScrollIndicator={false}
-        />
+        
+        {isLoadingOrders ? (
+            <ActivityIndicator size="large" color="#283618" style={{ marginTop: 50 }} />
+        ) : orders.length === 0 ? (
+            <Text style={[styles.dateText, { textAlign: 'center', marginTop: 40 }]}>You have no past orders.</Text>
+        ) : (
+            <FlatList
+            data={orders}
+            keyExtractor={(item) => item.id}
+            renderItem={renderOrderItem}
+            contentContainerStyle={styles.listContainer}
+            showsVerticalScrollIndicator={false}
+            />
+        )}
       </View>
     </View>
   );
