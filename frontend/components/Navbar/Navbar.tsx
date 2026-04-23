@@ -24,39 +24,38 @@ interface NavbarProps {
 }
 
 
-export default function Navbar({ navbarContainerStyle, navbarLinksStyle, loginRegisterButtonStyle}: NavbarProps) 
-{
+export default function Navbar({ navbarContainerStyle, navbarLinksStyle, loginRegisterButtonStyle }: NavbarProps) {
     const pathname = usePathname();
     const { isAuthenticated, logout } = useAuth();
     const { setWipe, navigateWithWipe, revealWipe } = useTransition();
-    
+
     const isAuthScreen = pathname === '/login' || pathname === '/register';
 
     let [fontsLoaded] = useFonts({
-            Montserrat_700Bold,
-            Montserrat_400Regular,
-            Montserrat_600SemiBold,
+        Montserrat_700Bold,
+        Montserrat_400Regular,
+        Montserrat_600SemiBold,
     });
     if (!fontsLoaded) return null;
-    
+
 
     return (
         <View style={[styles.navbarContainer, navbarContainerStyle]}>
 
             <View style={[styles.navbarLinks, navbarLinksStyle]}>
-                
 
-                {isAuthenticated ? 
+
+                {isAuthenticated ?
                     (
                         // IF LOGGED IN
                         <>
-                            <GeneralButton title="MY ACCOUNT" onPress={() => navigateWithWipe('/')} />
+                            <GeneralButton title="MY ACCOUNT" onPress={() => navigateWithWipe('/profile')} />
                             <GeneralButton title="LOGOUT" onPress={() => {
                                 logout();
                             }} />
                         </>
-                    ) 
-                    : 
+                    )
+                    :
                     (
                         // IF LOGGED OUT AND NOT ON LOGIN/REGISTER SCREENS
                         !isAuthScreen && (
@@ -74,12 +73,12 @@ export default function Navbar({ navbarContainerStyle, navbarLinksStyle, loginRe
 
                 {pathname !== '/login' && pathname !== '/register' && (
                     <>
-                    <GeneralButton textStyle={styles.caravansTextStyle} title="CARAVANS" onPress={() => navigateWithWipe('/shopping/caravans')} />
-                    <GeneralButton textStyle={styles.shopTextStyle} title="SHOP" onPress={() => navigateWithWipe('/shopping/shoppingCart')} />
+                        <GeneralButton textStyle={styles.caravansTextStyle} title="CARAVANS" onPress={() => navigateWithWipe('/shopping/caravans')} />
+                        <GeneralButton textStyle={styles.shopTextStyle} title="SHOP" onPress={() => navigateWithWipe('/shopping/shoppingCart')} />
                     </>
                 )}
 
-                
+
                 {/* 3. Global Links */}
                 <GeneralButton title="CONTACT" onPress={() => console.log("Contact clicked")} />
                 <GeneralButton title="INSTAGRAM" onPress={() => console.log("Instagram clicked")} />
