@@ -7,6 +7,7 @@ import {
     Montserrat_700Bold,
     useFonts
 } from '@expo-google-fonts/montserrat';
+import * as SecureStore from 'expo-secure-store';
 
 import Navbar from '@/components/Navbar/Navbar';
 import OrderStatus, { StatusType } from '../components/OrderStatus/OrderStatus';
@@ -78,18 +79,33 @@ export default function OrderHistoryScreen() {
     }
   }, [token]);
 
-  useFocusEffect(
+useFocusEffect(
     useCallback(() => {
-      if (!isAuthChecking) {
-        if (!isAuthenticated) {
+      const verifyAuthStatus = async () => {
+        if (isAuthenticated) {
+          fetchOrders();
+          return;
+        }
+
+        let savedToken = null;
+        if (Platform.OS === 'web') {
+          savedToken = window.localStorage.getItem('userToken');
+        } else {
+          savedToken = await SecureStore.getItemAsync('userToken');
+        }
+
+        if (!savedToken) {
           router.replace('/login');
         } else {
           fetchOrders();
         }
+      };
+
+      if (!isAuthChecking) {
+        verifyAuthStatus();
       }
     }, [isAuthenticated, isAuthChecking, router, fetchOrders])
   );
-
   useEffect(() => {
     if (fontsLoaded && !isAuthChecking && isAuthenticated && !isLoadingOrders) {
         revealWipe();
