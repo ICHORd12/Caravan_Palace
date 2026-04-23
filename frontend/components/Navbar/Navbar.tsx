@@ -42,6 +42,7 @@ export default function Navbar({ navbarContainerStyle, navbarLinksStyle, loginRe
 
                 {isAuthenticated ? 
                     (
+                        // IF LOGGED IN
                         <>
                             <GeneralButton title="MY ACCOUNT" onPress={() => navigateWithWipe('/')} />
                             
@@ -54,6 +55,7 @@ export default function Navbar({ navbarContainerStyle, navbarLinksStyle, loginRe
                     ) 
                     : 
                     (
+                        // IF LOGGED OUT AND NOT ON LOGIN/REGISTER SCREENS
                         !isAuthScreen && (
                             <>
                                 <GeneralButton textStyle={[styles.loginRegisterButton, loginRegisterButtonStyle]} title="LOGIN" onPress={() => navigateWithWipe('/login')} />
@@ -73,7 +75,7 @@ export default function Navbar({ navbarContainerStyle, navbarLinksStyle, loginRe
                     <GeneralButton textStyle={styles.shopTextStyle} title="SHOP" onPress={() => navigateWithWipe('/shopping/shoppingCart')} />
                     </>
                 )}
-
+                {/* 3. Global Links */}
                 <GeneralButton title="CONTACT" onPress={() => console.log("Contact clicked")} />
                 <GeneralButton title="INSTAGRAM" onPress={() => console.log("Instagram clicked")} />
                 <GeneralButton title="X/TWITTER" onPress={() => console.log("Twitter clicked")} />
