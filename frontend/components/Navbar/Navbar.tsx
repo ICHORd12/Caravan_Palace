@@ -1,5 +1,4 @@
 //#region IMPORTS
-
 import { usePathname } from 'expo-router';
 import { View } from 'react-native';
 
@@ -16,13 +15,11 @@ import GeneralButton from '../Buttons/GeneralButton/GeneralButton';
 import { styles } from './Navbar.styles';
 //#endregion
 
-
 interface NavbarProps {
     navbarContainerStyle?: object;
     navbarLinksStyle?: object;
     loginRegisterButtonStyle?: object;
 }
-
 
 export default function Navbar({ navbarContainerStyle, navbarLinksStyle, loginRegisterButtonStyle}: NavbarProps) 
 {
@@ -39,18 +36,18 @@ export default function Navbar({ navbarContainerStyle, navbarLinksStyle, loginRe
     });
     if (!fontsLoaded) return null;
     
-
     return (
         <View style={[styles.navbarContainer, navbarContainerStyle]}>
-
             <View style={[styles.navbarLinks, navbarLinksStyle]}>
-                
 
                 {isAuthenticated ? 
                     (
                         // IF LOGGED IN
                         <>
                             <GeneralButton title="MY ACCOUNT" onPress={() => navigateWithWipe('/')} />
+                            
+                            <GeneralButton title="ORDERS" onPress={() => navigateWithWipe('/orderHistory')} />
+
                             <GeneralButton title="LOGOUT" onPress={() => {
                                 logout();
                             }} />
@@ -78,8 +75,6 @@ export default function Navbar({ navbarContainerStyle, navbarLinksStyle, loginRe
                     <GeneralButton textStyle={styles.shopTextStyle} title="SHOP" onPress={() => navigateWithWipe('/shopping/shoppingCart')} />
                     </>
                 )}
-
-                
                 {/* 3. Global Links */}
                 <GeneralButton title="CONTACT" onPress={() => console.log("Contact clicked")} />
                 <GeneralButton title="INSTAGRAM" onPress={() => console.log("Instagram clicked")} />
@@ -88,4 +83,3 @@ export default function Navbar({ navbarContainerStyle, navbarLinksStyle, loginRe
         </View>
     );
 }
-
