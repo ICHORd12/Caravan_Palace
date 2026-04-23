@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, Platform } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
     Montserrat_400Regular,
@@ -9,35 +9,25 @@ import {
 } from '@expo-google-fonts/montserrat';
 
 import Navbar from '@/components/Navbar/Navbar';
+import { useAuth } from '@/context/AuthContext';
+import { API_BASE_URL, GET_ORDERS_END_POINT, FETCH_PRODUCTS_DETAILS_END_POINT } from '@/constants/API';
 
-// MOCK DATA - Later to be replaced with real API calls
-const MOCK_ORDER_DETAILS: Record<string, any> = {
-  '7e8f8f62-4a2f-4a60-bec5-3bfdfb879c1b': {
-    date: '2026-04-18',
-    status: 'Delivered',
-    items: [
-      { id: 'item-1', name: 'Eco Camper Van', price: 479999.99, quantity: 1 }
-    ]
-  },
-  '1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p': {
-    date: '2026-04-20',
-    status: 'In-transit',
-    items: [
-      { id: 'item-2', name: 'Silver Palace', price: 120000.00, quantity: 1 }
-    ]
-  },
-  '9z8y7x6w-5v4u-3t2s-1r0q-p9o8n7m6l5k4': {
-    date: '2026-04-21',
-    status: 'Processing',
-    items: [
-      { id: 'item-3', name: 'Caravan X', price: 95000.00, quantity: 1 }
-    ]
-  }
+const mapBackendStatus = (backendStatus: string) => {
+  const status = backendStatus.toLowerCase();
+  if (status === 'pending') return 'Processing';
+  if (status === 'shipped') return 'In-transit';
+  if (status === 'delivered') return 'Delivered';
+  if (status === 'cancelled') return 'Cancelled';
+  return 'Processing'; 
 };
-//MOCK DATA END
+
 export default function OrderDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const { token, isAuthenticated } = useAuth();
+
+  const [orderData, setOrderData] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   let [fontsLoaded] = useFonts({
       Montserrat_700Bold,
@@ -45,28 +35,66 @@ export default function OrderDetailsScreen() {
       Montserrat_600SemiBold,
   });
 
+  useEffect(() => {
+    if (!isAuthenticated || !token || !id) return;
+
+    const fetchOrderDetails = async () => {
+      try {
+        setIsLoading(true);
+
+        const orderResponse = await fetch(`${API_BASE_URL}${GET_ORDERS_END_POINT}/${id}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (!orderResponse.ok) throw new Error('Failed to fetch order');
+        
+        const orderJson = await orderResponse.json();
+        const backendOrder = orderJson.order;
+
+        const productIds = backendOrder.items.map((item: any) => item.productId);
+        let productsMap: Record<string, string> = {};
+
+        if (productIds.length > 0) {
+            const productsResponse = await fetch(`${API_BASE_URL}${FETCH_PRODUCTS_DETAILS_END_POINT}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ productIds })
+            });
+
+            if (productsResponse.ok) {
+                const productsJson = await productsResponse.json();
+                productsJson.products.forEach((prod: any) => {
+                    productsMap[prod.productId] = prod.name;
+                });
+            }
+        }
+
+       
+        const formattedOrder = {
+          date: backendOrder.orderDate.split('T')[0],
+          status: mapBackendStatus(backendOrder.status),
+          totalPrice: parseFloat(backendOrder.totalPrice),
+          items: backendOrder.items.map((item: any) => ({
+            id: item.orderItemId,
+            name: productsMap[item.productId] || 'Unknown Caravan Model',
+            price: parseFloat(item.purchasedPrice),
+            quantity: item.quantity
+          }))
+        };
+
+        setOrderData(formattedOrder);
+
+      } catch (error) {
+        console.error("Error fetching order details:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchOrderDetails();
+  }, [id, token, isAuthenticated]);
+
   if (!fontsLoaded) return null;
-
- 
-  const orderData = id ? MOCK_ORDER_DETAILS[id] : null;
-
-  if (!orderData) {
-    return (
-      <View style={styles.mainContainer}>
-        <Navbar />
-        <View style={styles.contentContainer}>
-          <Text style={styles.pageTitle}>Order Not Found</Text>
-          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-            <Text style={styles.backButtonText}>← Back to History</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    );
-  }
-
-  const calculateTotal = () => {
-    return orderData.items.reduce((sum: number, item: any) => sum + (item.price * item.quantity), 0);
-  };
 
   const renderProductItem = ({ item }: { item: any }) => (
     <View style={styles.itemCard}>
@@ -89,27 +117,34 @@ export default function OrderDetailsScreen() {
 
         <Text style={styles.pageTitle}>Order Details</Text>
         
-        <View style={styles.summaryCard}>
-            <Text style={styles.summaryLabel}>Order ID: <Text style={styles.summaryValue}>#{id?.split('-')[0].toUpperCase()}</Text></Text>
-            <Text style={styles.summaryLabel}>Date: <Text style={styles.summaryValue}>{orderData.date}</Text></Text>
-            <Text style={styles.summaryLabel}>Status: <Text style={styles.summaryValue}>{orderData.status}</Text></Text>
-        </View>
+        {isLoading ? (
+            <ActivityIndicator size="large" color="#283618" style={{ marginTop: 50 }} />
+        ) : !orderData ? (
+            <Text style={styles.sectionTitle}>Order Not Found</Text>
+        ) : (
+            <>
+                <View style={styles.summaryCard}>
+                    <Text style={styles.summaryLabel}>Order ID: <Text style={styles.summaryValue}>#{id ? id.split('-')[0].toUpperCase() : 'UNKNOWN'}</Text></Text>
+                    <Text style={styles.summaryLabel}>Date: <Text style={styles.summaryValue}>{orderData.date}</Text></Text>
+                    <Text style={styles.summaryLabel}>Status: <Text style={styles.summaryValue}>{orderData.status}</Text></Text>
+                </View>
 
-        <Text style={styles.sectionTitle}>Items Purchased</Text>
+                <Text style={styles.sectionTitle}>Items Purchased</Text>
 
-        <FlatList
-          data={orderData.items}
-          keyExtractor={(item) => item.id}
-          renderItem={renderProductItem}
-          contentContainerStyle={styles.listContainer}
-          showsVerticalScrollIndicator={false}
-        />
+                <FlatList
+                    data={orderData.items}
+                    keyExtractor={(item) => item.id}
+                    renderItem={renderProductItem}
+                    contentContainerStyle={styles.listContainer}
+                    showsVerticalScrollIndicator={false}
+                />
 
-        <View style={styles.totalContainer}>
-            <Text style={styles.totalLabel}>Total Paid:</Text>
-            <Text style={styles.totalValue}>${calculateTotal().toLocaleString()}</Text>
-        </View>
-
+                <View style={styles.totalContainer}>
+                    <Text style={styles.totalLabel}>Total Paid:</Text>
+                    <Text style={styles.totalValue}>${orderData.totalPrice.toLocaleString()}</Text>
+                </View>
+            </>
+        )}
       </View>
     </View>
   );
