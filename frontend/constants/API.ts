@@ -6,7 +6,7 @@
 export const API_BASE_URL = 'http://localhost:8080';
 
 // EndPoints
-const base = '/api/v2';
+const base = '/api/v3';
 export const loginEndPoint = `${base}/auth/login`;
 export const registerEndPoint = `${base}/auth/register`;
 export const TOKEN_VALIDATE = `${base}/users/me`
