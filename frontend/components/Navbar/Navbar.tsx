@@ -1,5 +1,4 @@
 //#region IMPORTS
-
 import { usePathname } from 'expo-router';
 import { View } from 'react-native';
 
@@ -16,13 +15,11 @@ import GeneralButton from '../Buttons/GeneralButton/GeneralButton';
 import { styles } from './Navbar.styles';
 //#endregion
 
-
 interface NavbarProps {
     navbarContainerStyle?: object;
     navbarLinksStyle?: object;
     loginRegisterButtonStyle?: object;
 }
-
 
 export default function Navbar({ navbarContainerStyle, navbarLinksStyle, loginRegisterButtonStyle }: NavbarProps) {
     const pathname = usePathname();
@@ -38,10 +35,8 @@ export default function Navbar({ navbarContainerStyle, navbarLinksStyle, loginRe
     });
     if (!fontsLoaded) return null;
 
-
     return (
         <View style={[styles.navbarContainer, navbarContainerStyle]}>
-
             <View style={[styles.navbarLinks, navbarLinksStyle]}>
 
 
@@ -50,6 +45,7 @@ export default function Navbar({ navbarContainerStyle, navbarLinksStyle, loginRe
                         // IF LOGGED IN
                         <>
                             <GeneralButton title="MY ACCOUNT" onPress={() => navigateWithWipe('/profile')} />
+                            <GeneralButton title="ORDERS" onPress={() => navigateWithWipe('/orderHistory')} />
                             <GeneralButton title="LOGOUT" onPress={() => {
                                 if (pathname === '/profile') {
                                     navigateWithWipe('/login', () => logout());
@@ -86,7 +82,6 @@ export default function Navbar({ navbarContainerStyle, navbarLinksStyle, loginRe
                     </>
                 )}
 
-
                 {/* 3. Global Links */}
                 <GeneralButton title="CONTACT" onPress={() => console.log("Contact clicked")} />
                 <GeneralButton title="INSTAGRAM" onPress={() => console.log("Instagram clicked")} />
@@ -95,4 +90,3 @@ export default function Navbar({ navbarContainerStyle, navbarLinksStyle, loginRe
         </View>
     );
 }
-

@@ -21,3 +21,5 @@ export const VALIDATE_CART_END_POINT = `${base}/checkout/validate`
 export const CART_PAYMENT_END_POINT = `${base}/payments`
 export const UPDATE_PROFILE_ENDPOINT = `${base}/users/me`;
 export const ADDRESSES_ENDPOINT = `${base}/users/me/addresses`;
+export const GET_ORDERS_END_POINT = `${base}/users/me/orders`;
+export const GET_ORDER_DETAILS_END_POINT = `${base}/users/me/orders`;
