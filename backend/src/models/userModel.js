@@ -29,6 +29,38 @@ exports.findById = async (id) => {
   return mapUser(result.rows[0]);
 };
 
+exports.updateUser = async (userId, { name, tax_id, passwordHash }) => {
+  const fields = [];
+  const values = [];
+  let idx = 1;
+
+  if (name !== undefined) {
+    fields.push(`name = $${idx++}`);
+    values.push(name);
+  }
+  if (tax_id !== undefined) {
+    fields.push(`tax_id = $${idx++}`);
+    values.push(tax_id);
+  }
+  if (passwordHash !== undefined) {
+    fields.push(`password = $${idx++}`);
+    values.push(passwordHash);
+  }
+
+  if (fields.length === 0) return null;
+
+  values.push(userId);
+  const query = `
+    UPDATE users 
+    SET ${fields.join(", ")}
+    WHERE user_id = $${idx}
+    RETURNING user_id, name, email, tax_id, role
+  `;
+
+  const result = await pool.query(query, values);
+  return mapUser(result.rows[0]);
+};
+
 exports.createUser = async ({
   name,
   email,

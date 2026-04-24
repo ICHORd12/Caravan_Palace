@@ -180,6 +180,106 @@ Status: `200 OK`
 
 ---
 
+### `GET /api/v3/users/me/orders`
+
+Returns all orders of the authenticated user.
+
+#### Auth
+
+- Required
+
+#### Success Response
+
+Status: `200 OK`
+
+```json
+{
+  "message": "Orders fetched successfully",
+  "orders": [
+    {
+      "orderId": "7e8f8f62-4a2f-4a60-bec5-3bfdfb879c1b",
+      "customerId": "b3c3f74e-4aba-4e46-8e5c-53c344f2d259",
+      "cardLast4": "1111",
+      "totalPrice": 479999.99,
+      "invoiceNumber": "INV-2026-0001",
+      "status": "pending",
+      "deliveryAddress": "Levent, Istanbul",
+      "orderDate": "2026-04-20T14:30:00.000Z",
+      "items": [
+        {
+          "orderItemId": "abc12345-def6-4789-ghij-klmn0pqr1234",
+          "orderId": "7e8f8f62-4a2f-4a60-bec5-3bfdfb879c1b",
+          "productId": "8924ed90-3acb-4e39-a9a5-5c47a84255e9",
+          "quantity": 1,
+          "purchasedPrice": 479999.99,
+          "isDelivered": false
+        }
+      ]
+    }
+  ]
+}
+```
+
+#### Common Errors
+
+- `400` if authenticated user id is missing in request context
+- `401` if token is missing
+- `401` if token is invalid
+
+---
+
+### `GET /api/v3/users/me/orders/:orderId`
+
+Returns detailed information for one order of the authenticated user.
+
+#### Auth
+
+- Required
+
+#### Path Params
+
+- `orderId`: target order id
+
+#### Success Response
+
+Status: `200 OK`
+
+```json
+{
+  "message": "Order fetched successfully",
+  "order": {
+    "orderId": "7e8f8f62-4a2f-4a60-bec5-3bfdfb879c1b",
+    "customerId": "b3c3f74e-4aba-4e46-8e5c-53c344f2d259",
+    "cardLast4": "1111",
+    "totalPrice": 479999.99,
+    "invoiceNumber": "INV-2026-0001",
+    "status": "pending",
+    "deliveryAddress": "Levent, Istanbul",
+    "orderDate": "2026-04-20T14:30:00.000Z",
+    "items": [
+      {
+        "orderItemId": "abc12345-def6-4789-ghij-klmn0pqr1234",
+        "orderId": "7e8f8f62-4a2f-4a60-bec5-3bfdfb879c1b",
+        "productId": "8924ed90-3acb-4e39-a9a5-5c47a84255e9",
+        "quantity": 1,
+        "purchasedPrice": 479999.99,
+        "isDelivered": false
+      }
+    ]
+  }
+}
+```
+
+#### Common Errors
+
+- `400` if authenticated user id is missing in request context
+- `400` if `orderId` is missing
+- `401` if token is missing
+- `401` if token is invalid
+- `404` if order is not found for the authenticated user
+
+---
+
 ### `GET /api/v3/users/me/addresses`
 
 Returns all addresses of the authenticated user.
@@ -1095,6 +1195,8 @@ Status: `200 OK`
 ### Protected Endpoints
 
 - `GET /api/v3/users/me`
+- `GET /api/v3/users/me/orders`
+- `GET /api/v3/users/me/orders/:orderId`
 - `GET /api/v3/cart/`
 - `POST /api/v3/cart/items`
 - `PATCH /api/v3/cart/items/:productId`

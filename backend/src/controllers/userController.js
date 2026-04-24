@@ -8,3 +8,12 @@ exports.me = async (req, res, next) => {
     next(err);
   }
 };
+
+exports.update = async (req, res, next) => {
+  try {
+    const result = await userService.updateMe(req.user.userId, req.body);
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+};
