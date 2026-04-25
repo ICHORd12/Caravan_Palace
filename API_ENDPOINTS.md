@@ -1180,6 +1180,131 @@ Status: `200 OK`
 
 ---
 
+## Invoice / Email Endpoints
+
+All invoice endpoints require authentication. They generate a PDF invoice for one of the authenticated user's existing orders and either return it as a file download or email it to the user.
+
+> **Backend integration note:** the routes, controllers, services and tests are wired up in code (`src/routes/invoiceRoutes.js`, `src/controllers/invoiceController.js`, `src/services/{pdfService,emailService,invoiceService}.js`). Before these endpoints can actually deliver email in a deployed environment, the backend team still needs to:
+>
+> 1. Set the SMTP environment variables described in **Environment Variables** below (`SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`, `MAIL_FROM`).
+> 2. Make sure outbound SMTP is allowed from the deployment environment.
+> 3. Optionally call `POST /api/v3/invoices/:orderId/email` automatically from the payment flow (e.g. right after a successful `POST /api/v3/payments/`) instead of leaving it as a manual user action.
+
+---
+
+### `GET /api/v3/invoices/:orderId/pdf`
+
+Generates the invoice PDF for one of the authenticated user's orders and streams it back as a file download.
+
+#### Auth
+
+- Required
+
+#### Path Params
+
+- `orderId`: target order id (must belong to the authenticated user)
+
+#### Request Body
+
+No request body.
+
+#### Success Response
+
+Status: `200 OK`
+
+Response is a binary PDF stream (not JSON):
+
+```http
+Content-Type: application/pdf
+Content-Disposition: attachment; filename="invoice-order-<orderId>.pdf"
+Content-Length: <bytes>
+```
+
+The body is the raw PDF file (starts with `%PDF-` and ends with `%%EOF`). The PDF includes:
+
+- Invoice number, order id, order date
+- Billed-to (user name + email)
+- Delivery address
+- Payment method (last 4 digits of card)
+- Itemized table: product name, quantity, unit price, subtotal
+- Total
+- Footer
+
+#### Common Errors
+
+- `400` if authenticated user id is missing in request context
+- `400` if `orderId` is missing
+- `401` if token is missing
+- `401` if token is invalid
+- `404` if the order is not found for the authenticated user
+
+---
+
+### `POST /api/v3/invoices/:orderId/email`
+
+Generates the invoice PDF for one of the authenticated user's orders and emails it to that user as an attachment.
+
+#### Auth
+
+- Required
+
+#### Path Params
+
+- `orderId`: target order id (must belong to the authenticated user)
+
+#### Request Body
+
+No request body. The recipient address is always the authenticated user's email on file. (This is intentional — it prevents one user from spamming invoices to arbitrary addresses.)
+
+#### Notes
+
+- The email subject is `Your Caravan Palace Invoice - Order #<orderId>`.
+- The email contains both a plain-text and HTML body and one attachment named `invoice-order-<orderId>.pdf` with `Content-Type: application/pdf`.
+- The `From` address comes from the `MAIL_FROM` env var (defaults to `Caravan Palace <no-reply@caravanpalace.com>`).
+- Sending uses `nodemailer` with the SMTP transport configured via env vars.
+- This endpoint does NOT modify the order; it can be called more than once.
+
+#### Success Response
+
+Status: `200 OK`
+
+```json
+{
+  "message": "Invoice emailed successfully",
+  "to": "john@example.com",
+  "orderId": "7e8f8f62-4a2f-4a60-bec5-3bfdfb879c1b"
+}
+```
+
+#### Common Errors
+
+- `400` if authenticated user id is missing in request context
+- `400` if `orderId` is missing
+- `400` if the user does not have an email address on file
+- `401` if token is missing
+- `401` if token is invalid
+- `404` if the order is not found for the authenticated user
+- `500` if the SMTP transport fails (bad credentials, host unreachable, etc.)
+
+---
+
+### Environment Variables (SMTP / Email)
+
+These must be set on the backend for `POST /api/v3/invoices/:orderId/email` to work in production. They live in `src/config/env.js`:
+
+| Variable      | Purpose                                                                  | Example / Default                                       |
+| ------------- | ------------------------------------------------------------------------ | ------------------------------------------------------- |
+| `SMTP_HOST`   | SMTP server hostname                                                     | `smtp.gmail.com` (default)                              |
+| `SMTP_PORT`   | SMTP server port                                                         | `587` (default) — use `465` for `secure: true`          |
+| `SMTP_SECURE` | `"true"` for SMTPS (TLS-on-connect, port 465); otherwise STARTTLS on 587 | `"false"` (default)                                     |
+| `SMTP_USER`   | SMTP username (often the sending email address)                          | `mailer@caravanpalace.com`                              |
+| `SMTP_PASS`   | SMTP password / app password                                             | _(never commit this)_                                   |
+| `MAIL_FROM`   | The `From:` header used in outgoing mail                                 | `Caravan Palace <no-reply@caravanpalace.com>` (default) |
+
+**Do NOT commit real SMTP credentials to git.** Put them in `.env` locally and as deployment secrets in production.
+
+---
+
 ## Quick Frontend Summary
 
 ### Public Endpoints
@@ -1205,6 +1330,8 @@ Status: `200 OK`
 - `POST /api/v3/cart/merge`
 - `POST /api/v3/checkout/validate`
 - `POST /api/v3/payments/`
+- `GET /api/v3/invoices/:orderId/pdf`
+- `POST /api/v3/invoices/:orderId/email`
 
 ## Important Implementation Notes For Frontend
 
@@ -1220,5 +1347,7 @@ Status: `200 OK`
 8. `GET /products/search` expects query parameter `q` and optional `sort` in query string.
 9. `POST /checkout/validate` is the pre-payment stock safety check for the current cart.
 10. `POST /payments/` now computes the total from the cart on the backend and creates an order on success.
+11. `GET /invoices/:orderId/pdf` returns a binary PDF (not JSON). The frontend should treat the response as a `Blob`/`ArrayBuffer` (e.g. `fetch(...).then(r => r.blob())` or axios `responseType: 'blob'`) and trigger a download. The `Content-Disposition` header carries the filename.
+12. `POST /invoices/:orderId/email` always emails the PDF to the authenticated user's email on file — no recipient field is accepted from the client. The endpoint can be called multiple times for the same order. SMTP credentials must be configured in backend env vars (see **Environment Variables** in the Invoice section).
 
 
