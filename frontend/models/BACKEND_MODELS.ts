@@ -52,6 +52,11 @@ export type FetchProductsAllResponse = {
     products: Caravan[]
 }
 
+export type FetchProductsSearchResponse ={
+    message: string,
+    products: Caravan[]
+}
+
 type Adjustment = {
     productId: string,
     requestedQuantity: number,

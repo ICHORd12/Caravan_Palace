@@ -20,8 +20,6 @@ export const kitchenData = [
 ];
 
 export const sortOptions = [
-    { label: 'Newest to Oldest', value: 'date_desc' },
-    { label: 'Oldest to Newest', value: 'date_asc' },
     { label: 'Price: High to Low', value: 'price_desc' },
     { label: 'Price: Low to High', value: 'price_asc' },
 ];

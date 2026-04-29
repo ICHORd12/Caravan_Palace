@@ -1,4 +1,6 @@
 //#region IMPORTS
+
+
 import { useFocusEffect } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Alert, FlatList, LayoutChangeEvent, Platform, StyleSheet, Text, View } from 'react-native';
@@ -17,8 +19,8 @@ import Navbar from '@/components/Navbar/Navbar';
 import ProductCard from '@/components/ProductCard/ProductCard';
 import SearchBar from '@/components/SearchBar/SearchBar';
 
-import { API_BASE_URL, PRODUCTS_END_POINT, GET_BACKEND_CART, DELETE_ITEM_END_POINT, UPDATE_QUANTITY_END_POINT } from '@/constants/API';
-import { Caravan, FetchProductsAllResponse, GetBackendCartResponse } from '@/models/BACKEND_MODELS';
+import { API_BASE_URL, PRODUCTS_END_POINT, PRODUCTS_SEARCH_ENDPOINT, GET_BACKEND_CART, UPDATE_QUANTITY_END_POINT } from '@/constants/API';
+import { Caravan, FetchProductsAllResponse, FetchProductsSearchResponse, GetBackendCartResponse } from '@/models/BACKEND_MODELS';
 import { DEBUG } from '@/constants/CONSTANTS';
 import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/context/ToastContext';
@@ -27,27 +29,49 @@ import getLocalCartMap from '@/functions/getLocalCartMap';
 import calculateCardDimensions from '@/functions/calculateCardDimensions';
 //#endregion
 
+
 //#region MOCK FILTER DATA
+
+
 import { modelData, priceData, fuelData, weightData, kitchenData, sortOptions } from '@/constants/MOCKDATA'
 //#endregion
 
 
 //#region LOCAL CONSTANTS
+
+
 const MIN_CARD_WIDTH = 280;
 const GAP_WIDTH = 15;
 const MARGIN = 20;
+const PRICE_ASC: number = 0;
+const PRICE_DESC: number = 1;
+const SORT_OPTIONS: string[] = ["price_asc", "price_desc"];
+
 //#endregion
 
 
 //#region INPUT INTERFACES
-interface fetchProductsInput {
-    payload: Object; 
-    API_BASE_URL: string; 
+
+
+interface FetchProductsAllInput {
+    API_BASE_URL: string;
     PRODUCTS_END_POINT: string;
     signal: AbortSignal 
 }
 
-interface getQuantityInformationInput {
+interface FetchProductsSearchInput {
+    API_BASE_URL: string; 
+    PRODUCTS_SEARCH_ENDPOINT: string;
+}
+
+interface FetchProductsInput {
+    API_BASE_URL: string; 
+    PRODUCTS_END_POINT: string;
+    PRODUCTS_SEARCH_ENDPOINT: string;
+    signal: AbortSignal 
+}
+
+interface GetQuantityInformationInput {
     API_BASE_URL: string; 
     GET_BACKEND_CART: string;
     signal: AbortSignal 
@@ -62,19 +86,26 @@ export interface UpdateQuantityInput {
 
 
 export default function Caravans() {
-    if (DEBUG) console.log("LOG:: caravans Component Rendered")
+    if (DEBUG) console.log("LOG:: caravans Component Rendered");
+
+    //#region CONTEXT AND STATES
     
+    // Context Functions
     const { token, isAuthenticated } = useAuth();
     const { showToast } = useToast();
     const { revealWipe } = useTransition();
 
+    // Dynamic Size
     const [containerWidth, setContainerWidth] = useState(0);
+
+    // Caravan-Quantity Data
     const [caravans, setCaravans] = useState<Caravan[]>([]);
     const [cartQuantity, setCartQuantity] = useState<Record<string, number>>({});
 
+    // Loading
     const [updatingItems, setUpdatingItems] = useState<Record<string, boolean>>({});
-    const [isCaravansLoaded, setisCaravansLoaded] = useState(false);
-    const [isLoading, setIsLoading] = useState(false);
+    const [isInitialLoading, setIsInitialLoading] = useState(true);
+    const [isProductsLoading, setIsProductsLoading] = useState(false);
 
     // Filter
     const [selectedModels, setSelectedModels] = useState<string[]>([]);
@@ -85,33 +116,16 @@ export default function Caravans() {
 
     // Search
     const [searchQuery, setSearchQuery] = useState("");
-    const [sortOption, setSortOption] = useState("date_desc");
+    const [sortOption, setSortOption] = useState(SORT_OPTIONS[PRICE_ASC]);
 
+    // Fonts
     let [fontsLoaded] = useFonts({
         Montserrat_700Bold,
         Montserrat_400Regular,
         Montserrat_600SemiBold,
     });
 
-    
-    function clearFilters() 
-    {
-        setSelectedModels([]);
-        setSelectedPrices([]);
-        setSelectedFuelTypes([]);
-        setSelectedWeights([]);
-        setSelectedHasKitchens([]);
-
-        if (DEBUG) console.log("LOG::Executed: clearFilters");
-    }
-
-    function calculateContainerWidth(event: LayoutChangeEvent) 
-    {
-        const width = event.nativeEvent.layout.width;
-        setContainerWidth(width);
-
-        if (DEBUG) console.log("LOG::Executed: calculateContainerWidth");
-    }
+    //#endregion
 
 
     //#region QUANTITY INFORMATION
@@ -122,7 +136,7 @@ export default function Caravans() {
         setCartQuantity(localCartMap);
     }
 
-    async function getQuantityInformationAuth({ API_BASE_URL, GET_BACKEND_CART, signal }: getQuantityInformationInput)
+    async function getQuantityInformationAuth({ API_BASE_URL, GET_BACKEND_CART, signal }: GetQuantityInformationInput)
     {
         const _token = token
 
@@ -159,7 +173,7 @@ export default function Caravans() {
         }
     }
 
-    async function getQuantityInformation({ API_BASE_URL, GET_BACKEND_CART, signal }: getQuantityInformationInput) {
+    async function getQuantityInformation({ API_BASE_URL, GET_BACKEND_CART, signal }: GetQuantityInformationInput) {
         if (DEBUG) console.log("LOG::executed: getQuantityInformation");
 
         const localCartMap = getLocalCartMap();
@@ -299,12 +313,16 @@ export default function Caravans() {
     //#region FETCH PRODUCTS
 
 
-    async function fetchProducts({payload, API_BASE_URL, PRODUCTS_END_POINT, signal}: fetchProductsInput)
+    async function fetchProductsAll({API_BASE_URL, PRODUCTS_END_POINT, signal}: FetchProductsAllInput)
     {
-        setisCaravansLoaded(false);
+        setIsProductsLoading(true);
+
+        const params = new URLSearchParams({
+            sort: sortOption,
+        });
 
         try {
-            const response = await fetch(`${API_BASE_URL}${PRODUCTS_END_POINT}`, {
+            const response = await fetch(`${API_BASE_URL}${PRODUCTS_END_POINT}?${params.toString()}`, {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
@@ -333,14 +351,73 @@ export default function Caravans() {
         } finally {
             if (!signal?.aborted) 
             {
-                setisCaravansLoaded(true);
+                setIsProductsLoading(false);
             }
 
             if (DEBUG) console.log("LOG::Executed: fetchProducts");
         }
     } 
 
+    async function fetchProductsSearch({API_BASE_URL, PRODUCTS_SEARCH_ENDPOINT}: FetchProductsSearchInput)
+    {
+        setIsProductsLoading(true);
+
+        const params = new URLSearchParams({
+            q: searchQuery,
+            sort: sortOption,
+        });
+
+        try {
+            
+            const response = await fetch(`${API_BASE_URL}${PRODUCTS_SEARCH_ENDPOINT}?${params.toString()}`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            });
+
+
+            if (response.ok) 
+            {
+                const data: FetchProductsSearchResponse = await response.json();
+                setCaravans(data.products || []);
+            } 
+            else 
+            {
+                if (response.status === 404) showToast('ERROR 404');
+                else showToast('ERROR: Else');
+            }
+
+        } catch(err: any) {
+            console.error("ERROR IN fetchProductsSearch", err);
+            showToast('Something went wrong while fetching products search', 'error');
+
+        } finally {
+            setIsProductsLoading(false);
+        }
+        
+    }
+
+    async function fetchProducts({API_BASE_URL, PRODUCTS_END_POINT, PRODUCTS_SEARCH_ENDPOINT, signal}: FetchProductsInput)
+    {
+        if (searchQuery === "") fetchProductsAll({API_BASE_URL: API_BASE_URL, PRODUCTS_END_POINT: PRODUCTS_END_POINT, signal: signal});
+        else fetchProductsSearch({API_BASE_URL: API_BASE_URL, PRODUCTS_SEARCH_ENDPOINT: PRODUCTS_SEARCH_ENDPOINT});
+    }
     //#endregion
+
+
+    //#region FILTER
+    function clearFilters() 
+    {
+        setSelectedModels([]);
+        setSelectedPrices([]);
+        setSelectedFuelTypes([]);
+        setSelectedWeights([]);
+        setSelectedHasKitchens([]);
+
+        if (DEBUG) console.log("LOG::Executed: clearFilters");
+    }
+
 
     function onApplyFilter() 
     {
@@ -360,15 +437,19 @@ export default function Caravans() {
         if (DEBUG) console.log("LOG::Executed: onApplyFilter");
     }
 
+    //#endregion
     
+
+    //#region EFFECTS
+
     useFocusEffect(
         useCallback(() => {
             const controller = new AbortController();
 
             fetchProducts({
-                payload: {},
                 API_BASE_URL,
                 PRODUCTS_END_POINT,
+                PRODUCTS_SEARCH_ENDPOINT,
                 signal: controller.signal
             });
 
@@ -384,22 +465,81 @@ export default function Caravans() {
     );
 
     useEffect(() => {
-        if (fontsLoaded && isCaravansLoaded) {
+        if (fontsLoaded && isInitialLoading) {
             revealWipe();
             if (DEBUG) console.log("LOG:: revealWipe triggered!");
         }
 
         if (DEBUG) console.log("LOG::Executed: useEffect");
 
-    }, [fontsLoaded, isCaravansLoaded, revealWipe]);
+    }, [fontsLoaded, isInitialLoading, revealWipe]);
+
+    //#endregion
 
 
-    if (!fontsLoaded || !isCaravansLoaded) {
-        return <View></View>; 
-    }
+    //#region SEARCH EFFECT
+
+    // Search Bar
+    useEffect(() => {
+        const controller = new AbortController();
+
+        const timeoutId = setTimeout(() => {
+            fetchProducts({
+                API_BASE_URL, 
+                PRODUCTS_END_POINT, 
+                PRODUCTS_SEARCH_ENDPOINT,  
+                signal: controller.signal
+            });
+        }, 400);
+
+        // Cleanup function -> Called when useEffect will used again
+        return () => {
+            clearTimeout(timeoutId);
+            controller.abort();
+        };
+
+    }, [searchQuery]);
+
+    // Sort option
+    useEffect(() => {
+        const controller = new AbortController();
+
+        const timeoutId = setTimeout(() => {
+            fetchProducts({
+                API_BASE_URL, 
+                PRODUCTS_END_POINT, 
+                PRODUCTS_SEARCH_ENDPOINT,  
+                signal: controller.signal
+            });
+        }, 100);
+
+        // Cleanup function -> Called when useEffect will used again
+        return () => {
+            clearTimeout(timeoutId);
+            controller.abort();
+        };
+
+    }, [sortOption]);
     
+    //#endregion
+
+
+    //#region RESPONSIVE RELATED CALCULATIONS
+
+
+    function calculateContainerWidth(event: LayoutChangeEvent) 
+    {
+        const width = event.nativeEvent.layout.width;
+        setContainerWidth(width);
+
+        if (DEBUG) console.log("LOG::Executed: calculateContainerWidth");
+    }
+
     const { dynamicCardWidth, rowCount } = calculateCardDimensions({containerWidth, MARGIN, GAP_WIDTH, MIN_CARD_WIDTH});
     
+    //#endregion 
+
+
     return (
         <View style={styles.mainContainer}>
             <Navbar/>
@@ -506,7 +646,7 @@ export default function Caravans() {
                                 key={`grid-${rowCount}`} 
                                 data={caravans}
                                 numColumns={rowCount}
-                                keyExtractor={(item) => item.productId?.toString() || Math.random().toString()}
+                                keyExtractor={(item) => item.productId.toString()}
                                 columnWrapperStyle={rowCount > 1 ? { gap: GAP_WIDTH, marginBottom: GAP_WIDTH } : undefined}
                                 contentContainerStyle={{ padding: MARGIN, paddingBottom: MARGIN * 2 }}
                                 renderItem={({ item }) => (
@@ -521,7 +661,7 @@ export default function Caravans() {
                                     />
                                 )}
                                 ListEmptyComponent={
-                                    !isLoading ? <Text style={styles.noResultsText}>No caravans match your filters.</Text> : null
+                                    !isProductsLoading ? <Text style={styles.noResultsText}>No caravans match your filters.</Text> : null
                                 }
                             />
                         )}
@@ -533,6 +673,9 @@ export default function Caravans() {
         </View>
     );
 }
+
+//#region STYLES
+
 
 const styles = StyleSheet.create({
     mainContainer: {
@@ -606,3 +749,4 @@ const styles = StyleSheet.create({
         textAlign: 'center',
     }
 });
+//#endregion
