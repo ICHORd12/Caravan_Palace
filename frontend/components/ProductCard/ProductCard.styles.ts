@@ -22,7 +22,7 @@ export const styles = StyleSheet.create({
     imageContainer: {
         flex: 1,
         position: 'relative',
-        backgroundColor: '#a3895f'
+        backgroundColor: '#21913d'
     },
     image: {
         width: '100%',
@@ -57,6 +57,29 @@ export const styles = StyleSheet.create({
         color: '#fefae0',
         fontSize: 12,
         fontFamily: 'Montserrat_600SemiBold',
+    },
+
+    // Wish Button
+    wishButtonContainer: {
+        position: 'absolute',
+        top: 12,
+        right: 12,
+        width: 42,
+        height: 42,
+        borderRadius: 21,
+        backgroundColor: 'rgba(254, 250, 224, 0.9)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        zIndex: 10,
+
+        ...(Platform.OS === 'web' && {
+            cursor: 'pointer',
+            transition: 'transform 0.12s ease, background-color 0.12s ease',
+        }),
+    },
+
+    wishButton: {
+        
     },
 
     // Second Half

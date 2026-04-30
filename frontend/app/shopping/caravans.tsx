@@ -2,8 +2,8 @@
 
 
 import { useFocusEffect } from 'expo-router';
-import React, { useCallback, useEffect, useState } from 'react';
-import { Alert, FlatList, LayoutChangeEvent, Platform, StyleSheet, Text, View } from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Alert, FlatList, LayoutChangeEvent, Platform, StyleSheet, Text, View } from 'react-native';
 
 import {
     Montserrat_400Regular,
@@ -68,13 +68,13 @@ interface FetchProductsInput {
     API_BASE_URL: string; 
     PRODUCTS_END_POINT: string;
     PRODUCTS_SEARCH_ENDPOINT: string;
-    signal: AbortSignal 
+    signal: AbortSignal;
 }
 
 interface GetQuantityInformationInput {
     API_BASE_URL: string; 
     GET_BACKEND_CART: string;
-    signal: AbortSignal 
+    signal: AbortSignal;
 }
 
 export interface UpdateQuantityInput {
@@ -93,7 +93,7 @@ export default function Caravans() {
     // Context Functions
     const { token, isAuthenticated } = useAuth();
     const { showToast } = useToast();
-    const { revealWipe } = useTransition();
+    const { revealWipe, navigateWithWipe } = useTransition();
 
     // Dynamic Size
     const [containerWidth, setContainerWidth] = useState(0);
@@ -101,6 +101,9 @@ export default function Caravans() {
     // Caravan-Quantity Data
     const [caravans, setCaravans] = useState<Caravan[]>([]);
     const [cartQuantity, setCartQuantity] = useState<Record<string, number>>({});
+
+    // Caravan-WishList Data
+    const [caravanWishRecord, setCaravanWishRecord] = useState<Record<string, boolean>>({});
 
     // Loading
     const [updatingItems, setUpdatingItems] = useState<Record<string, boolean>>({});
@@ -117,6 +120,7 @@ export default function Caravans() {
     // Search
     const [searchQuery, setSearchQuery] = useState("");
     const [sortOption, setSortOption] = useState(SORT_OPTIONS[PRICE_ASC]);
+    const prevValues = useRef({searchQuery, sortOption});
 
     // Fonts
     let [fontsLoaded] = useFonts({
@@ -125,6 +129,16 @@ export default function Caravans() {
         Montserrat_600SemiBold,
     });
 
+    //#endregion
+
+
+    //#region NAVIGATION FUNCTIONS
+
+
+    function navigateProduct(productId: string)
+    {
+        navigateWithWipe(`/shopping/caravan/${productId}`)
+    }
     //#endregion
 
 
@@ -138,6 +152,7 @@ export default function Caravans() {
 
     async function getQuantityInformationAuth({ API_BASE_URL, GET_BACKEND_CART, signal }: GetQuantityInformationInput)
     {
+
         const _token = token
 
         try {
@@ -170,7 +185,7 @@ export default function Caravans() {
             {
                 console.error("Failed to merge cart:", error);
             }
-        }
+        } 
     }
 
     async function getQuantityInformation({ API_BASE_URL, GET_BACKEND_CART, signal }: GetQuantityInformationInput) {
@@ -303,8 +318,8 @@ export default function Caravans() {
     
     async function updateQuantity({productId, delta}: UpdateQuantityInput)
     {
-        if (!isAuthenticated)   updateQuantityNotAuth({productId: productId, delta: delta});
-        else                    updateQuantityAuth({productId: productId, delta: delta});
+        if (!isAuthenticated)   return updateQuantityNotAuth({productId: productId, delta: delta});
+        else                    return updateQuantityAuth({productId: productId, delta: delta});
     }
     
     //#endregion
@@ -313,9 +328,11 @@ export default function Caravans() {
     //#region FETCH PRODUCTS
 
 
-    async function fetchProductsAll({API_BASE_URL, PRODUCTS_END_POINT, signal}: FetchProductsAllInput)
+    async function fetchProductsAll({API_BASE_URL, PRODUCTS_END_POINT, signal}: FetchProductsAllInput): Promise<Caravan[]>
     {
         setIsProductsLoading(true);
+
+        let products: Caravan[] = [];
 
         const params = new URLSearchParams({
             sort: sortOption,
@@ -334,6 +351,8 @@ export default function Caravans() {
             {
                 const data: FetchProductsAllResponse = await response.json();
                 setCaravans(data.products || []);
+
+                products = data.products;
             } 
             else 
             {
@@ -341,13 +360,19 @@ export default function Caravans() {
                 else showToast('ERROR: Else');
             }
 
+            return products;
+
         } catch(err: any) {
             if (err.name === 'AbortError') 
             {
                 if (DEBUG) console.log("Fetch aborted: User left the screen.");
-                return; 
             }
-            showToast('Something went wrong while fetching products', 'error');
+            else
+            {
+                showToast('Something went wrong while fetching products', 'error');
+            }
+            return [];
+
         } finally {
             if (!signal?.aborted) 
             {
@@ -358,9 +383,10 @@ export default function Caravans() {
         }
     } 
 
-    async function fetchProductsSearch({API_BASE_URL, PRODUCTS_SEARCH_ENDPOINT}: FetchProductsSearchInput)
+    async function fetchProductsSearch({API_BASE_URL, PRODUCTS_SEARCH_ENDPOINT}: FetchProductsSearchInput): Promise<Caravan[]>
     {
         setIsProductsLoading(true);
+        let products: Caravan[] = [];
 
         const params = new URLSearchParams({
             q: searchQuery,
@@ -379,8 +405,9 @@ export default function Caravans() {
 
             if (response.ok) 
             {
-                const data: FetchProductsSearchResponse = await response.json();
+                const data: FetchProductsSearchResponse = await response.json();                
                 setCaravans(data.products || []);
+                products = data.products;
             } 
             else 
             {
@@ -388,9 +415,12 @@ export default function Caravans() {
                 else showToast('ERROR: Else');
             }
 
+            return products;
+
         } catch(err: any) {
             console.error("ERROR IN fetchProductsSearch", err);
             showToast('Something went wrong while fetching products search', 'error');
+            return [];
 
         } finally {
             setIsProductsLoading(false);
@@ -400,10 +430,36 @@ export default function Caravans() {
 
     async function fetchProducts({API_BASE_URL, PRODUCTS_END_POINT, PRODUCTS_SEARCH_ENDPOINT, signal}: FetchProductsInput)
     {
-        if (searchQuery === "") fetchProductsAll({API_BASE_URL: API_BASE_URL, PRODUCTS_END_POINT: PRODUCTS_END_POINT, signal: signal});
-        else fetchProductsSearch({API_BASE_URL: API_BASE_URL, PRODUCTS_SEARCH_ENDPOINT: PRODUCTS_SEARCH_ENDPOINT});
+        let products: Caravan[] = [];
+
+        if (searchQuery === "") products = await fetchProductsAll({API_BASE_URL: API_BASE_URL, PRODUCTS_END_POINT: PRODUCTS_END_POINT, signal: signal});
+        else                    products = await fetchProductsSearch({API_BASE_URL: API_BASE_URL, PRODUCTS_SEARCH_ENDPOINT: PRODUCTS_SEARCH_ENDPOINT});
+
+        setCaravanWishRecord(prev => {
+            const next: Record<string, boolean> = {};
+
+            products.forEach(caravan => {
+                const id = String(caravan.productId);
+                next[id] = prev[id] ?? false;
+            });
+
+            return next;
+        });
     }
     //#endregion
+
+
+    //#region WISH BUTTON
+
+
+    function onWishButtonClick(productId: string) {
+        setCaravanWishRecord(prev => ({
+            ...prev,
+            [productId]: !prev[productId],
+        }));
+    }
+
+    //#endregion 
 
 
     //#region FILTER
@@ -440,47 +496,79 @@ export default function Caravans() {
     //#endregion
     
 
+    //#region LOAD PAGE
+    async function loadPage(controller: AbortController) {
+        setIsInitialLoading(true);
+
+        try {
+            await Promise.all([
+                fetchProducts({
+                    API_BASE_URL,
+                    PRODUCTS_END_POINT,
+                    PRODUCTS_SEARCH_ENDPOINT,
+                    signal: controller.signal,
+                }),
+
+                getQuantityInformation({
+                    API_BASE_URL,
+                    GET_BACKEND_CART,
+                    signal: controller.signal,
+                }),
+            ]);
+        } catch (err) {
+            showToast("Something went wrong when loading the page", "error");
+        } finally {
+            if (!controller.signal.aborted) {
+                setIsInitialLoading(false);
+            }
+        }
+    }
+
+    //#endregion
+
+
     //#region EFFECTS
 
     useFocusEffect(
         useCallback(() => {
             const controller = new AbortController();
 
-            fetchProducts({
-                API_BASE_URL,
-                PRODUCTS_END_POINT,
-                PRODUCTS_SEARCH_ENDPOINT,
-                signal: controller.signal
-            });
+            loadPage(controller);
 
-            getQuantityInformation({
-                API_BASE_URL,
-                GET_BACKEND_CART,
-                signal: controller.signal
-            });
+            console.log("Load Page Executed")
 
             return () => controller.abort();
 
         }, [isAuthenticated, token])
     );
 
-    useEffect(() => {
-        if (fontsLoaded && isInitialLoading) {
-            revealWipe();
-            if (DEBUG) console.log("LOG:: revealWipe triggered!");
-        }
+    useFocusEffect(
+        useCallback(() => {
+            if (fontsLoaded && !isInitialLoading) {
+                revealWipe();
+            }
 
-        if (DEBUG) console.log("LOG::Executed: useEffect");
+            if (DEBUG) console.log("LOG::Executed: useEffect");
 
-    }, [fontsLoaded, isInitialLoading, revealWipe]);
+        }, [fontsLoaded, isInitialLoading, revealWipe])
+    );
 
     //#endregion
 
 
     //#region SEARCH EFFECT
 
-    // Search Bar
+
     useEffect(() => {
+        if (isInitialLoading) return;
+
+        console.log("Search Effect Executed")
+
+        const searchChanged = prevValues.current.searchQuery !== searchQuery;
+        const sortChanged = prevValues.current.sortOption !== sortOption;
+        prevValues.current = { searchQuery, sortOption };
+
+        const delay = searchChanged ? 400 : sortChanged ? 100 : 400;
         const controller = new AbortController();
 
         const timeoutId = setTimeout(() => {
@@ -490,7 +578,7 @@ export default function Caravans() {
                 PRODUCTS_SEARCH_ENDPOINT,  
                 signal: controller.signal
             });
-        }, 400);
+        }, delay);
 
         // Cleanup function -> Called when useEffect will used again
         return () => {
@@ -498,28 +586,8 @@ export default function Caravans() {
             controller.abort();
         };
 
-    }, [searchQuery]);
+    }, [searchQuery, sortOption]);
 
-    // Sort option
-    useEffect(() => {
-        const controller = new AbortController();
-
-        const timeoutId = setTimeout(() => {
-            fetchProducts({
-                API_BASE_URL, 
-                PRODUCTS_END_POINT, 
-                PRODUCTS_SEARCH_ENDPOINT,  
-                signal: controller.signal
-            });
-        }, 100);
-
-        // Cleanup function -> Called when useEffect will used again
-        return () => {
-            clearTimeout(timeoutId);
-            controller.abort();
-        };
-
-    }, [sortOption]);
     
     //#endregion
 
@@ -641,27 +709,32 @@ export default function Caravans() {
                         style={styles.listContainer} 
                         onLayout={calculateContainerWidth}
                     >
-                        {containerWidth > 0 && (
-                            <FlatList 
-                                key={`grid-${rowCount}`} 
+                        
+                        {isProductsLoading ? (
+                            <ActivityIndicator size="large" />
+                        ) : (
+                            <FlatList
+                                key={`grid-${rowCount}`}
                                 data={caravans}
                                 numColumns={rowCount}
                                 keyExtractor={(item) => item.productId.toString()}
                                 columnWrapperStyle={rowCount > 1 ? { gap: GAP_WIDTH, marginBottom: GAP_WIDTH } : undefined}
                                 contentContainerStyle={{ padding: MARGIN, paddingBottom: MARGIN * 2 }}
                                 renderItem={({ item }) => (
-                                    <ProductCard 
-                                        dimensionStyle={{ width: dynamicCardWidth, height: 400 }} 
-                                        caravan={item} 
-                                        // Pass specific quantity (fallback to 0 if undefined)
+                                    <ProductCard
+                                        isAuthenticated={isAuthenticated}
+                                        dimensionStyle={{ width: dynamicCardWidth, height: 400 }}
+                                        caravan={item}
                                         quantity={cartQuantity?.[item.productId] || 0}
-                                        // Pass updater callback
                                         disabled={!!updatingItems[item.productId]}
-                                        onUpdateQuantity={(newAmount) => updateQuantity({productId: item.productId, delta: newAmount})}
+                                        isWished={caravanWishRecord[item.productId]}
+                                        onWishButtonClick={(productId) => onWishButtonClick(productId)}
+                                        onUpdateQuantity={(newAmount) => updateQuantity({ productId: item.productId, delta: newAmount })}
+                                        onClick={(productId) => navigateProduct(productId)}
                                     />
                                 )}
                                 ListEmptyComponent={
-                                    !isProductsLoading ? <Text style={styles.noResultsText}>No caravans match your filters.</Text> : null
+                                    <Text style={styles.noResultsText}>No caravans match your filters.</Text>
                                 }
                             />
                         )}

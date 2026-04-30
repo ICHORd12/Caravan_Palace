@@ -6,15 +6,20 @@ import { Pressable, Text, View } from 'react-native';
 import { styles } from '../ProductCard/ProductCard.styles';
 
 interface ProductCardProps {
+    isAuthenticated: boolean;
     dimensionStyle?: object; 
     caravan: Caravan;
     quantity: number; // Added: Passed from parent
     disabled?: boolean;
-    onUpdateQuantity: (newAmount: number) => void; // Added: Handled by parent
+    isWished: boolean;
+    onWishButtonClick: (productId: string) => void;
+    onUpdateQuantity: (newAmount: number) => void; 
+    onClick: (productId: string) => void;
 }
 
-export default function ProductCard({ dimensionStyle, caravan, quantity, disabled=false, onUpdateQuantity }: ProductCardProps) {
+export default function ProductCard({ isAuthenticated, dimensionStyle, caravan, quantity, disabled=false, isWished=false, onWishButtonClick, onUpdateQuantity, onClick}: ProductCardProps) {
     const [isHovered, setIsHovered] = useState(false);
+
     // Carousel state can stay here as it only affects this specific UI component
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
@@ -28,11 +33,30 @@ export default function ProductCard({ dimensionStyle, caravan, quantity, disable
             onMouseEnter={() => setIsHovered(true)} 
             onMouseLeave={() => setIsHovered(false)}
             style={[styles.outerContainer, dimensionStyle]}
+            onPress={() => onClick(caravan.productId)}
         >
             <View style={[styles.cardContainer, isHovered && styles.cardContainerHovered]}>
                 
                 {/* Image Carousel Area */}
-                <View style={styles.imageContainer}></View>
+                <View style={styles.imageContainer}>
+                    {(isAuthenticated) && (
+
+                        <Pressable
+                        style={styles.wishButtonContainer}
+                        onPress={(event: any) => {
+                            event?.stopPropagation?.();
+                            onWishButtonClick(caravan.productId);
+                        }}
+                        >
+                            <Ionicons
+                                name={isWished ? "bookmark" : "bookmark-outline"}
+                                size={26}
+                                color={isWished ? "#bc6c25" : "#283618"}
+                            />
+                        </Pressable>
+                    )}
+                    
+                </View>
 
                 {/* Details Area */}
                 <View style={styles.detailsContainer}>
@@ -54,7 +78,10 @@ export default function ProductCard({ dimensionStyle, caravan, quantity, disable
                         {quantity === 0 ? (
                             <WrappedGeneralButton
                                 title="Add to Cart"
-                                onPress={() => onUpdateQuantity(1)}
+                                onPress={(event: any) => {
+                                    event?.stopPropagation?.();
+                                    onUpdateQuantity(1)
+                                }}
                                 wrapperStyles={styles.addButtonWrapper}
                                 textStyles={styles.addButtonText}
                                 disabled={disabled || caravan.quantityInStocks <= 0}
@@ -64,7 +91,10 @@ export default function ProductCard({ dimensionStyle, caravan, quantity, disable
                                 <Pressable 
                                     disabled={disabled} 
                                     style={[styles.qtyButton, (disabled) && {opacity: 0.5}]} 
-                                    onPress={() => onUpdateQuantity(-1)}
+                                    onPress={(event: any) => {
+                                        event?.stopPropagation?.();
+                                        onUpdateQuantity(-1)
+                                    }}
                                 >
                                     <Ionicons name={quantity === 1 ? "trash-outline" : "remove"} size={18} color="#fefae0" />
                                 </Pressable>
@@ -74,7 +104,10 @@ export default function ProductCard({ dimensionStyle, caravan, quantity, disable
                                 <Pressable 
                                     disabled={disabled || caravan.quantityInStocks <= quantity} 
                                     style={[styles.qtyButton, (disabled || caravan.quantityInStocks <= quantity) && {opacity: 0.5}]} 
-                                    onPress={() => onUpdateQuantity(1)}
+                                    onPress={(event: any) => {
+                                        event?.stopPropagation?.();
+                                        onUpdateQuantity(1)
+                                    }}
                                 >
                                     <Ionicons name="add" size={18} color="#fefae0" />
                                 </Pressable>

@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import React, { createContext, useCallback, useContext, useMemo, useRef, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Easing, Platform, StyleSheet } from 'react-native';
 
 interface TransitionContextType {
@@ -71,6 +71,15 @@ export const TransitionProvider = ({ children }: { children: React.ReactNode }) 
 
     // 3. Memoize the context value
     const contextValue = useMemo(() => ({ navigateWithWipe, revealWipe, setWipe }), [navigateWithWipe, revealWipe, setWipe]);
+
+    useEffect(() => {
+        console.log("TransitionProvider mounted");
+
+        return () => {
+            console.log("TransitionProvider unmounted");
+        };
+    }, []);
+
 
     return (
         <TransitionContext.Provider value={contextValue}>

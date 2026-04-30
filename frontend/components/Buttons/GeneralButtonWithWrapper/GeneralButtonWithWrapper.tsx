@@ -5,7 +5,7 @@ import { styles } from './GeneralButtonWithWrapper.styles';
 
 type WrappedGeneralButtonProps = {
     title: string;
-    onPress: () => void;
+    onPress: (event?: any) => void;
     textStyles?: StyleProp<TextStyle>;
     wrapperStyles?: StyleProp<ViewStyle>; // Added to pass styles to the wrapper
     disabled?: boolean;
