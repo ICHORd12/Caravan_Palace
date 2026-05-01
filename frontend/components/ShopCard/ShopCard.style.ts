@@ -63,7 +63,8 @@ export const styles = StyleSheet.create({
     },
     qtyText: {
         textAlign: 'center',
-        minWidth: 20,
+        minWidth: 40,
+        maxWidth: 60,
         fontFamily: 'Montserrat_600SemiBold',
         fontSize: 16,
         color: '#283618',

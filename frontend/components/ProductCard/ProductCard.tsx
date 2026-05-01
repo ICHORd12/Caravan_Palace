@@ -1,8 +1,8 @@
 import WrappedGeneralButton from '@/components/Buttons/GeneralButtonWithWrapper/GeneralButtonWithWrapper';
 import { Caravan } from '@/models/BACKEND_MODELS';
 import { Ionicons } from '@expo/vector-icons';
-import React, { useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { Pressable, Text, View, TextInput } from 'react-native';
 import { styles } from '../ProductCard/ProductCard.styles';
 
 interface ProductCardProps {
@@ -17,6 +17,32 @@ export default function ProductCard({ dimensionStyle, caravan, quantity, disable
     const [isHovered, setIsHovered] = useState(false);
     // Carousel state can stay here as it only affects this specific UI component
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
+
+    const [localQty, setLocalQty] = useState(quantity.toString());
+
+    useEffect(() => {
+        setLocalQty(quantity.toString());
+    }, [quantity]);
+
+    const handleQtyChange = (text: string) => {
+        const numericText = text.replace(/[^0-9]/g, '');
+        setLocalQty(numericText);
+    };
+
+    const handleBlur = () => {
+        let newQty = parseInt(localQty, 10);
+        if (isNaN(newQty)) newQty = 0;
+        if (newQty < 0) newQty = 0;
+        if (newQty > caravan.quantityInStocks) {
+            newQty = caravan.quantityInStocks;
+        }
+        
+        if (newQty !== quantity) {
+            onUpdateQuantity(newQty - quantity);
+        } else {
+            setLocalQty(newQty.toString());
+        }
+    };
 
     // Image Carousel Handlers
     function nextImage() {}
@@ -69,7 +95,15 @@ export default function ProductCard({ dimensionStyle, caravan, quantity, disable
                                     <Ionicons name={quantity === 1 ? "trash-outline" : "remove"} size={18} color="#fefae0" />
                                 </Pressable>
 
-                                <Text style={styles.qtyText}>{quantity}</Text>
+                                <TextInput 
+                                    style={styles.qtyText} 
+                                    value={localQty} 
+                                    onChangeText={handleQtyChange}
+                                    onBlur={handleBlur}
+                                    onSubmitEditing={handleBlur}
+                                    keyboardType="numeric"
+                                    editable={!disabled}
+                                />
 
                                 <Pressable 
                                     disabled={disabled || caravan.quantityInStocks <= quantity} 

@@ -1,5 +1,5 @@
-import React from "react";
-import { Text, TouchableOpacity, View } from 'react-native';
+import React, { useState, useEffect } from "react";
+import { Text, TouchableOpacity, View, TextInput } from 'react-native';
 import { styles } from './ShopCard.style';
 import { CartItemFE } from "@/models/FRONTEND_MODELS";
 import {UpdateQuantityInput} from '@/app/shopping/shoppingCart'
@@ -20,6 +20,31 @@ interface ShopCardProps {
 
 function ShopCard({ cartItem, disabled=false, updateQuantity }: ShopCardProps)
 {
+    const [localQty, setLocalQty] = useState(cartItem.quantity.toString());
+
+    useEffect(() => {
+        setLocalQty(cartItem.quantity.toString());
+    }, [cartItem.quantity]);
+
+    const handleQtyChange = (text: string) => {
+        const numericText = text.replace(/[^0-9]/g, '');
+        setLocalQty(numericText);
+    };
+
+    const handleBlur = () => {
+        let newQty = parseInt(localQty, 10);
+        if (isNaN(newQty) || newQty < 1) newQty = 1;
+        if (newQty > cartItem.product.quantityInStocks) {
+            newQty = cartItem.product.quantityInStocks;
+        }
+        
+        if (newQty !== cartItem.quantity) {
+            updateQuantity({ productId: cartItem.productId, delta: newQty - cartItem.quantity });
+        } else {
+            setLocalQty(newQty.toString());
+        }
+    };
+
     return(
          <View style={styles.cartCard}>
             
@@ -27,7 +52,7 @@ function ShopCard({ cartItem, disabled=false, updateQuantity }: ShopCardProps)
                 <Text style={styles.itemNameText} numberOfLines={2}>{cartItem.product.name}</Text>
                 <Text style={styles.itemPriceText}>${cartItem.product.currentPrice}</Text>
                 <Text style={styles.itemStockInfoText}>Stock Quantity: {cartItem.product.quantityInStocks}</Text>
-                <TouchableOpacity onPress={() => updateQuantity({productId: cartItem.productId, delta: 0 })}>
+                <TouchableOpacity onPress={() => updateQuantity({productId: cartItem.productId, delta: -2 })}>
                     <Text style={styles.removeText}>Remove</Text>
                 </TouchableOpacity>
 
@@ -39,7 +64,15 @@ function ShopCard({ cartItem, disabled=false, updateQuantity }: ShopCardProps)
                     <Text style={styles.qtyBtnText}>-</Text>
                 </TouchableOpacity>
 
-                <Text style={styles.qtyText}>{cartItem.quantity}</Text>
+                <TextInput 
+                    style={styles.qtyText} 
+                    value={localQty} 
+                    onChangeText={handleQtyChange}
+                    onBlur={handleBlur}
+                    onSubmitEditing={handleBlur}
+                    keyboardType="numeric"
+                    editable={!disabled}
+                />
 
                 <TouchableOpacity disabled={disabled} style={[styles.qtyBtn, disabled && {opacity: 0.6}]} onPress={() => updateQuantity({productId: cartItem.productId, delta: 1 })}>
                     <Text style={styles.qtyBtnText}>+</Text>

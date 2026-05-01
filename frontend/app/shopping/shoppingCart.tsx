@@ -403,7 +403,9 @@ export default function ShoppingCart() {
         const targetItem = cartItemFEs.find(item => item.productId === productId);
         const quantityInStocks: number = targetItem ? targetItem.product.quantityInStocks : 0;
         const currentQuantity: number = targetItem ? targetItem.quantity : 0;
-        const targetQuantity: number = currentQuantity + delta;
+        let targetQuantity: number = currentQuantity;
+        if (delta === -2) targetQuantity = 0;
+        else targetQuantity = currentQuantity + delta;
 
         if (targetQuantity > quantityInStocks) 
         {
@@ -448,9 +450,8 @@ export default function ShoppingCart() {
         }
 
         let targetQuantity: number = oldQuantity;
-        if (delta === -2)       targetQuantity = 0;
-        else if (delta === -1)  targetQuantity = targetQuantity - 1;
-        else if (delta === 1)   targetQuantity = targetQuantity + 1;
+        if (delta === -2) targetQuantity = 0;
+        else targetQuantity = oldQuantity + delta;
     
         try {
             const response = await fetch(`${API_BASE_URL}${UPDATE_QUANTITY_END_POINT}`, {

@@ -1,6 +1,12 @@
 export const modelData = [
-    {label: 'Model 1', value: 'model1'},
-    {label: 'Model 2', value: 'model2'}
+    {label: 'VR5 2023', value: 'VR5-2023'},
+    {label: 'SPX 190 2022', value: 'SPX190-2022'},
+    {label: 'SO 410', value: 'SO-410'},
+    {label: 'HSK 48', value: 'HSK-48'},
+    {label: 'Lite V1', value: 'Lite-V1'},
+    {label: 'Grand 22', value: 'Grand-22'},
+    {label: '2026 X', value: '2026-X'},
+    {label: 'ECO 2025', value: 'ECO-2025'}
 ];
 export const priceData = [
     {label: 'Under $20,000', value: 'under_20k'},

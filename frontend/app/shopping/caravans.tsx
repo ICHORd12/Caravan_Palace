@@ -70,6 +70,7 @@ export default function Caravans() {
 
     const [containerWidth, setContainerWidth] = useState(0);
     const [caravans, setCaravans] = useState<Caravan[]>([]);
+    const [allCaravans, setAllCaravans] = useState<Caravan[]>([]);
     const [cartQuantity, setCartQuantity] = useState<Record<string, number>>({});
 
     const [updatingItems, setUpdatingItems] = useState<Record<string, boolean>>({});
@@ -82,6 +83,14 @@ export default function Caravans() {
     const [selectedFuelTypes, setSelectedFuelTypes] = useState<string[]>([]);
     const [selectedWeights, setSelectedWeights] = useState<string[]>([]);
     const [selectedHasKitchens, setSelectedHasKitchens] = useState<string[]>([]);
+
+    const [appliedFilters, setAppliedFilters] = useState({
+        models: [] as string[],
+        prices: [] as string[],
+        fuelTypes: [] as string[],
+        weights: [] as string[],
+        hasKitchens: [] as string[],
+    });
 
     // Search
     const [searchQuery, setSearchQuery] = useState("");
@@ -186,7 +195,9 @@ export default function Caravans() {
         const targetItem = caravans.find(item => item.productId === productId);
         const quantityInStocks: number = targetItem ? targetItem.quantityInStocks : 0;
         const currentQuantity: number = cartQuantity[productId] || 0;
-        const targetQuantity: number = currentQuantity + delta;
+        let targetQuantity: number = currentQuantity;
+        if (delta === -2) targetQuantity = 0;
+        else targetQuantity = currentQuantity + delta;
 
 
         if (targetQuantity > quantityInStocks) 
@@ -239,9 +250,8 @@ export default function Caravans() {
         console.log("Delta: ", delta);
 
         let targetQuantity: number = currentQuantity;
-        if (delta === -2)       targetQuantity = 0;
-        else if (delta === -1)  targetQuantity = targetQuantity - 1;
-        else if (delta === 1)   targetQuantity = targetQuantity + 1;
+        if (delta === -2) targetQuantity = 0;
+        else targetQuantity = currentQuantity + delta;
         
         console.log(targetQuantity);
 
@@ -315,6 +325,7 @@ export default function Caravans() {
             if (response.ok) 
             {
                 const data: FetchProductsAllResponse = await response.json();
+                setAllCaravans(data.products || []);
                 setCaravans(data.products || []);
             } 
             else 
@@ -342,21 +353,100 @@ export default function Caravans() {
 
     //#endregion
 
+    function applyFiltersAndSort() {
+        let result = [...allCaravans];
+
+        // Search
+        if (searchQuery.trim() !== '') {
+            const query = searchQuery.toLowerCase();
+            result = result.filter(c => 
+                (c.name && c.name.toLowerCase().includes(query)) || 
+                (c.description && c.description.toLowerCase().includes(query)) ||
+                (c.model && c.model.toLowerCase().includes(query))
+            );
+        }
+
+        // Models filter
+        if (appliedFilters.models.length > 0) {
+            result = result.filter(c => {
+                if (!c.model) return false;
+                const cModelLower = c.model.toLowerCase();
+                return appliedFilters.models.some(m => m.toLowerCase() === cModelLower || cModelLower.includes(m.toLowerCase()) || m.toLowerCase().includes(cModelLower));
+            });
+        }
+
+        // Prices filter
+        if (appliedFilters.prices.length > 0) {
+            result = result.filter(c => {
+                const price = Number(c.currentPrice);
+                return appliedFilters.prices.some(range => {
+                    if (range === 'under_20k') return price < 20000;
+                    if (range === '20k_to_40k') return price >= 20000 && price <= 40000;
+                    return true;
+                });
+            });
+        }
+
+        // Fuel Type
+        if (appliedFilters.fuelTypes.length > 0) {
+            result = result.filter(c => {
+                if (!c.fuelType) return false;
+                return appliedFilters.fuelTypes.some(ft => ft.toLowerCase() === c.fuelType.toLowerCase());
+            });
+        }
+
+        // Weight filter
+        if (appliedFilters.weights.length > 0) {
+            result = result.filter(c => {
+                const w = c.weightKg;
+                return appliedFilters.weights.some(weightCategory => {
+                    if (weightCategory === 'lightweight') return w < 1500;
+                    if (weightCategory === 'standard') return w >= 1500;
+                    return true;
+                });
+            });
+        }
+
+        // Has Kitchen filter
+        if (appliedFilters.hasKitchens.length > 0) {
+            result = result.filter(c => {
+                const hasKitchenVal = c.hasKitchen ? 'yes' : 'no';
+                return appliedFilters.hasKitchens.includes(hasKitchenVal);
+            });
+        }
+
+        // Sort
+        result.sort((a, b) => {
+            if (sortOption === 'price_asc') {
+                return Number(a.currentPrice) - Number(b.currentPrice);
+            } else if (sortOption === 'price_desc') {
+                return Number(b.currentPrice) - Number(a.currentPrice);
+            } else if (sortOption === 'date_asc') {
+                return new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
+            } else if (sortOption === 'date_desc') {
+                return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+            }
+            return 0;
+        });
+
+        setCaravans(result);
+    }
+
+    useEffect(() => {
+        applyFiltersAndSort();
+    }, [
+        searchQuery, sortOption, appliedFilters, allCaravans
+    ]);
+
     function onApplyFilter() 
     {
-        const filterPayload = {
-            searchQuery: searchQuery,
-            sortBy: sortOption,
+        setAppliedFilters({
             models: selectedModels,
             prices: selectedPrices,
             fuelTypes: selectedFuelTypes,
             weights: selectedWeights,
-            hasKitchen: selectedHasKitchens,
-        };
-
-        console.log("Sending the following filters to backend:");
-        console.log(JSON.stringify(filterPayload, null, 2));
-
+            hasKitchens: selectedHasKitchens
+        });
         if (DEBUG) console.log("LOG::Executed: onApplyFilter");
     }
 

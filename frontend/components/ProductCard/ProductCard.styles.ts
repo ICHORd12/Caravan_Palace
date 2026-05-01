@@ -141,5 +141,8 @@ export const styles = StyleSheet.create({
         fontFamily: 'Montserrat_700Bold',
         fontSize: 16,
         color: '#283618',
+        textAlign: 'center',
+        minWidth: 40,
+        maxWidth: 60,
     }
 });
