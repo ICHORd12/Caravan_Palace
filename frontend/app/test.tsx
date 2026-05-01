@@ -1,188 +1,91 @@
-import { useRef, useState } from "react"
-import { Animated, View, StyleSheet, Text, LayoutChangeEvent, Easing, TouchableOpacity } from "react-native"
+import { View, Text, StyleSheet, Pressable, TextInput, FlatList } from "react-native"
+import {
+    Montserrat_400Regular,
+    Montserrat_600SemiBold,
+    Montserrat_700Bold,
+    useFonts
+} from '@expo-google-fonts/montserrat';
+import { FontAwesome } from '@expo/vector-icons';
 
 
+import { commentSortOptions, commentMockData } from "@/constants/MOCKDATA";
 
-export default function Test()
-{
-    const PAYMENT: boolean = true;
-    const CART: boolean = false;
+import SortDropdown from "@/components/DropDowns/SortDropdown/SortDropdown";
+import { useState } from "react";
+import WrappedGeneralButton from "@/components/Buttons/GeneralButtonWithWrapper/GeneralButtonWithWrapper";
+import InteractiveStarRating from "@/components/CommentComponents/InteractiveStarRating/InteractiveStarRating";
+import StarRating from "@/components/CommentComponents/StarRating/StarRating";
+import WriteCommentCard from "@/components/CommentComponents/WriteCommentCard/WriteCommentCard";
+import UserCommentCard from "@/components/CommentComponents/UserCommentCard/UserCommentCard";
+import UserCommentBox from "@/components/CommentComponents/UserCommentBox/UserCommentBox";
+import TopBar from "@/components/CommentComponents/TopBar/TopBar";
+import Comment from "@/components/CommentComponents/Comment/Comment";
 
-    const wipeProgress = useRef(new Animated.Value(0)).current;
-    
-    const [currentView, setCurrentView] = useState(CART);
-    const [isAnimating, setIsAnimating] = useState(false);
-    const [frameWidth, setFrameWidth] = useState(0);
-
-    function onFrameLayout(event: LayoutChangeEvent) 
-    {
-        const { width } = event.nativeEvent.layout;
-        setFrameWidth(width);
-
-        console.log("Frame Width is set to: ", width);
-    }
-
-    function runRevealAnimation(showPayment: boolean) 
-    {
-        console.log("Current Page: ", showPayment);
-        console.log("FrameWidth: ", frameWidth);
-        console.log("Is animating: ", isAnimating);
-
-        if (frameWidth === 0 || isAnimating) return;
+export default function test() {
+    const [sortOption, setSortOption] = useState(commentSortOptions[0].value)
+    const [userRating, setUserRating] = useState(0);
+    const [commentText, setCommentText] = useState("");
 
 
-        setIsAnimating(true);
-        
-        Animated.timing(wipeProgress, {
-            toValue: showPayment ? 1 : 0,
-            duration: 500,
-            easing: Easing.inOut(Easing.cubic),
-            useNativeDriver: false,
-        }).start(() => {
-            setIsAnimating(false);
-        });
-
-        setCurrentView(showPayment);
-    }
-
-    const cartVisibleWidth = wipeProgress.interpolate({
-        inputRange: [0, 1],
-        outputRange: ['100%', '0%'], 
+    let [fontsLoaded] = useFonts({
+        Montserrat_700Bold,
+        Montserrat_400Regular,
+        Montserrat_600SemiBold,
     });
 
-    const cartViewMaskContainerWidthHeight = {
-        width: cartVisibleWidth,
-    } as const;
+    function onWriteCommentRating(starValue: number) {
+        const value: number = userRating;
+        if (starValue === userRating) {
+            setUserRating(0);
+        }
+        else {
+            setUserRating(starValue);
+        }
+    }
 
-    const cartViewContainerWidth = {
-        width: frameWidth
-    } as const;
+    const canComment: boolean = true;
+    const avgPoint: number = 3.6;
 
-    return(
+    return (
         <View style={styles.mainContainer}>
+            <View style={styles.contentContainer}>
 
-            <View style={styles.contentContainer} onLayout={onFrameLayout}>
-
-                {(currentView === PAYMENT || isAnimating) &&
-                    (
-                        <View style={[styles.commonContainer, styles.paymentViewContainer]}>
-                            <Text>PAYMENT</Text>
-                        </View>
-                    )
-                }
-
-                {(currentView === CART || isAnimating) && 
-                    (
-                        <Animated.View style={[styles.cartViewMaskContainer, cartViewMaskContainerWidthHeight]}>
-
-                            <View style={[styles.commonContainer, styles.cartViewContainer, cartViewContainerWidth]}>
-                                <Text>CART</Text>
-                            </View>
-                        
-                        </Animated.View>
-                    )
-                }
+                
+                
 
             </View>
-
-
-            <View style={styles.buttonRow}>
-                <TouchableOpacity
-                    style={[styles.button, styles.primaryButton]}
-                    onPress={() => runRevealAnimation(PAYMENT)}
-                    disabled={isAnimating}
-                >
-                    <Text style={styles.buttonText}>Show Payment</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                    style={[styles.button, styles.secondaryButton]}
-                    onPress={() => runRevealAnimation(CART)}
-                    disabled={isAnimating}
-                >
-                    <Text style={styles.buttonText}>Show Cart</Text>
-                </TouchableOpacity>
-            </View>
-
-            
         </View>
     )
 }
 
-
 const styles = StyleSheet.create({
     mainContainer: {
         flex: 1,
-        alignItems: 'center',
         backgroundColor: '#d6cba6',
-        padding: 20,
     },
     contentContainer: {
         flex: 1,
         width: '100%',
-        maxWidth: 800,
-        borderRadius: 20,
-        backgroundColor: '#67af99',
-        position: 'relative',
-        overflow: 'hidden',
+        maxWidth: 1000,
+        margin: 100,
+        alignSelf: 'center',
+        backgroundColor: 'rgba(159, 159, 159, 0.4)',
     },
-    commonContainer: {
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    paymentViewContainer: {
-        backgroundColor: '#c1121f'
-    },
-    cartViewMaskContainer: {
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        overflow: 'hidden',
-        zIndex: 2,
-    },
-    cartViewContainer: {
-        backgroundColor: '#2563eb',
-    },
-
-
-    buttonRow: {
-        flexDirection: 'row',
-        gap: 12,
-        marginTop: 24,
-        flexWrap: 'wrap',
-        justifyContent: 'center',
-        backgroundColor: '#ff0000',
+    mainComponent: {
         padding: 10,
-        borderRadius: 10,
-    },
-    button: {
-        paddingHorizontal: 20,
-        paddingVertical: 14,
-        borderRadius: 10,
-        minWidth: 140,
-        alignItems: 'center',
-    },
-    primaryButton: {
-        backgroundColor: '#283618',
-    },
-    secondaryButton: {
-        backgroundColor: '#606c38',
-    },
-    buttonText: {
-        color: '#fefae0',
-        fontSize: 16,
-        fontWeight: '700',
+        flex: 1,
     },
 
+    /* TOP BAR */
+    
+
+    /* WRITE COMMENT */
+    
+
+    /* USER COMMENTS */
+    userCommentsContainer: {
+        flex: 1,
+        marginTop: 10,
+    },
+    
 });
-
-/*
- 
-*/
