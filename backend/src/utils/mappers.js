@@ -49,6 +49,7 @@ exports.mapProduct = (row) => {
     discountRate: row.discount_rate,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    images: Array.isArray(row.images) ? row.images : [],
   };
 };
 
