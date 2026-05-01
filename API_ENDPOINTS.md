@@ -476,6 +476,19 @@ Status: `200 OK`
 
 ## Product Endpoints
 
+Product objects returned by the product listing/search endpoints include an `images` array. Images are ordered with primary images first, then by creation date.
+
+#### Product Image Object
+
+```json
+{
+  "imageId": "3b67fbdd-d08b-47f7-b493-b3c27ec1a8c4",
+  "url": "https://example.com/images/caravan-x-front.jpg",
+  "isPrimary": true,
+  "createdAt": "2026-04-09T00:00:00.000Z"
+}
+```
+
 ### `GET /api/v3/products/all`
 
 Fetches all products.
@@ -515,7 +528,7 @@ Note: the current backend returns `201`, even though this is a read endpoint.
       "quantityInStocks": 10,
       "basePrice": 100000,
       "currentPrice": 95000,
-      "warrantyStatus": "3 Years,
+      "warrantyStatus": "3 Years",
       "distributorInfo": "Distributor name",
       "berthCount": 4,
       "fuelType": "Diesel",
@@ -523,7 +536,21 @@ Note: the current backend returns `201`, even though this is a read endpoint.
       "hasKitchen": true,
       "discountRate": 5,
       "createdAt": "2026-04-09T00:00:00.000Z",
-      "updatedAt": "2026-04-09T00:00:00.000Z"
+      "updatedAt": "2026-04-09T00:00:00.000Z",
+      "images": [
+        {
+          "imageId": "3b67fbdd-d08b-47f7-b493-b3c27ec1a8c4",
+          "url": "https://example.com/images/caravan-x-front.jpg",
+          "isPrimary": true,
+          "createdAt": "2026-04-09T00:00:00.000Z"
+        },
+        {
+          "imageId": "0dd97142-8d8c-46f3-8353-fd7490864b56",
+          "url": "https://example.com/images/caravan-x-interior.jpg",
+          "isPrimary": false,
+          "createdAt": "2026-04-10T00:00:00.000Z"
+        }
+      ]
     }
   ]
 }
@@ -581,7 +608,7 @@ Status: `201 Created`
       "quantityInStocks": 10,
       "basePrice": 100000,
       "currentPrice": 95000,
-      "warrantyStatus": "3 Years,
+      "warrantyStatus": "3 Years",
       "distributorInfo": "Distributor name",
       "berthCount": 4,
       "fuelType": "Diesel",
@@ -589,7 +616,21 @@ Status: `201 Created`
       "hasKitchen": true,
       "discountRate": 5,
       "createdAt": "2026-04-09T00:00:00.000Z",
-      "updatedAt": "2026-04-09T00:00:00.000Z"
+      "updatedAt": "2026-04-09T00:00:00.000Z",
+      "images": [
+        {
+          "imageId": "3b67fbdd-d08b-47f7-b493-b3c27ec1a8c4",
+          "url": "https://example.com/images/caravan-x-front.jpg",
+          "isPrimary": true,
+          "createdAt": "2026-04-09T00:00:00.000Z"
+        },
+        {
+          "imageId": "0dd97142-8d8c-46f3-8353-fd7490864b56",
+          "url": "https://example.com/images/caravan-x-interior.jpg",
+          "isPrimary": false,
+          "createdAt": "2026-04-10T00:00:00.000Z"
+        }
+      ]
     }
   ]
 }
@@ -650,7 +691,21 @@ Status: `200 OK`
       "hasKitchen": true,
       "discountRate": 5,
       "createdAt": "2026-04-09T00:00:00.000Z",
-      "updatedAt": "2026-04-09T00:00:00.000Z"
+      "updatedAt": "2026-04-09T00:00:00.000Z",
+      "images": [
+        {
+          "imageId": "d6df0ec8-f2c9-438d-a42f-462a99760cd6",
+          "url": "https://example.com/images/eco-camper-front.jpg",
+          "isPrimary": true,
+          "createdAt": "2026-04-09T00:00:00.000Z"
+        },
+        {
+          "imageId": "4f2b33a1-a4f9-4c80-9198-f2500baad1ef",
+          "url": "https://example.com/images/eco-camper-side.jpg",
+          "isPrimary": false,
+          "createdAt": "2026-04-10T00:00:00.000Z"
+        }
+      ]
     }
   ]
 }
@@ -715,7 +770,21 @@ Status: `200 OK`
       "hasKitchen": true,
       "discountRate": 5,
       "createdAt": "2026-04-09T00:00:00.000Z",
-      "updatedAt": "2026-04-09T00:00:00.000Z"
+      "updatedAt": "2026-04-09T00:00:00.000Z",
+      "images": [
+        {
+          "imageId": "d6df0ec8-f2c9-438d-a42f-462a99760cd6",
+          "url": "https://example.com/images/eco-camper-front.jpg",
+          "isPrimary": true,
+          "createdAt": "2026-04-09T00:00:00.000Z"
+        },
+        {
+          "imageId": "4f2b33a1-a4f9-4c80-9198-f2500baad1ef",
+          "url": "https://example.com/images/eco-camper-side.jpg",
+          "isPrimary": false,
+          "createdAt": "2026-04-10T00:00:00.000Z"
+        }
+      ]
     }
   ]
 }
