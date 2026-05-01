@@ -59,6 +59,24 @@ exports.getProductById = async (productId) => {
 };
 
 
+exports.getProductDetailsById = async (productId) => {
+  const result = await pool.query(
+    `
+    SELECT 
+      p.*,
+      ${productImagesSelect}
+    FROM products p
+    LEFT JOIN product_images pi ON p.product_id = pi.product_id
+    WHERE p.product_id = $1
+    GROUP BY p.product_id
+    `,
+    [productId]
+  );
+
+  return mapProduct(result.rows[0]);
+};
+
+
 exports.getProductsByIds = async (productIds, sort) => {
   const result = await pool.query(
     `
