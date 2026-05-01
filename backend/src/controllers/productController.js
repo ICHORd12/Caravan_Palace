@@ -30,6 +30,23 @@ exports.getProductsByIds = async (req, res, next) => {
 };
 
 
+exports.getProductDetails = async (req, res, next) => {
+  try {
+    const { productId } = req.params;
+    const userId = req.user?.userId || null;
+
+    const result = await productService.getProductDetails({
+      productId,
+      userId,
+    });
+
+    res.status(200).json(result);
+  } catch (err) {
+    next(err);
+  }
+};
+
+
 exports.searchProductsByNameOrDescription = async (req, res, next) => {
     try {
         const result = await productService.searchProductsByNameOrDescription(req.query);

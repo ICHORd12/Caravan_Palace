@@ -476,6 +476,19 @@ Status: `200 OK`
 
 ## Product Endpoints
 
+Product objects returned by the product listing/search endpoints include an `images` array. Images are ordered with primary images first, then by creation date.
+
+#### Product Image Object
+
+```json
+{
+  "imageId": "3b67fbdd-d08b-47f7-b493-b3c27ec1a8c4",
+  "url": "https://example.com/images/caravan-x-front.jpg",
+  "isPrimary": true,
+  "createdAt": "2026-04-09T00:00:00.000Z"
+}
+```
+
 ### `GET /api/v3/products/all`
 
 Fetches all products.
@@ -515,7 +528,7 @@ Note: the current backend returns `201`, even though this is a read endpoint.
       "quantityInStocks": 10,
       "basePrice": 100000,
       "currentPrice": 95000,
-      "warrantyStatus": "3 Years,
+      "warrantyStatus": "3 Years",
       "distributorInfo": "Distributor name",
       "berthCount": 4,
       "fuelType": "Diesel",
@@ -523,7 +536,21 @@ Note: the current backend returns `201`, even though this is a read endpoint.
       "hasKitchen": true,
       "discountRate": 5,
       "createdAt": "2026-04-09T00:00:00.000Z",
-      "updatedAt": "2026-04-09T00:00:00.000Z"
+      "updatedAt": "2026-04-09T00:00:00.000Z",
+      "images": [
+        {
+          "imageId": "3b67fbdd-d08b-47f7-b493-b3c27ec1a8c4",
+          "url": "https://example.com/images/caravan-x-front.jpg",
+          "isPrimary": true,
+          "createdAt": "2026-04-09T00:00:00.000Z"
+        },
+        {
+          "imageId": "0dd97142-8d8c-46f3-8353-fd7490864b56",
+          "url": "https://example.com/images/caravan-x-interior.jpg",
+          "isPrimary": false,
+          "createdAt": "2026-04-10T00:00:00.000Z"
+        }
+      ]
     }
   ]
 }
@@ -581,7 +608,7 @@ Status: `201 Created`
       "quantityInStocks": 10,
       "basePrice": 100000,
       "currentPrice": 95000,
-      "warrantyStatus": "3 Years,
+      "warrantyStatus": "3 Years",
       "distributorInfo": "Distributor name",
       "berthCount": 4,
       "fuelType": "Diesel",
@@ -589,7 +616,21 @@ Status: `201 Created`
       "hasKitchen": true,
       "discountRate": 5,
       "createdAt": "2026-04-09T00:00:00.000Z",
-      "updatedAt": "2026-04-09T00:00:00.000Z"
+      "updatedAt": "2026-04-09T00:00:00.000Z",
+      "images": [
+        {
+          "imageId": "3b67fbdd-d08b-47f7-b493-b3c27ec1a8c4",
+          "url": "https://example.com/images/caravan-x-front.jpg",
+          "isPrimary": true,
+          "createdAt": "2026-04-09T00:00:00.000Z"
+        },
+        {
+          "imageId": "0dd97142-8d8c-46f3-8353-fd7490864b56",
+          "url": "https://example.com/images/caravan-x-interior.jpg",
+          "isPrimary": false,
+          "createdAt": "2026-04-10T00:00:00.000Z"
+        }
+      ]
     }
   ]
 }
@@ -650,7 +691,21 @@ Status: `200 OK`
       "hasKitchen": true,
       "discountRate": 5,
       "createdAt": "2026-04-09T00:00:00.000Z",
-      "updatedAt": "2026-04-09T00:00:00.000Z"
+      "updatedAt": "2026-04-09T00:00:00.000Z",
+      "images": [
+        {
+          "imageId": "d6df0ec8-f2c9-438d-a42f-462a99760cd6",
+          "url": "https://example.com/images/eco-camper-front.jpg",
+          "isPrimary": true,
+          "createdAt": "2026-04-09T00:00:00.000Z"
+        },
+        {
+          "imageId": "4f2b33a1-a4f9-4c80-9198-f2500baad1ef",
+          "url": "https://example.com/images/eco-camper-side.jpg",
+          "isPrimary": false,
+          "createdAt": "2026-04-10T00:00:00.000Z"
+        }
+      ]
     }
   ]
 }
@@ -715,7 +770,21 @@ Status: `200 OK`
       "hasKitchen": true,
       "discountRate": 5,
       "createdAt": "2026-04-09T00:00:00.000Z",
-      "updatedAt": "2026-04-09T00:00:00.000Z"
+      "updatedAt": "2026-04-09T00:00:00.000Z",
+      "images": [
+        {
+          "imageId": "d6df0ec8-f2c9-438d-a42f-462a99760cd6",
+          "url": "https://example.com/images/eco-camper-front.jpg",
+          "isPrimary": true,
+          "createdAt": "2026-04-09T00:00:00.000Z"
+        },
+        {
+          "imageId": "4f2b33a1-a4f9-4c80-9198-f2500baad1ef",
+          "url": "https://example.com/images/eco-camper-side.jpg",
+          "isPrimary": false,
+          "createdAt": "2026-04-10T00:00:00.000Z"
+        }
+      ]
     }
   ]
 }
@@ -725,6 +794,294 @@ Status: `200 OK`
 
 - `400` if `productIds` is not an array
 - `400` if `sort` is invalid
+
+---
+
+### `GET /api/v3/products/:productId/details`
+
+Fetches one product's full detail payload, including product images, reviews, the current user's review if authenticated, and review eligibility.
+
+#### Auth
+
+- Optional
+- If a valid `Authorization: Bearer <token>` header is sent, the response includes user-specific review eligibility and the authenticated user's existing review if one exists.
+- If the token is missing or invalid, the endpoint still responds as a guest user.
+
+#### Path Params
+
+- `productId`: target product id
+
+#### Request Example
+
+```http
+GET /api/v3/products/8924ed90-3acb-4e39-a9a5-5c47a84255e9/details
+```
+
+#### Success Response
+
+Status: `200 OK`
+
+```json
+{
+    "message": "Product details fetched successfully",
+    "product": {
+        "productId": "8924ed90-3acb-4e39-a9a5-5c47a84255e9",
+        "categoryId": "11111111-1111-1111-1111-111111111111",
+        "name": "Eco Camper Van",
+        "model": "ECO-2025",
+        "serialNumber": "SN-000002",
+        "description": "Absolute meth production machine.",
+        "quantityInStocks": 13,
+        "basePrice": "500000.00",
+        "currentPrice": "479999.99",
+        "warrantyStatus": "4 Years",
+        "distributorInfo": null,
+        "berthCount": 2,
+        "fuelType": "Nuclear",
+        "weightKg": 1500,
+        "hasKitchen": false,
+        "discountRate": 0,
+        "createdAt": "2026-03-23T15:02:31.883Z",
+        "updatedAt": "2026-03-23T15:02:31.883Z",
+        "images": []
+    },
+    "reviewEligibility": {
+        "canReview": false,
+        "reason": "User has already reviewed this product"
+    },
+    "userReview": {
+        "reviewId": "a6a61455-b69e-46c7-99f1-4b12ee69aa5b",
+        "productId": "8924ed90-3acb-4e39-a9a5-5c47a84255e9",
+        "userId": "b3c3f74e-4aba-4e46-8e5c-53c344f2d259",
+        "userName": "Mustafa",
+        "rating": 5,
+        "commentText": "Great Product!",
+        "isApproved": false,
+        "createdAt": "2026-05-01T16:56:49.598Z",
+        "updatedAt": "2026-05-01T16:56:49.598Z"
+    },
+    "reviews": [
+    {
+      "reviewId": "3a2fd384-e018-4f7d-81c5-9e0b9a57a2bf",
+      "productId": "8924ed90-3acb-4e39-a9a5-5c47a84255e9",
+      "userId": "b3c3f74e-4aba-4e46-8e5c-53c344f2d259",
+      "userName": "John Doe",
+      "rating": 5,
+      "commentText": "Excellent caravan.",
+      "isApproved": true,
+      "createdAt": "2026-04-20T14:30:00.000Z",
+      "updatedAt": "2026-04-20T14:30:00.000Z"
+    }
+  ]
+}
+```
+
+#### Review Eligibility Notes
+
+- Guest users receive `canReview: false` with reason `"User is not logged in"`.
+- Authenticated users who already reviewed the product receive their review in `userReview` and `canReview: false`.
+- Authenticated users can review only if they have received the product through a completed delivery and delivered order.
+
+#### Common Errors
+
+- `404` if product is not found
+
+---
+
+## Review Endpoints
+
+Review routes are mounted under `/api/v3/reviews`.
+
+#### Review Object
+
+Public review responses include `userName`:
+
+```json
+{
+  "reviewId": "3a2fd384-e018-4f7d-81c5-9e0b9a57a2bf",
+  "productId": "8924ed90-3acb-4e39-a9a5-5c47a84255e9",
+  "userId": "b3c3f74e-4aba-4e46-8e5c-53c344f2d259",
+  "userName": "John Doe",
+  "rating": 5,
+  "commentText": "Excellent caravan.",
+  "isApproved": true,
+  "createdAt": "2026-04-20T14:30:00.000Z",
+  "updatedAt": "2026-04-20T14:30:00.000Z"
+}
+```
+
+### `GET /api/v3/reviews/:productId/reviews`
+
+Fetches approved reviews for a product.
+
+#### Auth
+
+- Not required
+
+#### Path Params
+
+- `productId`: target product id
+
+#### Success Response
+
+Status: `200 OK`
+
+```json
+{
+  "message": "Reviews fetched successfully",
+  "reviews": [
+    {
+      "reviewId": "3a2fd384-e018-4f7d-81c5-9e0b9a57a2bf",
+      "productId": "8924ed90-3acb-4e39-a9a5-5c47a84255e9",
+      "userId": "b3c3f74e-4aba-4e46-8e5c-53c344f2d259",
+      "userName": "John Doe",
+      "rating": 5,
+      "commentText": "Excellent caravan.",
+      "isApproved": true,
+      "createdAt": "2026-04-20T14:30:00.000Z",
+      "updatedAt": "2026-04-20T14:30:00.000Z"
+    }
+  ]
+}
+```
+
+---
+
+### `GET /api/v3/reviews/:productId/review-eligibility`
+
+Checks whether the authenticated user can review a product.
+
+#### Auth
+
+- Required
+
+#### Path Params
+
+- `productId`: target product id
+
+#### Success Response
+
+Status: `200 OK`
+
+When the user can review:
+
+```json
+{
+  "message": "User is eligible to review this product",
+  "canReview": true
+}
+```
+
+When the user cannot review:
+
+```json
+{
+  "message": "User is not eligible to review this product",
+  "canReview": false
+}
+```
+
+If the user has already reviewed the product:
+
+```json
+{
+  "message": "User has already reviewed this product",
+  "canReview": false
+}
+```
+
+#### Common Errors
+
+- `401` if token is missing
+- `401` if token is invalid
+
+---
+
+### `POST /api/v3/reviews/:productId/reviews`
+
+Creates a review for a product.
+
+#### Auth
+
+- Required
+
+#### Path Params
+
+- `productId`: target product id
+
+#### Request Body
+
+```json
+{
+  "rating": 5,
+  "commentText": "Excellent caravan."
+}
+```
+
+#### Request Fields
+
+- `rating`: required integer between `1` and `5`
+- `commentText`: optional review text
+
+#### Success Response
+
+Status: `201 Created`
+
+```json
+{
+  "message": "Review created successfully",
+  "review": {
+    "reviewId": "3a2fd384-e018-4f7d-81c5-9e0b9a57a2bf",
+    "productId": "8924ed90-3acb-4e39-a9a5-5c47a84255e9",
+    "userId": "b3c3f74e-4aba-4e46-8e5c-53c344f2d259",
+    "rating": 5,
+    "commentText": "Excellent caravan.",
+    "isApproved": false,
+    "createdAt": "2026-04-20T14:30:00.000Z",
+    "updatedAt": "2026-04-20T14:30:00.000Z"
+  }
+}
+```
+
+#### Common Errors
+
+- `400` if `rating` is not an integer between `1` and `5`
+- `401` if token is missing
+- `401` if token is invalid
+- `403` if the user has not received the product
+- `409` if the user already reviewed the product
+
+---
+
+### `DELETE /api/v3/reviews/:reviewId`
+
+Deletes a review.
+
+#### Auth
+
+- Required
+- The authenticated user must either own the review or have role `product_manager`.
+
+#### Path Params
+
+- `reviewId`: target review id
+
+#### Success Response
+
+Status: `200 OK`
+
+```json
+{
+  "message": "Review deleted successfully"
+}
+```
+
+#### Common Errors
+
+- `401` if token is missing
+- `401` if token is invalid
+- `403` if the user is not allowed to delete the review
+- `404` if review is not found
 
 ---
 
@@ -1316,6 +1673,8 @@ These must be set on the backend for `POST /api/v3/invoices/:orderId/email` to w
 - `GET /api/v3/products/category_name`
 - `GET /api/v3/products/search`
 - `POST /api/v3/products/by-ids`
+- `GET /api/v3/products/:productId/details`
+- `GET /api/v3/reviews/:productId/reviews`
 
 ### Protected Endpoints
 
@@ -1328,6 +1687,9 @@ These must be set on the backend for `POST /api/v3/invoices/:orderId/email` to w
 - `DELETE /api/v3/cart/items/:productId`
 - `DELETE /api/v3/cart/`
 - `POST /api/v3/cart/merge`
+- `GET /api/v3/reviews/:productId/review-eligibility`
+- `POST /api/v3/reviews/:productId/reviews`
+- `DELETE /api/v3/reviews/:reviewId`
 - `POST /api/v3/checkout/validate`
 - `POST /api/v3/payments/`
 - `GET /api/v3/invoices/:orderId/pdf`
@@ -1336,7 +1698,7 @@ These must be set on the backend for `POST /api/v3/invoices/:orderId/email` to w
 ## Important Implementation Notes For Frontend
 
 1. Login returns a JWT token. Store it and send it as `Authorization: Bearer <token>`.
-2. Product endpoints currently return status `201` instead of `200`.
+2. Product list endpoints currently return status `201` instead of `200`.
 3. `GET /products/category_name` currently expects `category_name` in request body, which is unusual for a GET endpoint.
 4. Product sorting supports:
    - `price_asc`
@@ -1347,7 +1709,9 @@ These must be set on the backend for `POST /api/v3/invoices/:orderId/email` to w
 8. `GET /products/search` expects query parameter `q` and optional `sort` in query string.
 9. `POST /checkout/validate` is the pre-payment stock safety check for the current cart.
 10. `POST /payments/` now computes the total from the cart on the backend and creates an order on success.
-11. `GET /invoices/:orderId/pdf` returns a binary PDF (not JSON). The frontend should treat the response as a `Blob`/`ArrayBuffer` (e.g. `fetch(...).then(r => r.blob())` or axios `responseType: 'blob'`) and trigger a download. The `Content-Disposition` header carries the filename.
-12. `POST /invoices/:orderId/email` always emails the PDF to the authenticated user's email on file — no recipient field is accepted from the client. The endpoint can be called multiple times for the same order. SMTP credentials must be configured in backend env vars (see **Environment Variables** in the Invoice section).
+11. `GET /products/:productId/details` uses optional auth; missing or invalid tokens are treated as guest access.
+12. Review creation requires the user to have received the product and prevents duplicate reviews.
+13. `GET /invoices/:orderId/pdf` returns a binary PDF (not JSON). The frontend should treat the response as a `Blob`/`ArrayBuffer` (e.g. `fetch(...).then(r => r.blob())` or axios `responseType: 'blob'`) and trigger a download. The `Content-Disposition` header carries the filename.
+14. `POST /invoices/:orderId/email` always emails the PDF to the authenticated user's email on file — no recipient field is accepted from the client. The endpoint can be called multiple times for the same order. SMTP credentials must be configured in backend env vars (see **Environment Variables** in the Invoice section).
 
 

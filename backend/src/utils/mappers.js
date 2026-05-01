@@ -49,6 +49,7 @@ exports.mapProduct = (row) => {
     discountRate: row.discount_rate,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    images: Array.isArray(row.images) ? row.images : [],
   };
 };
 
@@ -104,3 +105,33 @@ exports.mapOrderItem = (row) => {
   };
 }
 
+exports.mapReview = (row) => {
+  if (!row) return null;
+
+  return {
+    reviewId: row.review_id,
+    productId: row.product_id,
+    userId: row.user_id,
+    rating: row.rating,
+    commentText: row.comment_text,
+    isApproved: row.is_approved,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+};
+
+exports.mapReviewWithUser = (row) => {
+  if (!row) return null;
+
+  return {
+    reviewId: row.review_id,
+    productId: row.product_id,
+    userId: row.user_id,
+    userName: row.user_name,
+    rating: row.rating,
+    commentText: row.comment_text,
+    isApproved: row.is_approved,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+};
