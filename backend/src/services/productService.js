@@ -1,4 +1,5 @@
-const productModel = require("../models/productModel")
+const productModel = require("../models/productModel");
+const reviewModel = require("../models/reviewModel");
 const ApiError = require("../utils/ApiError");
 const { normalizeSort } = require("../utils/sorter");
 
@@ -48,6 +49,75 @@ exports.getProductsByIds = async ({productIds, sort}) => {
   return {
     message: "Products fetched successfully",
     products,
+  };
+};
+
+
+exports.getProductDetails = async ({ productId, userId }) => {
+  const product = await productModel.getProductDetailsById(productId);
+
+  if (!product) {
+    throw new ApiError(404, "Product not found");
+  }
+
+  let reviewEligibility = {
+    canReview: false,
+    reason: "User is not logged in",
+  };
+
+  let userReview = null;
+  let reviews = [];
+
+  if (!userId) {
+    reviews = await reviewModel.getApprovedReviewsByProductId(productId);
+
+    return {
+      message: "Product details fetched successfully",
+      product,
+      reviewEligibility,
+      userReview,
+      reviews,
+    };
+  }
+
+  userReview = await reviewModel.getReviewByUserAndProductWithUser({
+    userId,
+    productId,
+  });
+
+  reviews = await reviewModel.getApprovedReviewsByProductIdExceptUser({
+    productId,
+    userId,
+  });
+
+  if (userReview) {
+    reviewEligibility = {
+      canReview: false,
+      reason: "User has already reviewed this product",
+    };
+  } else {
+    const hasDeliveredProduct = await reviewModel.hasUserReceivedProduct({
+      userId,
+      productId,
+    });
+
+    reviewEligibility = hasDeliveredProduct
+      ? {
+          canReview: true,
+          reason: "User is eligible to review this product",
+        }
+      : {
+          canReview: false,
+          reason: "User has not received this product",
+        };
+  }
+
+  return {
+    message: "Product details fetched successfully",
+    product,
+    reviewEligibility,
+    userReview,
+    reviews,
   };
 };
 
