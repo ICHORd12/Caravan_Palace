@@ -3,6 +3,7 @@ import { Caravan } from '@/models/BACKEND_MODELS';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState, useEffect } from 'react';
 import { Pressable, Text, View, TextInput } from 'react-native';
+import { useRouter } from 'expo-router';
 import { styles } from '../ProductCard/ProductCard.styles';
 
 interface ProductCardProps {
@@ -14,6 +15,7 @@ interface ProductCardProps {
 }
 
 export default function ProductCard({ dimensionStyle, caravan, quantity, disabled=false, onUpdateQuantity }: ProductCardProps) {
+    const router = useRouter();
     const [isHovered, setIsHovered] = useState(false);
     // Carousel state can stay here as it only affects this specific UI component
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -53,6 +55,7 @@ export default function ProductCard({ dimensionStyle, caravan, quantity, disable
             // @ts-ignore
             onMouseEnter={() => setIsHovered(true)} 
             onMouseLeave={() => setIsHovered(false)}
+            onPress={() => router.push(`/product/${caravan.productId}`)}
             style={[styles.outerContainer, dimensionStyle]}
         >
             <View style={[styles.cardContainer, isHovered && styles.cardContainerHovered]}>
@@ -90,7 +93,12 @@ export default function ProductCard({ dimensionStyle, caravan, quantity, disable
                                 <Pressable 
                                     disabled={disabled} 
                                     style={[styles.qtyButton, (disabled) && {opacity: 0.5}]} 
-                                    onPress={() => onUpdateQuantity(-1)}
+                                    onPress={(e) => {
+                                        // Optional: prevent navigation when adjusting quantity
+                                        // @ts-ignore for web support if needed
+                                        if (e && e.stopPropagation) e.stopPropagation();
+                                        onUpdateQuantity(-1);
+                                    }}
                                 >
                                     <Ionicons name={quantity === 1 ? "trash-outline" : "remove"} size={18} color="#fefae0" />
                                 </Pressable>
@@ -103,12 +111,20 @@ export default function ProductCard({ dimensionStyle, caravan, quantity, disable
                                     onSubmitEditing={handleBlur}
                                     keyboardType="numeric"
                                     editable={!disabled}
+                                    onPressIn={(e) => {
+                                        // @ts-ignore
+                                        if (e && e.stopPropagation) e.stopPropagation();
+                                    }}
                                 />
 
                                 <Pressable 
                                     disabled={disabled || caravan.quantityInStocks <= quantity} 
                                     style={[styles.qtyButton, (disabled || caravan.quantityInStocks <= quantity) && {opacity: 0.5}]} 
-                                    onPress={() => onUpdateQuantity(1)}
+                                    onPress={(e) => {
+                                        // @ts-ignore
+                                        if (e && e.stopPropagation) e.stopPropagation();
+                                        onUpdateQuantity(1);
+                                    }}
                                 >
                                     <Ionicons name="add" size={18} color="#fefae0" />
                                 </Pressable>
