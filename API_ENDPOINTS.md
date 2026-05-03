@@ -1401,6 +1401,127 @@ Status: `200 OK`
 
 ---
 
+## Wishlist Endpoints
+
+All wishlist endpoints require authentication.
+
+### `GET /api/v3/wishlist/`
+
+Returns the authenticated user's wishlist items, ordered by newest added item first.
+
+#### Auth
+
+- Required
+
+#### Success Response
+
+Status: `200 OK`
+
+```json
+{
+    "message": "Wishlist fetched successfully",
+    "wishlist": [
+        {
+            "wishlistId": "0a6a1a24-14dd-49d7-9301-bf78c16efb1f",
+            "productId": "8924ed90-3acb-4e39-a9a5-5c47a84255e9",
+            "addedAt": "2026-04-09T16:22:09.366Z",
+            "product": {
+                "name": "Eco Camper Van",
+                "model": "ECO-2026",
+                "currentPrice": "479999.99",
+                "basePrice": "499999.99",
+                "discountRate": "4.00",
+                "quantityInStocks": 8,
+                "imageUrl": "https://example.com/images/eco-camper-van.jpg"
+            }
+        }
+    ]
+}
+```
+
+#### Common Errors
+
+- `401` if token is missing
+- `401` if token is invalid
+
+---
+
+### `POST /api/v3/wishlist/:productId`
+
+Adds one product to the authenticated user's wishlist.
+
+#### Auth
+
+- Required
+
+#### Path Params
+
+- `productId`: product id to add
+
+#### Request Body
+
+No request body is required.
+
+#### Success Response
+
+Status: `201 Created`
+
+```json
+{
+    "message": "Product added to wishlist successfully",
+    "wishlistItem": {
+        "wishlistId": "0a6a1a24-14dd-49d7-9301-bf78c16efb1f",
+        "productId": "8924ed90-3acb-4e39-a9a5-5c47a84255e9",
+        "addedAt": "2026-04-09T16:22:09.366Z",
+        "product": {}
+    }
+}
+```
+
+#### Notes
+
+- Use `GET /api/v3/wishlist/` after adding if the frontend needs the product name, price, stock, discount, or image for the new wishlist item.
+- The endpoint prevents duplicate wishlist entries for the same user and product.
+
+#### Common Errors
+
+- `401` if token is missing
+- `401` if token is invalid
+- `404` if product does not exist
+- `409` if product is already in wishlist
+
+---
+
+### `DELETE /api/v3/wishlist/:productId`
+
+Removes one product from the authenticated user's wishlist.
+
+#### Auth
+
+- Required
+
+#### Path Params
+
+- `productId`: product id to remove
+
+#### Success Response
+
+Status: `200 OK`
+
+```json
+{
+    "message": "Product removed from wishlist successfully"
+}
+```
+
+#### Common Errors
+
+- `401` if token is missing
+- `401` if token is invalid
+- `404` if product is not in wishlist
+
+---
+
 ## Payment Endpoints
 
 All payment endpoints require authentication.
@@ -1687,6 +1808,9 @@ These must be set on the backend for `POST /api/v3/invoices/:orderId/email` to w
 - `DELETE /api/v3/cart/items/:productId`
 - `DELETE /api/v3/cart/`
 - `POST /api/v3/cart/merge`
+- `GET /api/v3/wishlist/`
+- `POST /api/v3/wishlist/:productId`
+- `DELETE /api/v3/wishlist/:productId`
 - `GET /api/v3/reviews/:productId/review-eligibility`
 - `POST /api/v3/reviews/:productId/reviews`
 - `DELETE /api/v3/reviews/:reviewId`
@@ -1713,5 +1837,4 @@ These must be set on the backend for `POST /api/v3/invoices/:orderId/email` to w
 12. Review creation requires the user to have received the product and prevents duplicate reviews.
 13. `GET /invoices/:orderId/pdf` returns a binary PDF (not JSON). The frontend should treat the response as a `Blob`/`ArrayBuffer` (e.g. `fetch(...).then(r => r.blob())` or axios `responseType: 'blob'`) and trigger a download. The `Content-Disposition` header carries the filename.
 14. `POST /invoices/:orderId/email` always emails the PDF to the authenticated user's email on file — no recipient field is accepted from the client. The endpoint can be called multiple times for the same order. SMTP credentials must be configured in backend env vars (see **Environment Variables** in the Invoice section).
-
-
+15. Wishlist endpoints use `productId` as a path parameter. `GET /wishlist/` returns product summary data and the primary image URL; `POST /wishlist/:productId` only returns the created wishlist row, so refetch the wishlist if the UI needs full product details.

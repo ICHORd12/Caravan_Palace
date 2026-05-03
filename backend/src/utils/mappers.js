@@ -135,3 +135,23 @@ exports.mapReviewWithUser = (row) => {
     updatedAt: row.updated_at,
   };
 };
+
+exports.mapWishlistItem = (row) => {
+  if (!row) return null;
+
+  return {
+    wishlistId: row.wishlist_id,
+    productId: row.product_id,
+    addedAt: row.added_at,
+
+    product: {
+      name: row.name,
+      model: row.model,
+      currentPrice: row.current_price,
+      basePrice: row.base_price,
+      discountRate: row.discount_rate,
+      quantityInStocks: row.quantity_in_stocks,
+      imageUrl: row.image_url
+    }
+  };
+};
