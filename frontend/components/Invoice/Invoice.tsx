@@ -2,7 +2,6 @@ import React from 'react';
 import { View, Text, FlatList } from 'react-native';
 import { styles } from './Invoice.styles';
 
-// Define the exact shape of the data this component requires to render
 export interface InvoiceItem {
   id: string;
   name: string;

@@ -24,3 +24,4 @@ export const ADDRESSES_ENDPOINT = `${base}/users/me/addresses`;
 export const GET_ORDERS_END_POINT = `${base}/users/me/orders`;
 export const GET_ORDER_DETAILS_END_POINT = `${base}/users/me/orders`;
 export const INVOICE_API_END_POINT = `${base}/invoices`;
+export const DOWNLOAD_INVOICE_END_POINT = `${base}/invoices`;
