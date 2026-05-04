@@ -103,19 +103,25 @@ export default function ProductCard({ dimensionStyle, caravan, quantity, disable
                                     <Ionicons name={quantity === 1 ? "trash-outline" : "remove"} size={18} color="#fefae0" />
                                 </Pressable>
 
-                                <TextInput 
-                                    style={styles.qtyText} 
-                                    value={localQty} 
-                                    onChangeText={handleQtyChange}
-                                    onBlur={handleBlur}
-                                    onSubmitEditing={handleBlur}
-                                    keyboardType="numeric"
-                                    editable={!disabled}
-                                    onPressIn={(e) => {
-                                        // @ts-ignore
+                                <Pressable 
+                                    onPress={(e) => {
                                         if (e && e.stopPropagation) e.stopPropagation();
                                     }}
-                                />
+                                    // Optional: Add cursor style if you want standard web text-selection behavior
+                                    // @ts-ignore
+                                    style={{ cursor: 'text' }} 
+                                >
+                                    <TextInput 
+                                        style={styles.qtyText} 
+                                        value={localQty} 
+                                        onChangeText={handleQtyChange}
+                                        onBlur={handleBlur}
+                                        onSubmitEditing={handleBlur}
+                                        keyboardType="numeric"
+                                        editable={!disabled}
+                                        // You can remove the onPressIn entirely now
+                                    />
+                                </Pressable>
 
                                 <Pressable 
                                     disabled={disabled || caravan.quantityInStocks <= quantity} 

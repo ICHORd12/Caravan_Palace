@@ -1,437 +1,770 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { StyleSheet, Text, View, ScrollView, Platform, ActivityIndicator } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useCallback, useEffect, useState } from "react";
+import { View, Text, StyleSheet, ActivityIndicator, Pressable, TextInput, Platform } from "react-native";
+import { useFocusEffect, useLocalSearchParams } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
 
-import {
-    Montserrat_400Regular,
-    Montserrat_600SemiBold,
-    Montserrat_700Bold,
-    useFonts
-} from '@expo-google-fonts/montserrat';
 
-import Navbar from '@/components/Navbar/Navbar';
-import WrappedGeneralButton from '@/components/Buttons/GeneralButtonWithWrapper/GeneralButtonWithWrapper';
+import { useAuth } from "@/context/AuthContext";
+import { useTransition } from "@/context/TransitionContext";
+import { useToast } from "@/context/ToastContext"
 
-import { API_BASE_URL, GET_BACKEND_CART, UPDATE_QUANTITY_END_POINT } from '@/constants/API';
-import { Caravan, GetBackendCartResponse } from '@/models/BACKEND_MODELS';
-import { useAuth } from '@/context/AuthContext';
-import { useToast } from '@/context/ToastContext';
-import getLocalCartMap from '@/functions/getLocalCartMap';
+import { Caravan, ReviewEligibility, UserReview, Review, GetProductIdDetailsResponse } from "@/models/BACKEND_MODELS";
+import {API_BASE_URL, PRODUCTS_BASE_ENDPOINT, GET_BACKEND_CART, UPDATE_QUANTITY_END_POINT} from "@/constants/API"
+import {Colors, Fonts} from '@/constants/theme'
 
-export default function ProductDetailView() {
-    const { id } = useLocalSearchParams();
-    const router = useRouter();
-    const { token, isAuthenticated } = useAuth();
-    const { showToast } = useToast();
+import WrappedGeneralButton from "@/components/Buttons/GeneralButtonWithWrapper/GeneralButtonWithWrapper";
+import Navbar from "@/components/Navbar/Navbar";
 
-    const [product, setProduct] = useState<Caravan | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
-    const [isUpdatingCart, setIsUpdatingCart] = useState(false);
 
-    // Cart tracking for this specific item
-    const [cartQuantity, setCartQuantity] = useState(0);
 
-    let [fontsLoaded] = useFonts({
-        Montserrat_700Bold,
-        Montserrat_400Regular,
-        Montserrat_600SemiBold,
-    });
+//#region FeatureWithBackground Component
 
-    const productId = Array.isArray(id) ? id[0] : id;
 
-    // Fetch Product Details
-    useEffect(() => {
-        if (!productId) return;
+interface FeatureWithBackgroundProps {
+    label: string;
+    value: string | number;
+}
 
-        const fetchProduct = async () => {
-            setIsLoading(true);
-            try {
-                const headers: Record<string, string> = {
-                    'Content-Type': 'application/json'
-                };
-                if (isAuthenticated && token) {
-                    headers['Authorization'] = `Bearer ${token}`;
-                }
+function FeatureWithBackground({label, value}: FeatureWithBackgroundProps)
+{
+    return (
+        <View style={productDetailsStyles.featureContainer}>
+            <Text style={productDetailsStyles.featureLabel}>{label}</Text>
+            <Text style={productDetailsStyles.featureValue}>{value}</Text>
+        </View>
+    )
+}
+//#endregion
 
-                const response = await fetch(`${API_BASE_URL}/api/v3/products/${productId}/details`, {
-                    method: 'GET',
-                    headers
-                });
 
-                if (response.ok) {
-                    const data = await response.json();
-                    setProduct(data.product);
-                } else {
-                    showToast('Failed to load product details.', 'error');
-                }
-            } catch (err) {
-                console.error(err);
-                showToast('Network error while fetching details.', 'error');
-            } finally {
-                setIsLoading(false);
-            }
-        };
 
-        fetchProduct();
-    }, [productId, isAuthenticated, token]);
+//#region UpdateQuantityButton Component
 
-    // Fetch Cart Quantity
-    useEffect(() => {
-        if (!productId) return;
 
-        const fetchCart = async () => {
-            if (isAuthenticated && token) {
-                try {
-                    const response = await fetch(`${API_BASE_URL}${GET_BACKEND_CART}`, {
-                        method: 'GET',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${token}`
-                        }
-                    });
-                    if (response.ok) {
-                        const data: GetBackendCartResponse = await response.json();
-                        const item = data.items.find(i => i.productId === productId);
-                        setCartQuantity(item ? item.quantity : 0);
-                    }
-                } catch (err) {
-                    console.error("Cart fetch error:", err);
-                }
-            } else {
-                const localMap = getLocalCartMap();
-                setCartQuantity(localMap[productId] || 0);
-            }
-        };
+type UpdateQuantityPayload = 
+    | { type: 'delta'; amount: number }
+    | { type: 'absolute'; newQuantity: number };
 
-        fetchCart();
-    }, [productId, isAuthenticated, token]);
+interface UpdateQuantityButtonProps {
+    currentQuantity: number;
+    quantityInStocks: number;
+    isLoading?: boolean;
+    onUpdateQuantity: (payload: UpdateQuantityPayload) => void; 
+}
 
-    // Add to Cart
-    const handleAddToCart = async () => {
-        if (!product) return;
+function UpdateQuantityButton({currentQuantity, quantityInStocks, isLoading = false, onUpdateQuantity}: UpdateQuantityButtonProps) 
+{
+    const [localStringQty, setLocalStringQty] = useState(currentQuantity.toString());
 
-        setIsUpdatingCart(true);
-        const targetQuantity = cartQuantity + 1;
+    const handleTextChange = (text: string) => {
+        setLocalStringQty(text.replace(/[^0-9]/g, '')); 
+    };
 
-        if (targetQuantity > product.quantityInStocks) {
-            showToast('There is not enough stock!', 'error');
-            setIsUpdatingCart(false);
+    const handleCommit = () => {
+        let parsed = parseInt(localStringQty, 10);
+        
+        if (isNaN(parsed) || parsed < 0) parsed = currentQuantity;
+        if (parsed > quantityInStocks) parsed = quantityInStocks;
+
+        if (parsed === currentQuantity) 
+        {
+            setLocalStringQty(currentQuantity.toString());
             return;
         }
 
-        if (isAuthenticated) {
-            try {
-                const response = await fetch(`${API_BASE_URL}${UPDATE_QUANTITY_END_POINT}`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify({ productId: product.productId, quantity: targetQuantity })
-                });
-
-                if (response.ok) {
-                    setCartQuantity(targetQuantity);
-                    showToast('Added to cart!', 'success');
-                } else {
-                    const resData = await response.json();
-                    showToast(resData.message || 'Failed to update cart', 'error');
-                }
-            } catch (err) {
-                showToast('Error adding to cart', 'error');
-            }
-        } else {
-            // Not authenticated local storage
-            if (Platform.OS === 'web') {
-                window.localStorage.setItem(`cart_${product.productId}`, targetQuantity.toString());
-            }
-            setCartQuantity(targetQuantity);
-            showToast('Added to cart!', 'success');
-        }
-        setIsUpdatingCart(false);
+        setLocalStringQty(parsed.toString()); 
+        onUpdateQuantity({type: 'absolute', newQuantity: parsed}); 
     };
 
-    if (!fontsLoaded) return null;
+    useEffect(() => {
+        if (!isLoading) setLocalStringQty(currentQuantity.toString());
+
+    }, [currentQuantity, isLoading]);
+
+    const isMaxedOut = currentQuantity >= quantityInStocks;
+    const isOutOfStock = quantityInStocks <= 0;
+
+    return (
+        <View style={updateQuantityButtonStyles.mainContainer}>
+            {currentQuantity === 0 ? (
+                <WrappedGeneralButton
+                    wrapperStyles={updateQuantityButtonStyles.addButtonWrapper}
+                    textStyles={updateQuantityButtonStyles.addButtonText}
+                    title="Add to Cart"
+                    disabled={isLoading || isOutOfStock}
+                    onPress={() => {
+                        onUpdateQuantity({type: 'delta', amount: 1})
+                    }}
+                />
+            ) : (
+                <View style={updateQuantityButtonStyles.quantityControlsContainer}>
+                    <Pressable 
+                        disabled={isLoading} 
+                        style={[updateQuantityButtonStyles.quantityButton, (isLoading) && {opacity: 0.5}]} 
+                        onPress={() => {
+                            onUpdateQuantity({type: 'delta', amount: -1});
+                        }}
+                    >
+                        <Ionicons 
+                            name={currentQuantity === 1 ? "trash-outline" : "remove"} 
+                            size={18} 
+                            color="#fefae0" 
+                        />
+                    </Pressable>
+
+                    <TextInput 
+                        style={updateQuantityButtonStyles.quantityTextInput} 
+                        value={localStringQty} 
+                        onChangeText={handleTextChange}
+                        onBlur={handleCommit}
+                        onSubmitEditing={handleCommit}
+                        keyboardType="numeric"
+                        editable={!isLoading}
+                    />
+
+                    <Pressable 
+                        disabled={isLoading || isMaxedOut} 
+                        style={[updateQuantityButtonStyles.quantityButton, (isLoading || isMaxedOut) && {opacity: 0.5}]} 
+                        onPress={() => {
+                            onUpdateQuantity({type: 'delta', amount: 1});
+                        }}
+                    >
+                        <Ionicons 
+                            name="add" 
+                            size={18} 
+                            color="#fefae0" 
+                        />
+
+                    </Pressable>
+
+                </View>
+            )}
+        </View>
+    )
+}
+//#endregion
+
+
+//#region Product Details Component
+
+
+interface ProductDetailsProps {
+    product: Caravan;
+    currentQuantity: number;
+    isLoading?: boolean;
+    onUpdateQuantity: (payload: UpdateQuantityPayload) => void;
+}
+
+function ProductDetails({product, currentQuantity, isLoading, onUpdateQuantity}: ProductDetailsProps)
+{   
+
+    const hasDiscount: boolean = (product.discountRate > 0);
+    const hasStock: boolean = (product.quantityInStocks > 0);
+
+    return(
+        <View style={productDetailsStyles.mainContainer}>
+            <View style={productDetailsStyles.imageContainer}>
+
+            </View>
+
+            <View style={productDetailsStyles.detailsContainer}>
+
+                <View style={productDetailsStyles.upperButtonContainer}>
+
+                    <View style={productDetailsStyles.titleContainer}>
+                        <Text style={productDetailsStyles.titleCaravanName}>{product.name}</Text>
+                        <Text style={productDetailsStyles.subTitleCaravanModel}>{product.model}</Text>
+                    </View>
+
+                    
+                        {hasStock && (
+                            <View style={productDetailsStyles.quantityInStocksContainer}> 
+                                <Text style={productDetailsStyles.quantityInStocksText}>In Stock: {product.quantityInStocks}</Text>
+                            </View>
+                        )}
+                    
+                    
+
+                    <View style={productDetailsStyles.featuresContainer}>
+                        <FeatureWithBackground label="Fuel Type" value={product.fuelType}/>
+                        <FeatureWithBackground label="Weight" value={product.weightKg}/>
+                        <FeatureWithBackground label="Berths" value={product.berthCount}/>
+                        <FeatureWithBackground label="Kitchen" value={product.hasKitchen ? "Yes" : "No"}/>
+                        <FeatureWithBackground label="Warranty" value={product.warrantyStatus}/>
+                    </View>
+
+                    <View style={productDetailsStyles.descriptionContainer}> 
+                        <Text style={productDetailsStyles.descriptionLabel}>Description</Text>
+                        <Text style={productDetailsStyles.descriptionValue}>{product.description}</Text>
+                    </View>
+
+                    <View style={productDetailsStyles.priceContainer}>
+                        
+                        <Text style={[productDetailsStyles.basePrice, hasDiscount && productDetailsStyles.basePriceDiscounted]}>{product.basePrice}$</Text>
+
+                        {hasDiscount && (
+                            <Text style={productDetailsStyles.currentPrice}>{product.currentPrice}$</Text>
+                        )}
+
+                        {hasDiscount && (
+                            <View style={productDetailsStyles.discountContainer}>
+                                <Text style={productDetailsStyles.discount}>{product.discountRate}% !</Text>
+                            </View>
+                        )}
+                    
+                    </View>
+
+                </View>
+
+                
+                
+
+                <View style={productDetailsStyles.updateQuantityButtonContainer}>
+
+
+                    <UpdateQuantityButton
+                        currentQuantity={currentQuantity}
+                        quantityInStocks={product.quantityInStocks}
+                        isLoading={isLoading}
+                        onUpdateQuantity={onUpdateQuantity}
+                    />
+                </View>
+
+            </View>
+        </View>
+    )
+}
+//#endregion
+
+
+//#region Write Comment Component
+
+interface WriteCommentProps {
+    isEligible: boolean;
+    userReview?: UserReview;
+    isLoading? : boolean;
+    onUserReviewChange: (newReview: UserReview) => void;
+}
+
+function WriteComment({isEligible, userReview, isLoading = false, onUserReviewChange}: WriteCommentProps)
+{
+    return (
+        <>
+        
+        {isEligible ? (
+            <View style={writeCommentStyles.mainContainer}>
+
+                <View style={writeCommentStyles.ratingContainer}>
+                    <Text style={writeCommentStyles.ratingLabel}>Give a rating: </Text>
+
+                </View>
+
+                <View style={writeCommentStyles.commentContainer}>
+
+                </View>
+
+                <View style={writeCommentStyles.submitButtonContainer}>
+                    <WrappedGeneralButton 
+                        wrapperStyles={writeCommentStyles.submitButtonWrapper}
+                        textStyles={writeCommentStyles.submitButtonText}
+                        title="Submit"
+                        disabled={isLoading}
+                        onPress={() => onUserReviewChange}
+                    />
+                </View>
+
+            </View>
+        ): (
+            null
+        )} 
+        </>
+    )
+}
+//#endregion
+
+
+//#region Comment Summary Component
+
+
+function CommentSummary()
+{
+    return (
+        <View>
+
+        </View>
+    )
+}
+//#endregion
+
+
+//#region Flat List Top Aggregation Component
+
+
+function FlatListTopAggregation()
+{
+    return (
+        <View>
+            <View style={styles.productDetailsContainer}>
+            </View>
+
+            <View style={styles.writeCommentContainer}>
+            </View>
+
+            <View style={styles.commentSummaryContainer}>
+            </View>
+        </View>
+    )
+}
+//#endregion
+
+
+
+
+export default function Product()
+{
+    const {revealWipe} = useTransition();
+    const {showToast} = useToast();
+    const {isAuthenticated, token} = useAuth();
+    
+    const { id } = useLocalSearchParams();
+
+    const [isLoading, setIsLoading] = useState(true);
+    const [isLoadingUpdateQuantity, setIsLoadingUpdateQuantity] = useState(false);
+    const [product, setProduct] = useState<Caravan | null>(null)
+    const [productQuantity, setProductQuantity] = useState(0);
+    const [reviews, setReviews] = useState<Review[]>([]);
+    const [userReview, setUserReview] = useState<UserReview | null>(null);
+    const [reviewEligibility, setReviewEligibility] = useState<ReviewEligibility | null>(null);
+
+    //#region FETCH PRODUCT QUANTITY
+
+    function getQuantityInformationNotAuth()
+    {
+        const key = `cart_${id}`;
+        const savedValue = window.localStorage.getItem(key);
+        const quantity = savedValue ? parseInt(savedValue, 10) : 0;
+        
+        setProductQuantity(quantity);
+    }
+    
+    async function getQuantityInformationAuth()
+    {
+        const _token = token
+
+        try {
+            const response = await fetch(`${API_BASE_URL}${GET_BACKEND_CART}`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${_token}`
+                },
+            });
+
+            const responseData = await response.json();
+            if (response.ok) 
+            {
+                const items = responseData.items;
+                for(let i = 0; i < items.length; i++)
+                {
+                    const item = items[i];
+                    if(id === item.productId)
+                    {
+                        setProductQuantity(item.quantity);
+                        break;
+                    }
+                }
+            }
+            else
+            {
+                showToast(`Failed: ${responseData.message}`, 'info')
+            }
+        } catch (error: any) {
+            showToast("Something Went Wrong While Fetching Quantity Information", 'error');
+        }
+    }
+    
+    async function getQuantityInformation() 
+    {
+
+        if (isAuthenticated)    getQuantityInformationAuth();
+        else                    getQuantityInformationNotAuth();
+    }
+
+
+    //#endregion
+
+
+    //#region FETCH PRODUCT DETAILS
+
+
+    async function getProductDetailsNotAuth()
+    {
+        setIsLoading(true);
+        console.log(id);
+        try {
+            const response = await fetch(`${API_BASE_URL}${PRODUCTS_BASE_ENDPOINT}/${id}/details`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            });
+            
+            const responseData: GetProductIdDetailsResponse = await response.json();
+
+            if (response.ok)
+            {
+                setProduct(responseData.product);
+                setReviewEligibility(responseData.reviewEligibility);
+                setUserReview(responseData.userReview);
+                setReviews(responseData.reviews);
+            }
+            else                showToast(`${responseData.message}`, 'info');
+
+            console.log("ReviewEligibility: ", reviewEligibility);
+            console.log("UserReview: ", userReview);
+            console.log("Reviews: ", reviews);
+
+        } catch (err) {
+            showToast("Something Went Wrong", 'error');
+        } finally {
+            setIsLoading(false);
+        }
+    }
+
+    async function getProductDetailsAuth()
+    {
+        setIsLoading(true);
+
+        try {
+            const response = await fetch(`${API_BASE_URL}${PRODUCTS_BASE_ENDPOINT}/${id}/details`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            const responseData: GetProductIdDetailsResponse = await response.json();
+
+            if (response.ok)
+            {
+                setProduct(responseData.product);
+                setReviewEligibility(responseData.reviewEligibility);
+                setUserReview(responseData.userReview);
+                setReviews(responseData.reviews);
+            }
+            else                showToast(`${responseData.message}`, 'info');
+
+        } catch (err) {
+            showToast("Something Went Wrong", 'error');
+        } finally {
+            setIsLoading(false);
+        }   
+    }
+
+    async function getProductDetails()
+    {
+        if (isAuthenticated) getProductDetailsAuth();
+        else                 getProductDetailsNotAuth();
+    }
+    //#endregion
+
+
+    //#region BUTTON HANDLERS
+
+    function onUpdateQuantityNotAuth(payload: UpdateQuantityPayload)
+    {
+        setIsLoadingUpdateQuantity(true);
+
+        const currentQuantity = productQuantity ?? 0;
+        let targetQuantity: number = currentQuantity;
+        if (payload.type === 'delta')   targetQuantity += payload.amount;
+        else                            targetQuantity = payload.newQuantity;
+
+        const key = `cart_${id}`;
+        window.localStorage.setItem(key, targetQuantity.toString());
+
+        setProductQuantity(targetQuantity);
+
+        setIsLoadingUpdateQuantity(false);
+    }
+
+    async function onUpdateQuantityAuth(payload: UpdateQuantityPayload)
+    {   
+        setIsLoadingUpdateQuantity(true);
+
+        const currentQuantity = productQuantity;
+        let targetQuantity: number = currentQuantity;
+        if (payload.type === 'delta')   targetQuantity += payload.amount;
+        else                            targetQuantity = payload.newQuantity;
+
+        try {
+            const response = await fetch(`${API_BASE_URL}${UPDATE_QUANTITY_END_POINT}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ productId: id, quantity: targetQuantity})
+            });
+            
+            const responseData = await response.json();
+
+            if (response.ok) setProductQuantity(targetQuantity);
+            else             showToast(`Error: ${responseData.message}`, 'info');
+
+        } catch (err) {
+            showToast("Something Went Wrong", 'error')
+        } finally {
+            setIsLoadingUpdateQuantity(false);
+        }
+        
+    }
+
+
+    async function onUpdateQuantity(payload: UpdateQuantityPayload)
+    {
+        if (isAuthenticated)    onUpdateQuantityAuth(payload);
+        else                    onUpdateQuantityNotAuth(payload);
+    }
+
+    //#endregion
+
+
+    //#region EFFECTS
+
+
+    useFocusEffect(
+        useCallback(() => {
+            getProductDetails();
+            getQuantityInformation();
+        }, [])
+    )
+
+    useEffect(() => {
+        if (!isLoading) revealWipe();
+
+    }, [isLoading]);
+    //#endregion
+
 
     return (
         <View style={styles.mainContainer}>
-            <Navbar />
             {isLoading ? (
-                <View style={styles.centerBox}>
-                    <ActivityIndicator size="large" color="#283618" />
-                </View>
-            ) : !product ? (
-                <View style={styles.centerBox}>
-                    <Text style={styles.errorText}>Product not found.</Text>
-                </View>
+                <ActivityIndicator size="large" color="#21758f" />
             ) : (
-                <ScrollView contentContainerStyle={styles.scrollContent}>
-                    <WrappedGeneralButton
-                        title="← Back to Shop"
-                        onPress={() => router.back()}
-                        wrapperStyles={styles.backBtnWrapper}
-                        textStyles={styles.backBtnText}
+                <View>
+
+                    <Navbar/>
+
+                    <ProductDetails 
+                        product={product!}
+                        currentQuantity={productQuantity}
+                        isLoading={isLoadingUpdateQuantity}
+                        onUpdateQuantity={onUpdateQuantity}
                     />
-
-                    <View style={styles.detailContainer}>
-                        { }
-                        <View style={styles.imagePlaceholder}>
-                            { }
-                        </View>
-
-                        {/* Product Info */}
-                        <View style={styles.infoArea}>
-                            <Text style={styles.productName}>{product.name}</Text>
-                            <Text style={styles.productModel}>Model: {product.model || 'Unknown'}</Text>
-
-                            {/* Price Area */}
-                            {product.discountRate > 0 ? (
-                                <View style={styles.priceRow}>
-                                    <Text style={styles.basePrice}>${product.basePrice}</Text>
-                                    <Text style={styles.productPrice}>${product.currentPrice}</Text>
-                                    <View style={styles.discountBadge}>
-                                        <Text style={styles.discountText}>-{product.discountRate}%</Text>
-                                    </View>
-                                </View>
-                            ) : (
-                                <Text style={styles.productPrice}>${product.currentPrice}</Text>
-                            )}
-
-                            {product.quantityInStocks <= 0 ? (
-                                <View style={styles.outOfStockBadge}>
-                                    <Text style={styles.outOfStockText}>OUT OF STOCK</Text>
-                                </View>
-                            ) : (
-                                <Text style={styles.inStockText}>In Stock: {product.quantityInStocks}</Text>
-                            )}
-
-                            <Text style={styles.descriptionTitle}>Description</Text>
-                            <Text style={styles.descriptionText}>{product.description || 'No description available.'}</Text>
-
-                            <Text style={styles.descriptionTitle}>Specifications</Text>
-                            <View style={styles.specsGrid}>
-                                <View style={styles.specBox}>
-                                    <Text style={styles.specLabel}>Fuel Type</Text>
-                                    <Text style={styles.specValue}>{product.fuelType}</Text>
-                                </View>
-                                <View style={styles.specBox}>
-                                    <Text style={styles.specLabel}>Weight</Text>
-                                    <Text style={styles.specValue}>{product.weightKg} kg</Text>
-                                </View>
-                                <View style={styles.specBox}>
-                                    <Text style={styles.specLabel}>Berths</Text>
-                                    <Text style={styles.specValue}>{product.berthCount}</Text>
-                                </View>
-                                <View style={styles.specBox}>
-                                    <Text style={styles.specLabel}>Kitchen</Text>
-                                    <Text style={styles.specValue}>{product.hasKitchen ? 'Yes' : 'No'}</Text>
-                                </View>
-                                <View style={styles.specBox}>
-                                    <Text style={styles.specLabel}>Warranty</Text>
-                                    <Text style={styles.specValue}>{product.warrantyStatus}</Text>
-                                </View>
-                            </View>
-
-                            <View style={styles.actionArea}>
-                                <WrappedGeneralButton
-                                    title={cartQuantity > 0 ? `Add Another (In Cart: ${cartQuantity})` : "Add to Cart"}
-                                    onPress={handleAddToCart}
-                                    disabled={product.quantityInStocks <= 0 || isUpdatingCart || cartQuantity >= product.quantityInStocks}
-                                    wrapperStyles={[
-                                        styles.addToCartWrapper,
-                                        (product.quantityInStocks <= 0 || cartQuantity >= product.quantityInStocks) ? styles.disabledWrapper : undefined
-                                    ]}
-                                    textStyles={styles.addToCartText}
-                                />
-                            </View>
-                        </View>
-                    </View>
-                </ScrollView>
+               
+                </View>
             )}
+            
         </View>
-    );
+    )
 }
+
+const updateQuantityButtonStyles = StyleSheet.create({
+    mainContainer: {
+        height: 60, 
+        paddingHorizontal: '3%',
+        justifyContent: 'center',
+    },
+    addButtonWrapper: {
+        height: 55,
+        borderRadius: 8,
+        backgroundColor: Colors.light.greenButtonBackground,
+    },
+    addButtonText: {
+        color: Colors.light.greenButtonTextColor,
+        fontFamily: Fonts.semibold,
+        fontSize: 14,
+    },
+    quantityControlsContainer: {
+        width: '100%',
+        height: 55,
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        backgroundColor: Colors.light.quantityControlBackground,
+        borderRadius: 8,
+        paddingHorizontal: 4,
+    },
+    quantityButton: {
+        backgroundColor: Colors.light.greenButtonBackground,
+        width: 50, 
+        height: 50,
+        borderRadius: 6,
+        justifyContent: 'center',
+        alignItems: 'center',
+        ...(Platform.OS === 'web' && { cursor: 'pointer' }),
+    },
+    quantityTextInput: {
+        flex: 1, 
+        height: '80%',
+        fontFamily: 'Montserrat_700Bold',
+        fontSize: 16,
+        color: Colors.light.greenButtonBackground,
+        textAlign: 'center',
+    },
+});
+
+const productDetailsStyles = StyleSheet.create({
+    mainContainer: {
+        flex: 1,
+        flexDirection: 'row',
+        padding: 10,
+        backgroundColor: '#e3a2a2'
+    },
+    imageContainer: {
+        flex: 1,
+        backgroundColor: Colors.light.imageFillerColor
+    },
+    detailsContainer: {
+        flex: 1,
+    },
+    upperButtonContainer: {
+        paddingLeft: '3%',
+    },
+    titleContainer: {
+        marginBottom: 20,
+    },
+    titleCaravanName: {
+        fontFamily: Fonts.bold,
+        fontSize: 24,
+        color: Colors.light.mainTextColor,
+    },
+    subTitleCaravanModel: {
+        fontFamily: Fonts.regular,
+        fontSize: 16,
+        color: Colors.light.mainTextColor,
+    },
+    quantityInStocksContainer: {
+        marginBottom: 20,
+    },
+    quantityInStocksText: {
+        fontFamily: Fonts.regular,
+        fontSize: 16,
+        color: Colors.light.mainTextColor,
+    },
+    featuresContainer: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 8,
+        marginBottom: 25,
+    },
+    featureContainer: {
+        backgroundColor: Colors.light.softContainerBackground,
+        padding: 8,
+        borderRadius: 6,
+    },
+    featureLabel: {
+        fontFamily: Fonts.semibold,
+        fontSize: 16,
+        color: Colors.light.mainTextColor,
+    },
+    featureValue: {
+        fontFamily: Fonts.regular,
+        fontSize: 14,
+        color: Colors.light.mainTextColor,
+    },
+    descriptionContainer: {
+        marginBottom: 25,
+    },
+    descriptionLabel: {
+        fontFamily: Fonts.semibold,
+        fontSize: 16,
+        color: Colors.light.mainTextColor,
+    },
+    descriptionValue: {
+        fontFamily: Fonts.regular,
+        fontSize: 14,
+        color: Colors.light.mainTextColor,
+    },
+    priceContainer: {
+        marginBottom: 10,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 20,
+    },
+    basePrice: {
+        fontFamily: Fonts.semibold,
+        fontSize: 30,
+        color: Colors.light.basePriceTextColor, 
+    },
+    basePriceDiscounted: {
+        fontFamily: Fonts.semibold,
+        fontSize: 22,
+        color: Colors.light.basePriceDiscountedTextColor,
+        textDecorationLine: 'line-through',
+    },
+    currentPrice: {
+        fontFamily: Fonts.bold,
+        fontSize: 30,
+        color: Colors.light.currentPriceTextColor,
+    },
+    discountContainer: {
+        padding: 8,
+        borderRadius: 10,
+        backgroundColor: Colors.light.discountBackground,
+    },
+    discount: {
+        fontFamily: Fonts.bold,
+        fontSize: 26,
+        color: Colors.light.discountTextColor,
+    },
+    updateQuantityButtonContainer: {
+
+    }
+});
+
+const writeCommentStyles = StyleSheet.create({
+    mainContainer: {
+
+    },
+    ratingContainer: {
+
+    },
+    ratingLabel: {
+
+    },
+    commentContainer: {
+
+    },
+    submitButtonContainer: {
+
+    },
+    submitButtonWrapper: {
+
+    },
+    submitButtonText: {
+
+    }
+});
+
+const commentSummaryStyles = StyleSheet.create({
+
+});
 
 const styles = StyleSheet.create({
     mainContainer: {
         flex: 1,
-        backgroundColor: '#d6cba6',
+        backgroundColor: Colors.light.mainBackground,
     },
-    centerBox: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center'
+    productDetailsContainer: {
+
     },
-    errorText: {
-        fontFamily: 'Montserrat_700Bold',
-        fontSize: 24,
-        color: '#c1121f'
+    writeCommentContainer: {
+
     },
-    scrollContent: {
-        padding: 20,
-        paddingBottom: 50,
-    },
-    backBtnWrapper: {
-        alignSelf: 'flex-start',
-        backgroundColor: 'transparent',
-        borderWidth: 2,
-        borderColor: '#283618',
-        borderRadius: 8,
-        paddingHorizontal: 15,
-        paddingVertical: 8,
-        marginBottom: 20,
-        // @ts-ignore
-        ...(Platform.OS === 'web' && { cursor: 'pointer' }),
-    },
-    backBtnText: {
-        fontFamily: 'Montserrat_600SemiBold',
-        color: '#283618',
-        fontSize: 14,
-    },
-    detailContainer: {
-        flexDirection: Platform.OS === 'web' ? 'row' : 'column',
-        backgroundColor: '#fefae0',
-        borderRadius: 15,
-        overflow: 'hidden',
-        boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-        elevation: 3,
-    },
-    imagePlaceholder: {
-        flex: 1,
-        backgroundColor: '#a3895f',
-        minHeight: 400,
-        justifyContent: 'center',
-        alignItems: 'center',
-        borderRightWidth: Platform.OS === 'web' ? 1 : 0,
-        borderBottomWidth: Platform.OS === 'web' ? 0 : 1,
-        borderColor: '#ccc',
-    },
-    infoArea: {
-        flex: 1,
-        padding: 30,
-    },
-    productName: {
-        fontFamily: 'Montserrat_700Bold',
-        fontSize: 32,
-        color: '#283618',
-        marginBottom: 5,
-    },
-    productModel: {
-        fontFamily: 'Montserrat_400Regular',
-        fontSize: 16,
-        color: '#606c38',
-        marginBottom: 15,
-    },
-    priceRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: 20,
-        gap: 15,
-        flexWrap: 'wrap',
-    },
-    basePrice: {
-        fontFamily: 'Montserrat_600SemiBold',
-        fontSize: 20,
-        color: '#9ca3af',
-        textDecorationLine: 'line-through',
-    },
-    productPrice: {
-        fontFamily: 'Montserrat_700Bold',
-        fontSize: 28,
-        color: '#bc4749',
-        marginBottom: 20,
-    },
-    discountBadge: {
-        backgroundColor: '#bc4749',
-        paddingHorizontal: 10,
-        paddingVertical: 5,
-        borderRadius: 5,
-    },
-    discountText: {
-        fontFamily: 'Montserrat_700Bold',
-        color: '#fff',
-        fontSize: 14,
-    },
-    outOfStockBadge: {
-        backgroundColor: '#c1121f',
-        alignSelf: 'flex-start',
-        paddingVertical: 8,
-        paddingHorizontal: 15,
-        borderRadius: 5,
-        marginBottom: 20,
-    },
-    outOfStockText: {
-        fontFamily: 'Montserrat_700Bold',
-        color: '#fff',
-        fontSize: 16,
-    },
-    inStockText: {
-        fontFamily: 'Montserrat_600SemiBold',
-        color: '#283618',
-        fontSize: 16,
-        marginBottom: 20,
-    },
-    descriptionTitle: {
-        fontFamily: 'Montserrat_700Bold',
-        fontSize: 20,
-        color: '#283618',
-        marginTop: 10,
-        marginBottom: 10,
-    },
-    descriptionText: {
-        fontFamily: 'Montserrat_400Regular',
-        fontSize: 16,
-        color: '#333',
-        lineHeight: 24,
-        marginBottom: 20,
-    },
-    specsGrid: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: 15,
-        marginBottom: 30,
-    },
-    specBox: {
-        backgroundColor: '#fff',
-        padding: 15,
-        borderRadius: 10,
-        minWidth: 120,
-        boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
-        elevation: 2,
-    },
-    specLabel: {
-        fontFamily: 'Montserrat_400Regular',
-        fontSize: 14,
-        color: '#666',
-        marginBottom: 5,
-    },
-    specValue: {
-        fontFamily: 'Montserrat_600SemiBold',
-        fontSize: 16,
-        color: '#283618',
-    },
-    actionArea: {
-        marginTop: 20,
-        borderTopWidth: 1,
-        borderColor: '#eee',
-        paddingTop: 20,
-    },
-    addToCartWrapper: {
-        backgroundColor: '#283618',
-        borderRadius: 8,
-        paddingVertical: 15,
-        alignItems: 'center',
-        // @ts-ignore
-        ...(Platform.OS === 'web' && { cursor: 'pointer' }),
-    },
-    disabledWrapper: {
-        backgroundColor: '#9ca3af',
-        // @ts-ignore
-        ...(Platform.OS === 'web' && { cursor: 'not-allowed' }),
-    },
-    addToCartText: {
-        fontFamily: 'Montserrat_700Bold',
-        color: '#fefae0',
-        fontSize: 18,
+    commentSummaryContainer: {
+
     }
 });
