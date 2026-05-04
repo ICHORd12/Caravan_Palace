@@ -94,6 +94,21 @@ exports.mapOrder = (row) => {
   };
 }
 
+exports.mapRefund = (row) => {
+  if (!row) return null;
+
+  return {
+    refundId: row.refund_id,
+    orderItemId: row.order_item_id,
+    orderId: row.order_id,
+    customerId: row.customer_id,
+    status: row.status,
+    refundAmount: Number(row.refund_amount),
+    requestDate: row.request_date,
+    processedAt: row.processed_at,
+  };
+}
+
 exports.mapOrderItem = (row) => {
   return {
     orderItemId: row.order_item_id,

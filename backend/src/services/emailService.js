@@ -145,3 +145,93 @@ exports.sendInvoiceEmail = async ({
     transporter,
   });
 };
+
+/**
+ * Sends an order status email for cancellation and refund events.
+ */
+exports.sendOrderStatusEmail = async ({
+  to,
+  orderId,
+  status,
+  customerName,
+  transporter,
+}) => {
+  if (!to || typeof to !== "string") {
+    throw new ApiError(400, "Recipient email is required");
+  }
+
+  if (!orderId) {
+    throw new ApiError(400, "Order ID is required");
+  }
+
+  const greeting = customerName ? `Hi ${customerName},` : "Hello,";
+
+  let subject = "";
+  let text = "";
+  let html = "";
+
+  switch (status) {
+    case "cancelled":
+      subject = `Order #${orderId} cancelled`;
+      text =
+        `${greeting}\n\n` +
+        `Your order #${orderId} has been cancelled. ` +
+        `If this was a mistake, you can place a new order anytime.\n\n` +
+        `— The Caravan Palace Team`;
+      html =
+        `<p>${greeting}</p>` +
+        `<p>Your order <strong>#${orderId}</strong> has been cancelled.</p>` +
+        `<p>If this was a mistake, you can place a new order anytime.</p>` +
+        `<p>— The Caravan Palace Team</p>`;
+      break;
+    case "refund_requested":
+      subject = `Refund requested for Order #${orderId}`;
+      text =
+        `${greeting}\n\n` +
+        `We received your refund request for order #${orderId}. ` +
+        `Our sales team will review it shortly.\n\n` +
+        `— The Caravan Palace Team`;
+      html =
+        `<p>${greeting}</p>` +
+        `<p>We received your refund request for order <strong>#${orderId}</strong>.</p>` +
+        `<p>Our sales team will review it shortly.</p>` +
+        `<p>— The Caravan Palace Team</p>`;
+      break;
+    case "refund_approved":
+      subject = `Refund approved for Order #${orderId}`;
+      text =
+        `${greeting}\n\n` +
+        `Your refund for order #${orderId} has been approved. ` +
+        `You will receive the funds based on your original payment method.\n\n` +
+        `— The Caravan Palace Team`;
+      html =
+        `<p>${greeting}</p>` +
+        `<p>Your refund for order <strong>#${orderId}</strong> has been approved.</p>` +
+        `<p>You will receive the funds based on your original payment method.</p>` +
+        `<p>— The Caravan Palace Team</p>`;
+      break;
+    case "refund_rejected":
+      subject = `Refund rejected for Order #${orderId}`;
+      text =
+        `${greeting}\n\n` +
+        `Your refund request for order #${orderId} was rejected. ` +
+        `If you have questions, please contact support.\n\n` +
+        `— The Caravan Palace Team`;
+      html =
+        `<p>${greeting}</p>` +
+        `<p>Your refund request for order <strong>#${orderId}</strong> was rejected.</p>` +
+        `<p>If you have questions, please contact support.</p>` +
+        `<p>— The Caravan Palace Team</p>`;
+      break;
+    default:
+      throw new ApiError(400, "Unsupported order status email type");
+  }
+
+  return exports.sendMail({
+    to,
+    subject,
+    text,
+    html,
+    transporter,
+  });
+};
