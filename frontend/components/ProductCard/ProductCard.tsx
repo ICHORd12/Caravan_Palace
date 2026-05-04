@@ -2,8 +2,9 @@ import WrappedGeneralButton from '@/components/Buttons/GeneralButtonWithWrapper/
 import { Caravan } from '@/models/BACKEND_MODELS';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState, useEffect } from 'react';
-import { Pressable, Text, View, TextInput } from 'react-native';
+import { Pressable, Text, View, TextInput, Image } from 'react-native';
 import { useRouter } from 'expo-router';
+import getImageForProduct from '@/functions/getImageForProduct';
 import { styles } from '../ProductCard/ProductCard.styles';
 
 interface ProductCardProps {
@@ -61,7 +62,9 @@ export default function ProductCard({ dimensionStyle, caravan, quantity, disable
             <View style={[styles.cardContainer, isHovered && styles.cardContainerHovered]}>
                 
                 {/* Image Carousel Area */}
-                <View style={styles.imageContainer}></View>
+                <View style={styles.imageContainer}>
+                    <Image source={getImageForProduct(caravan.productId)} style={{ width: '100%', height: '100%', resizeMode: 'cover', borderTopLeftRadius: 10, borderTopRightRadius: 10 }} />
+                </View>
 
                 {/* Details Area */}
                 <View style={styles.detailsContainer}>

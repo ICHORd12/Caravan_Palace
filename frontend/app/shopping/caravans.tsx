@@ -380,9 +380,18 @@ export default function Caravans() {
             result = result.filter(c => {
                 const price = Number(c.currentPrice);
                 return appliedFilters.prices.some(range => {
-                    if (range === 'under_20k') return price < 20000;
-                    if (range === '20k_to_40k') return price >= 20000 && price <= 40000;
-                    return true;
+                    if (range === 'under_50k') return price < 50000;
+                    if (range === '50k_to_100k') return price >= 50000 && price <= 100000;
+                    if (range === '100k_to_150k') return price > 100000 && price <= 150000;
+                    if (range === '150k_to_200k') return price > 150000 && price <= 200000;
+                    if (range === '200k_to_250k') return price > 200000 && price <= 250000;
+                    if (range === '250k_to_300k') return price > 250000 && price <= 300000;
+                    if (range === '300k_to_350k') return price > 300000 && price <= 350000;
+                    if (range === '350k_to_400k') return price > 350000 && price <= 400000;
+                    if (range === '400k_to_450k') return price > 400000 && price <= 450000;
+                    if (range === '450k_to_500k') return price > 450000 && price <= 500000;
+                    if (range === 'over_500k') return price > 500000;
+                    return false;
                 });
             });
         }
@@ -401,8 +410,9 @@ export default function Caravans() {
                 const w = c.weightKg;
                 return appliedFilters.weights.some(weightCategory => {
                     if (weightCategory === 'lightweight') return w < 1500;
-                    if (weightCategory === 'standard') return w >= 1500;
-                    return true;
+                    if (weightCategory === 'standard') return w >= 1500 && w < 2000;
+                    if (weightCategory === 'heavyweight') return w >= 2000;
+                    return false;
                 });
             });
         }

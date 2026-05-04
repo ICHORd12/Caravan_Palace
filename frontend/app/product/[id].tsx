@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { StyleSheet, Text, View, ScrollView, Platform, ActivityIndicator } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, Platform, ActivityIndicator, Image } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
 import {
@@ -17,6 +17,7 @@ import { Caravan, GetBackendCartResponse } from '@/models/BACKEND_MODELS';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
 import getLocalCartMap from '@/functions/getLocalCartMap';
+import getImageForProduct from '@/functions/getImageForProduct';
 
 export default function ProductDetailView() {
     const { id } = useLocalSearchParams();
@@ -176,7 +177,7 @@ export default function ProductDetailView() {
                     <View style={styles.detailContainer}>
                         { }
                         <View style={styles.imagePlaceholder}>
-                            { }
+                            <Image source={getImageForProduct(product.productId)} style={{ width: '100%', height: '100%', resizeMode: 'cover' }} />
                         </View>
 
                         {/* Product Info */}
