@@ -24,3 +24,16 @@ exports.getOrderDetails = async (req, res, next) => {
     next(err);
   }
 };
+
+exports.cancelOrder = async (req, res, next) => {
+  try {
+    const userId = req.user.userId;
+    const { orderId } = req.params;
+
+    const result = await orderService.cancelOrder({ userId, orderId });
+
+    res.status(200).json(result);
+  } catch (err) {
+    next(err);
+  }
+};

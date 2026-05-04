@@ -6,5 +6,6 @@ const router = express.Router();
 
 router.get("/", authMiddleware, orderController.getOrders);
 router.get("/:orderId", authMiddleware, orderController.getOrderDetails);
+router.post("/:orderId/cancel", authMiddleware, orderController.cancelOrder);
 
 module.exports = router;
