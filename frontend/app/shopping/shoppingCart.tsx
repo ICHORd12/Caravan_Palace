@@ -66,7 +66,6 @@ export default function ShoppingCart() {
     const PAYMENT: boolean = true;
     const CART: boolean = false;
 
-    const router = useRouter();
     const { showToast } = useToast();
     const { navigateWithWipe, revealWipe } = useTransition();
     const {token, isAuthenticated} = useAuth();

@@ -76,18 +76,6 @@ export type ReviewEligibility = {
     reason: string
 }
 
-export type UserReview = {
-    reviewId: string,
-    productId: string,
-    userId: string,
-    userName: string,
-    rating: number,
-    commentText: string,
-    isApproved: false,
-    createdAt: string,
-    updatedAt: string
-}
-
 export type Review = {
     reviewId: string,
     productId: string,
@@ -104,7 +92,7 @@ export type GetProductIdDetailsResponse = {
     message: string,
     product: Caravan,
     reviewEligibility: ReviewEligibility,
-    userReview: UserReview,
+    userReview: Review,
     reviews: Review[]
 }
 

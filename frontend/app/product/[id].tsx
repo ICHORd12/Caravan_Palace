@@ -1,5 +1,8 @@
+//#region IMPORTS
+
+
 import { useCallback, useEffect, useState } from "react";
-import { View, Text, StyleSheet, ActivityIndicator, Pressable, TextInput, Platform } from "react-native";
+import { View, Text, StyleSheet, ActivityIndicator, Pressable, TextInput, Platform, Image, TouchableOpacity } from "react-native";
 import { useFocusEffect, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 
@@ -8,13 +11,13 @@ import { useAuth } from "@/context/AuthContext";
 import { useTransition } from "@/context/TransitionContext";
 import { useToast } from "@/context/ToastContext"
 
-import { Caravan, ReviewEligibility, UserReview, Review, GetProductIdDetailsResponse } from "@/models/BACKEND_MODELS";
-import {API_BASE_URL, PRODUCTS_BASE_ENDPOINT, GET_BACKEND_CART, UPDATE_QUANTITY_END_POINT} from "@/constants/API"
+import { Caravan, ReviewEligibility, Review, GetProductIdDetailsResponse } from "@/models/BACKEND_MODELS";
+import {API_BASE_URL, PRODUCTS_BASE_ENDPOINT, GET_BACKEND_CART, UPDATE_QUANTITY_END_POINT, REVIEWS_ENDPOINT} from "@/constants/API"
 import {Colors, Fonts} from '@/constants/theme'
 
 import WrappedGeneralButton from "@/components/Buttons/GeneralButtonWithWrapper/GeneralButtonWithWrapper";
 import Navbar from "@/components/Navbar/Navbar";
-
+//#endregion
 
 
 //#region FeatureWithBackground Component
@@ -35,7 +38,6 @@ function FeatureWithBackground({label, value}: FeatureWithBackgroundProps)
     )
 }
 //#endregion
-
 
 
 //#region UpdateQuantityButton Component
@@ -157,14 +159,63 @@ interface ProductDetailsProps {
 
 function ProductDetails({product, currentQuantity, isLoading, onUpdateQuantity}: ProductDetailsProps)
 {   
+    const [currentImageIndex, setCurrentImageIndex] = useState(0);
+
+    function nextImage() 
+    {
+        if (!product.images || product.images.length <= 1) return;
+        setCurrentImageIndex((prevIndex) => 
+            prevIndex === product.images.length - 1 ? 0 : prevIndex + 1
+        );
+    }
+
+    function prevImage() 
+    {
+        if (!product.images || product.images.length <= 1) return;
+        setCurrentImageIndex((prevIndex) => 
+            prevIndex === 0 ? product.images.length - 1 : prevIndex - 1
+        );
+    }
 
     const hasDiscount: boolean = (product.discountRate > 0);
     const hasStock: boolean = (product.quantityInStocks > 0);
 
     return(
         <View style={productDetailsStyles.mainContainer}>
-            <View style={productDetailsStyles.imageContainer}>
 
+            <View style={productDetailsStyles.imageContainer}>
+                {product.images && product.images.length > 0 ? (
+                    <>
+                        <Image 
+                            source={{ uri: product.images[currentImageIndex].url }} 
+                            style={productDetailsStyles.productImage} 
+                            resizeMode="cover" 
+                        />
+                        
+                        {/* Only show arrows if there are multiple images */}
+                        {product.images.length > 1 && (
+                            <>
+                                <Pressable 
+                                    onPress={prevImage} 
+                                    style={{ position: 'absolute', left: 16, top: '50%', marginTop: -24, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 24, padding: 8 }}
+                                >
+                                    <Ionicons name="chevron-back" size={28} color="white" />
+                                </Pressable>
+                                
+                                <Pressable 
+                                    onPress={nextImage} 
+                                    style={{ position: 'absolute', right: 16, top: '50%', marginTop: -24, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 24, padding: 8 }}
+                                >
+                                    <Ionicons name="chevron-forward" size={28} color="white" />
+                                </Pressable>
+                            </>
+                        )}
+                    </>
+                ) : (
+                    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+                        <Text>No Image Available</Text>
+                    </View>
+                )}
             </View>
 
             <View style={productDetailsStyles.detailsContainer}>
@@ -183,8 +234,6 @@ function ProductDetails({product, currentQuantity, isLoading, onUpdateQuantity}:
                             </View>
                         )}
                     
-                    
-
                     <View style={productDetailsStyles.featuresContainer}>
                         <FeatureWithBackground label="Fuel Type" value={product.fuelType}/>
                         <FeatureWithBackground label="Weight" value={product.weightKg}/>
@@ -216,12 +265,7 @@ function ProductDetails({product, currentQuantity, isLoading, onUpdateQuantity}:
 
                 </View>
 
-                
-                
-
                 <View style={productDetailsStyles.updateQuantityButtonContainer}>
-
-
                     <UpdateQuantityButton
                         currentQuantity={currentQuantity}
                         quantityInStocks={product.quantityInStocks}
@@ -237,56 +281,191 @@ function ProductDetails({product, currentQuantity, isLoading, onUpdateQuantity}:
 //#endregion
 
 
-//#region Write Comment Component
+//#region Write Review Component
 
 interface WriteCommentProps {
     isEligible: boolean;
-    userReview?: UserReview;
-    isLoading? : boolean;
-    onUserReviewChange: (newReview: UserReview) => void;
+    userReview: Review | null;
+    onUserReviewChange: ({rating, commentText}: {rating: number, commentText: string}) => Promise<boolean>;
 }
 
-function WriteComment({isEligible, userReview, isLoading = false, onUserReviewChange}: WriteCommentProps)
-{
-    return (
-        <>
+function WriteReview({isEligible, userReview, onUserReviewChange}: WriteCommentProps)
+{   
+    if (!isEligible && userReview === null) return null;
+
+    const {showToast} = useToast();
+    const [commentText, setCommentText] = useState("");
+    const [rating, setRating] = useState(5);
+    const [userName, setUserName] = useState("");
+    const [isApproved, setIsApproved] = useState(false);
+    const [createdAt, setCreatedAt] = useState("");
+    const [updatedAt, setUpdatedAt] = useState("");
+
+    const [isEditing, setIsEditing] = useState(false);
+    const [isLoadingSubmitReview, setIsLoadingSubmitReview] = useState(false);
+    const [didSomethingWentWrong, setDidSomethingWentWrong] = useState(false);
+
+    function handleEditCancel(target: boolean)
+    {
+        if (target === false)
+        {
+            const prevCommentText = userReview ? userReview.commentText : "";
+            const prevUserRating = userReview ? userReview.rating : 0;
+            const prevUserName = userReview ? userReview.userName : "";
+            const prevIsApproved = userReview ? userReview.isApproved : false;
+            const prevCreatedDate = userReview ? userReview.createdAt : "";
+            const prevUpdatedDate = userReview ? userReview.updatedAt : "";
+
+            setCommentText(prevCommentText);
+            setRating(prevUserRating);
+            setUserName(prevUserName);
+            setIsApproved(prevIsApproved);
+            setCreatedAt(prevCreatedDate);
+            setUpdatedAt(prevUpdatedDate);
+        }
+        setIsEditing(target);
+    }
+
+    async function handleSubmit({rating, commentText}: {rating: number, commentText: string})
+    {
+        setIsEditing(false);
+        setIsLoadingSubmitReview(true);
+
+        const response = await onUserReviewChange({rating, commentText});
         
-        {isEligible ? (
-            <View style={writeCommentStyles.mainContainer}>
+        if (response === true)
+        {
+            showToast("Your Review Successfully submitted", 'success');
+            setDidSomethingWentWrong(false);
+        }
+        else
+        {
+            showToast("Something Went Wrong", 'info');
+            setDidSomethingWentWrong(true);
+        } 
 
-                <View style={writeCommentStyles.ratingContainer}>
-                    <Text style={writeCommentStyles.ratingLabel}>Give a rating: </Text>
+        setIsLoadingSubmitReview(false);
+    }
 
+    function calculateChange(): boolean
+    {
+        if (userReview === null)
+        {
+            if (commentText || rating) return true;
+            else                       return false;
+        }
+        else
+        {
+            const userCommentText = userReview.commentText;
+            const userRating = userReview.rating;
+            if (commentText === userCommentText && rating === userRating) return false;
+            else return true;
+        }
+    }
+
+    useEffect(() => {
+        if (!userReview) return;
+
+        const prevCommentText = userReview.commentText;
+        const prevUserRating = userReview.rating;
+        const prevUserName = userReview.userName;
+        const prevIsApproved = userReview.isApproved;
+        const prevCreatedDate = userReview.createdAt;
+        const prevUpdatedDate = userReview.updatedAt;
+
+        setCommentText(prevCommentText);
+        setRating(prevUserRating);
+        setUserName(prevUserName);
+        setIsApproved(prevIsApproved);
+        setCreatedAt(prevCreatedDate);
+        setUpdatedAt(prevUpdatedDate);
+
+    },[userReview])
+
+    const isUserReviewExists: boolean = (userReview !== null);
+    const isChanged: boolean = calculateChange();
+    const isDisabled: boolean =  (isUserReviewExists && !isEditing) ||  (isLoadingSubmitReview)
+
+    return (
+            <View style={writeReviewStyles.mainContainer}>
+
+                <View style={writeReviewStyles.didSomethingWentWrongContainer}>
+                    {didSomethingWentWrong && (
+                        <Text style={writeReviewStyles.didSomethingWentWrongText}>Review Could Not Be Submitted!</Text>
+                    )}
                 </View>
 
-                <View style={writeCommentStyles.commentContainer}>
+                {isUserReviewExists && (
+                    <View style={writeReviewStyles.editCommentButtonContainer}>
+                        <WrappedGeneralButton 
+                            wrapperStyles={writeReviewStyles.editCommentButtonWrapper}
+                            textStyles={writeReviewStyles.editCommentButtonText}
+                            title={isEditing ? "Cancel" : "Edit"}
+                            disabled={isLoadingSubmitReview}
+                            onPress={() => handleEditCancel(!isEditing)}                
+                        />
+                    </View>
+                )}        
 
-                </View>
+                    <View style={writeReviewStyles.nameContainer}> 
+                        <Text style={writeReviewStyles.nameText}>{isApproved ? `${userName} (Review Approved)` : `${userName} (Review Pending)`}</Text>
+                        <Text style={writeReviewStyles.dateText}>Created At: {createdAt}</Text>
+                        <Text style={writeReviewStyles.dateText}>Updated At: {updatedAt}</Text>
+                    </View>
 
-                <View style={writeCommentStyles.submitButtonContainer}>
-                    <WrappedGeneralButton 
-                        wrapperStyles={writeCommentStyles.submitButtonWrapper}
-                        textStyles={writeCommentStyles.submitButtonText}
-                        title="Submit"
-                        disabled={isLoading}
-                        onPress={() => onUserReviewChange}
-                    />
-                </View>
+                    <View style={[writeReviewStyles.ratingContainer, isDisabled && {opacity: 0.5}]}>
+                        {[1, 2, 3, 4, 5].map((star) => (
+                            <TouchableOpacity 
+                                key={star}
+                                disabled={isDisabled}
+                                onPress={() => setRating(star)}
+                                style={{ paddingHorizontal: 4 }} 
+                            >
+                                <Text style={{
+                                    fontSize: 32, 
+                                    color: star <= rating ? '#FFD700' : '#E0E0E0' 
+                                }}>
+                                    {star <= rating ? '★' : '☆'}
+                                </Text>
+                            </TouchableOpacity>
+                        ))}
+                    </View>
 
+                    <View style={[writeReviewStyles.commentContainer, isDisabled && {opacity: 0.5}]}>
+                        <TextInput 
+                            style={[writeReviewStyles.commentTextInput]}
+                            value={commentText}
+                            onChangeText={setCommentText}
+                            editable={!isDisabled}
+                            multiline={true}
+                            textAlignVertical="top"
+                            maxLength={1000}
+                        />
+                    </View>
+
+                    <View style={[writeReviewStyles.submitButtonContainer, isDisabled && {opacity: 0.5}]}>
+                        <WrappedGeneralButton 
+                            wrapperStyles={writeReviewStyles.submitButtonWrapper}
+                            textStyles={writeReviewStyles.submitButtonText}
+                            title="Submit"
+                            disabled={isDisabled && !isChanged}
+                            onPress={() => {
+                                handleSubmit({rating: rating, commentText: commentText})
+                            }}
+                        />
+                    </View>
             </View>
-        ): (
-            null
-        )} 
-        </>
     )
 }
+
+
 //#endregion
 
 
-//#region Comment Summary Component
+//#region Reviews Summary Component
 
 
-function CommentSummary()
+function ReviewsSummary()
 {
     return (
         <View>
@@ -318,23 +497,28 @@ function FlatListTopAggregation()
 //#endregion
 
 
-
-
 export default function Product()
-{
+{   
+    //#region INITIAL DEFINITIONS
+
+
     const {revealWipe} = useTransition();
     const {showToast} = useToast();
-    const {isAuthenticated, token} = useAuth();
+    const {isAuthenticated, token, isLoading} = useAuth();
     
     const { id } = useLocalSearchParams();
 
-    const [isLoading, setIsLoading] = useState(true);
+    const [isPageLoading, setIPageLoading] = useState(true);
     const [isLoadingUpdateQuantity, setIsLoadingUpdateQuantity] = useState(false);
+
     const [product, setProduct] = useState<Caravan | null>(null)
     const [productQuantity, setProductQuantity] = useState(0);
+
     const [reviews, setReviews] = useState<Review[]>([]);
-    const [userReview, setUserReview] = useState<UserReview | null>(null);
+    const [userReview, setUserReview] = useState<Review | null>(null);
     const [reviewEligibility, setReviewEligibility] = useState<ReviewEligibility | null>(null);
+    //#endregion
+
 
     //#region FETCH PRODUCT QUANTITY
 
@@ -399,7 +583,7 @@ export default function Product()
 
     async function getProductDetailsNotAuth()
     {
-        setIsLoading(true);
+        setIPageLoading(true);
         console.log(id);
         try {
             const response = await fetch(`${API_BASE_URL}${PRODUCTS_BASE_ENDPOINT}/${id}/details`, {
@@ -427,13 +611,13 @@ export default function Product()
         } catch (err) {
             showToast("Something Went Wrong", 'error');
         } finally {
-            setIsLoading(false);
+            setIPageLoading(false);
         }
     }
 
     async function getProductDetailsAuth()
     {
-        setIsLoading(true);
+        setIPageLoading(true);
 
         try {
             const response = await fetch(`${API_BASE_URL}${PRODUCTS_BASE_ENDPOINT}/${id}/details`, {
@@ -458,7 +642,7 @@ export default function Product()
         } catch (err) {
             showToast("Something Went Wrong", 'error');
         } finally {
-            setIsLoading(false);
+            setIPageLoading(false);
         }   
     }
 
@@ -470,7 +654,8 @@ export default function Product()
     //#endregion
 
 
-    //#region BUTTON HANDLERS
+    //#region ON UPDATE QUANTITY
+
 
     function onUpdateQuantityNotAuth(payload: UpdateQuantityPayload)
     {
@@ -482,8 +667,9 @@ export default function Product()
         else                            targetQuantity = payload.newQuantity;
 
         const key = `cart_${id}`;
-        window.localStorage.setItem(key, targetQuantity.toString());
-
+        if (targetQuantity <= 0) window.localStorage.removeItem(key);
+        else window.localStorage.setItem(key, targetQuantity.toString());
+        
         setProductQuantity(targetQuantity);
 
         setIsLoadingUpdateQuantity(false);
@@ -531,31 +717,70 @@ export default function Product()
     //#endregion
 
 
+    //#region ON SUBMIT REVIEW
+
+
+    async function onSubmitReview({rating, commentText}: {rating: number, commentText: string}): Promise<boolean>
+    {
+        try {
+            const response = await fetch(`${API_BASE_URL}${REVIEWS_ENDPOINT}/${id}/reviews`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ rating: rating, commentText: commentText})
+            });
+            
+            const responseData = await response.json();
+            if (response.ok)
+            {
+                const responseReview = responseData.review;
+                setUserReview(responseReview);
+                return true;
+            }
+            else 
+            {
+                showToast("Something Went Wrong While Submitting", 'info');
+                return false;
+            }
+        } catch(err) {
+            showToast("Something Went Wrong While Submitting", 'error');
+            return false;
+        } 
+    }
+
+    //#endregion
+
+
     //#region EFFECTS
 
 
     useFocusEffect(
         useCallback(() => {
+            if (isLoading) return; 
+
             getProductDetails();
             getQuantityInformation();
-        }, [])
-    )
+        }, [isLoading]) 
+    );
 
     useEffect(() => {
-        if (!isLoading) revealWipe();
+        if (!isPageLoading) revealWipe();
 
-    }, [isLoading]);
+    }, [isPageLoading]);
     //#endregion
 
 
     return (
         <View style={styles.mainContainer}>
-            {isLoading ? (
+            {isPageLoading ? (
                 <ActivityIndicator size="large" color="#21758f" />
             ) : (
-                <View>
+                <>
+                <Navbar/>
 
-                    <Navbar/>
+                <View style={styles.contentContainer}>
 
                     <ProductDetails 
                         product={product!}
@@ -563,13 +788,24 @@ export default function Product()
                         isLoading={isLoadingUpdateQuantity}
                         onUpdateQuantity={onUpdateQuantity}
                     />
+
+                    <WriteReview 
+                        isEligible={reviewEligibility ? reviewEligibility.canReview : false}
+                        userReview={userReview}
+                        onUserReviewChange={onSubmitReview}                    
+                    />
                
                 </View>
+                </>
             )}
             
         </View>
     )
 }
+
+
+//#region STYLES
+
 
 const updateQuantityButtonStyles = StyleSheet.create({
     mainContainer: {
@@ -621,11 +857,18 @@ const productDetailsStyles = StyleSheet.create({
         flex: 1,
         flexDirection: 'row',
         padding: 10,
-        backgroundColor: '#e3a2a2'
+        backgroundColor: Colors.light.productDetailsBackground,
+        marginBottom: 20
     },
     imageContainer: {
         flex: 1,
-        backgroundColor: Colors.light.imageFillerColor
+        backgroundColor: Colors.light.imageFillerColor,
+        borderRadius: 8,
+        overflow: 'hidden',
+    },
+    productImage: {
+        width: '100%',
+        height: '100%',
     },
     detailsContainer: {
         flex: 1,
@@ -725,31 +968,92 @@ const productDetailsStyles = StyleSheet.create({
     }
 });
 
-const writeCommentStyles = StyleSheet.create({
+const writeReviewStyles = StyleSheet.create({
     mainContainer: {
-
+        padding: 10,
+        backgroundColor: Colors.light.writeReviewBackground
+    },
+    didSomethingWentWrongContainer: {
+        height: 20,
+        marginLeft: 10,
+    },
+    didSomethingWentWrongText: {
+        fontFamily: Fonts.semibold,
+        fontSize: 16,
+        color: Colors.light.errorText,
+    },
+    editCommentButtonContainer: {
+        justifyContent: 'center',
+        alignItems: 'flex-start',
+        height: 40,
+        marginBottom: 10,
+    },
+    editCommentButtonWrapper: {
+        height: 30,
+        width: 100,
+        borderRadius: 8,
+        marginLeft: 10,
+        backgroundColor: Colors.light.editButtonBackground
+    },
+    editCommentButtonText: {
+        fontFamily: Fonts.semibold,
+        fontSize: 16,
+        color: Colors.light.editButtonTextColor,
+    },
+    nameContainer: {
+        marginLeft: 10,
+        alignItems: 'flex-end'
+    },
+    nameText: {
+        fontFamily: Fonts.semibold,
+        fontSize: 16,
+        color: Colors.light.editButtonTextColor,
+    },
+    dateText: {
+        fontFamily: Fonts.regular,
+        fontSize: 16,
+        color: Colors.light.editButtonTextColor,
     },
     ratingContainer: {
-
+        flexDirection: 'row',
+        marginLeft: 10,
     },
     ratingLabel: {
 
     },
     commentContainer: {
-
+        padding: 10,
+    },
+    commentTextInput: {
+        padding: 10,
+        minHeight: 100,
+        maxHeight: 400,
+        fontFamily: Fonts.regular,
+        fontSize: 16,
+        color: Colors.light.editButtonTextColor,
     },
     submitButtonContainer: {
-
+        height: 40,
+        backgroundColor: Colors.light.submitButtonContainerBackground,
+        alignItems: 'flex-end',
+        justifyContent: 'center',
+        marginLeft: 10,
     },
     submitButtonWrapper: {
-
+        marginRight: 10,
+        height: 30,
+        width: 100,
+        borderRadius: 8,
+        backgroundColor: Colors.light.greenButtonBackground
     },
     submitButtonText: {
-
+        fontFamily: Fonts.regular,
+        fontSize: 16,
+        color: Colors.light.greenButtonTextColor,
     }
 });
 
-const commentSummaryStyles = StyleSheet.create({
+const reviewsSummaryStyles = StyleSheet.create({
 
 });
 
@@ -757,6 +1061,13 @@ const styles = StyleSheet.create({
     mainContainer: {
         flex: 1,
         backgroundColor: Colors.light.mainBackground,
+    },
+    contentContainer: {
+        alignSelf: 'center',
+        width: '100%',
+        maxWidth: 1400,
+        borderRadius: 10,
+        overflow: 'hidden'
     },
     productDetailsContainer: {
 
@@ -768,3 +1079,5 @@ const styles = StyleSheet.create({
 
     }
 });
+
+//#endregion

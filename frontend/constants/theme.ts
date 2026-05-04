@@ -6,11 +6,16 @@ export const Colors = {
     /* Background Colors */
     mainBackground: '#d6cba6',
     softContainerBackground: '#fefae0',
+    productDetailsBackground: '#7d7d7d5e',
+    writeReviewBackground: '#7d7d7d5e',
+    submitButtonContainerBackground: '#41070721',
 
     /* Button Colors */
     
-    greenButtonBackground: '#283618',
+    greenButtonBackground: '#283618', 
     greenButtonTextColor: '#fefae0',
+    editButtonBackground: '#ACC8E5',
+    editButtonTextColor: '#112A46',
 
     /* Quantity Control Colors */
     quantityControlBackground: '#cfb098',
@@ -24,6 +29,7 @@ export const Colors = {
     basePriceTextColor: '#af6d0c',
     basePriceDiscountedTextColor: '#606060',
     currentPriceTextColor: '#af6d0c',
+    errorText: '#8c1919',
 
     /* Filler Colors */
     imageFillerColor: '#5d0c2b'

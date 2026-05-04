@@ -2,7 +2,7 @@ import WrappedGeneralButton from '@/components/Buttons/GeneralButtonWithWrapper/
 import { Caravan } from '@/models/BACKEND_MODELS';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState, useEffect } from 'react';
-import { Pressable, Text, View, TextInput } from 'react-native';
+import { Pressable, Text, View, TextInput, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { styles } from '../ProductCard/ProductCard.styles';
 
@@ -26,6 +26,26 @@ export default function ProductCard({ dimensionStyle, caravan, quantity, disable
         setLocalQty(quantity.toString());
     }, [quantity]);
 
+
+    function nextImage(e: any) {
+        if (e && e.stopPropagation) e.stopPropagation();
+        if (!caravan.images || caravan.images.length <= 1) return;
+        
+        setCurrentImageIndex((prevIndex) => 
+            prevIndex === caravan.images.length - 1 ? 0 : prevIndex + 1
+        );
+    }
+
+    function prevImage(e: any) {
+        if (e && e.stopPropagation) e.stopPropagation();
+        if (!caravan.images || caravan.images.length <= 1) return;
+        
+        setCurrentImageIndex((prevIndex) => 
+            prevIndex === 0 ? caravan.images.length - 1 : prevIndex - 1
+        );
+    }
+
+
     const handleQtyChange = (text: string) => {
         const numericText = text.replace(/[^0-9]/g, '');
         setLocalQty(numericText);
@@ -46,9 +66,6 @@ export default function ProductCard({ dimensionStyle, caravan, quantity, disable
         }
     };
 
-    // Image Carousel Handlers
-    function nextImage() {}
-    function prevImage() {}
 
     return (
         <Pressable
@@ -61,7 +78,40 @@ export default function ProductCard({ dimensionStyle, caravan, quantity, disable
             <View style={[styles.cardContainer, isHovered && styles.cardContainerHovered]}>
                 
                 {/* Image Carousel Area */}
-                <View style={styles.imageContainer}></View>
+                <View style={styles.imageContainer}>
+                    {caravan.images && caravan.images.length > 0 ? (
+                        <>
+                            <Image 
+                                source={{ uri: caravan.images[currentImageIndex].url }} 
+                                style={{ width: '100%', height: '100%' }} 
+                                resizeMode="cover"
+                            />
+                            
+                            {/* Only show arrows if there is more than one image */}
+                            {caravan.images.length > 1 && (
+                                <>
+                                    <Pressable 
+                                        onPress={prevImage} 
+                                        style={{ position: 'absolute', left: 8, top: '50%', marginTop: -16, backgroundColor: 'rgba(0,0,0,0.4)', borderRadius: 20, padding: 4 }}
+                                    >
+                                        <Ionicons name="chevron-back" size={24} color="white" />
+                                    </Pressable>
+                                    
+                                    <Pressable 
+                                        onPress={nextImage} 
+                                        style={{ position: 'absolute', right: 8, top: '50%', marginTop: -16, backgroundColor: 'rgba(0,0,0,0.4)', borderRadius: 20, padding: 4 }}
+                                    >
+                                        <Ionicons name="chevron-forward" size={24} color="white" />
+                                    </Pressable>
+                                </>
+                            )}
+                        </>
+                    ) : (
+                        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+                            <Ionicons name="image-outline" size={32} color="#ccc" />
+                        </View>
+                    )}
+                </View>
 
                 {/* Details Area */}
                 <View style={styles.detailsContainer}>
