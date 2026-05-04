@@ -27,6 +27,26 @@ export default function ProductCard({ dimensionStyle, caravan, quantity, disable
         setLocalQty(quantity.toString());
     }, [quantity]);
 
+
+    function nextImage(e: any) {
+        if (e && e.stopPropagation) e.stopPropagation();
+        if (!caravan.images || caravan.images.length <= 1) return;
+        
+        setCurrentImageIndex((prevIndex) => 
+            prevIndex === caravan.images.length - 1 ? 0 : prevIndex + 1
+        );
+    }
+
+    function prevImage(e: any) {
+        if (e && e.stopPropagation) e.stopPropagation();
+        if (!caravan.images || caravan.images.length <= 1) return;
+        
+        setCurrentImageIndex((prevIndex) => 
+            prevIndex === 0 ? caravan.images.length - 1 : prevIndex - 1
+        );
+    }
+
+
     const handleQtyChange = (text: string) => {
         const numericText = text.replace(/[^0-9]/g, '');
         setLocalQty(numericText);
@@ -47,9 +67,6 @@ export default function ProductCard({ dimensionStyle, caravan, quantity, disable
         }
     };
 
-    // Image Carousel Handlers
-    function nextImage() {}
-    function prevImage() {}
 
     return (
         <Pressable
@@ -63,7 +80,38 @@ export default function ProductCard({ dimensionStyle, caravan, quantity, disable
                 
                 {/* Image Carousel Area */}
                 <View style={styles.imageContainer}>
-                    <Image source={getImageForProduct(caravan.productId)} style={{ width: '100%', height: '100%', resizeMode: 'cover', borderTopLeftRadius: 10, borderTopRightRadius: 10 }} />
+                    {caravan.images && caravan.images.length > 0 ? (
+                        <>
+                            <Image 
+                                source={{ uri: caravan.images[currentImageIndex].url }} 
+                                style={{ width: '100%', height: '100%' }} 
+                                resizeMode="cover"
+                            />
+                            
+                            {/* Only show arrows if there is more than one image */}
+                            {caravan.images.length > 1 && (
+                                <>
+                                    <Pressable 
+                                        onPress={prevImage} 
+                                        style={{ position: 'absolute', left: 8, top: '50%', marginTop: -16, backgroundColor: 'rgba(0,0,0,0.4)', borderRadius: 20, padding: 4 }}
+                                    >
+                                        <Ionicons name="chevron-back" size={24} color="white" />
+                                    </Pressable>
+                                    
+                                    <Pressable 
+                                        onPress={nextImage} 
+                                        style={{ position: 'absolute', right: 8, top: '50%', marginTop: -16, backgroundColor: 'rgba(0,0,0,0.4)', borderRadius: 20, padding: 4 }}
+                                    >
+                                        <Ionicons name="chevron-forward" size={24} color="white" />
+                                    </Pressable>
+                                </>
+                            )}
+                        </>
+                    ) : (
+                        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+                            <Ionicons name="image-outline" size={32} color="#ccc" />
+                        </View>
+                    )}
                 </View>
 
                 {/* Details Area */}
@@ -106,19 +154,25 @@ export default function ProductCard({ dimensionStyle, caravan, quantity, disable
                                     <Ionicons name={quantity === 1 ? "trash-outline" : "remove"} size={18} color="#fefae0" />
                                 </Pressable>
 
-                                <TextInput 
-                                    style={styles.qtyText} 
-                                    value={localQty} 
-                                    onChangeText={handleQtyChange}
-                                    onBlur={handleBlur}
-                                    onSubmitEditing={handleBlur}
-                                    keyboardType="numeric"
-                                    editable={!disabled}
-                                    onPressIn={(e) => {
-                                        // @ts-ignore
+                                <Pressable 
+                                    onPress={(e) => {
                                         if (e && e.stopPropagation) e.stopPropagation();
                                     }}
-                                />
+                                    // Optional: Add cursor style if you want standard web text-selection behavior
+                                    // @ts-ignore
+                                    style={{ cursor: 'text' }} 
+                                >
+                                    <TextInput 
+                                        style={styles.qtyText} 
+                                        value={localQty} 
+                                        onChangeText={handleQtyChange}
+                                        onBlur={handleBlur}
+                                        onSubmitEditing={handleBlur}
+                                        keyboardType="numeric"
+                                        editable={!disabled}
+                                        // You can remove the onPressIn entirely now
+                                    />
+                                </Pressable>
 
                                 <Pressable 
                                     disabled={disabled || caravan.quantityInStocks <= quantity} 

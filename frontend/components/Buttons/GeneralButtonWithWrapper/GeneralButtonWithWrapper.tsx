@@ -8,10 +8,11 @@ type WrappedGeneralButtonProps = {
     onPress: () => void;
     textStyles?: StyleProp<TextStyle>;
     wrapperStyles?: StyleProp<ViewStyle>; // Added to pass styles to the wrapper
+    outerWrapperStyles?: StyleProp<ViewStyle>; // New prop for outer wrapper styles
     disabled?: boolean;
 };
 
-const WrappedGeneralButton = ({ title, onPress, textStyles, wrapperStyles, disabled=false }: WrappedGeneralButtonProps) => {
+const WrappedGeneralButton = ({ title, onPress, textStyles, wrapperStyles, outerWrapperStyles, disabled=false }: WrappedGeneralButtonProps) => {
     const [isHovered, setIsHovered] = useState(false);
     const hoverAnim = useRef(new Animated.Value(0)).current;
 
