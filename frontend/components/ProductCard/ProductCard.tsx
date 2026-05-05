@@ -2,26 +2,58 @@ import WrappedGeneralButton from '@/components/Buttons/GeneralButtonWithWrapper/
 import { Caravan } from '@/models/BACKEND_MODELS';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState, useEffect } from 'react';
-import { Pressable, Text, View, TextInput, Image } from 'react-native';
+import { Pressable, Text, View, TextInput, Image, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import getImageForProduct from '@/functions/getImageForProduct';
 import { styles } from '../ProductCard/ProductCard.styles';
+import { useAuth } from '@/context/AuthContext'
+
+//#region WISHLIST COMPONENT
+interface WishlistButtonProps {
+    isWishlisted: boolean;
+    size?: number;
+    onToggle: () => void;
+}
+
+export function WishlistButton({ isWishlisted, size, onToggle }: WishlistButtonProps) {
+    const { isAuthenticated } = useAuth();
+
+    // Do not render the bookmark at all if the user is not authenticated
+    if (!isAuthenticated) return null;
+
+    return (
+        <TouchableOpacity onPress={onToggle} style={{ padding: 8 }}>
+            <Ionicons
+                name={isWishlisted ? "bookmark" : "bookmark-outline"}
+                size={size ? size : 24}
+                color={isWishlisted ? "#21758f" : "#666"} // Adjust colors to match your theme
+            />
+        </TouchableOpacity>
+    );
+}
+//#endregion
+
+
 
 interface ProductCardProps {
     dimensionStyle?: object; 
     caravan: Caravan;
     quantity: number; // Added: Passed from parent
+    isWishListed: boolean;
     disabled?: boolean;
     onUpdateQuantity: (newAmount: number) => void; // Added: Handled by parent
+    onWishListToggle: () => void;
 }
 
-export default function ProductCard({ dimensionStyle, caravan, quantity, disabled=false, onUpdateQuantity }: ProductCardProps) {
+export default function ProductCard({ dimensionStyle, caravan, quantity, isWishListed=false, disabled=false, onUpdateQuantity, onWishListToggle}: ProductCardProps) {
     const router = useRouter();
     const [isHovered, setIsHovered] = useState(false);
     // Carousel state can stay here as it only affects this specific UI component
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
     const [localQty, setLocalQty] = useState(quantity.toString());
+
+    const {isAuthenticated} = useAuth();
 
     useEffect(() => {
         setLocalQty(quantity.toString());
@@ -118,6 +150,10 @@ export default function ProductCard({ dimensionStyle, caravan, quantity, disable
                 <View style={styles.detailsContainer}>
                     <View style={styles.titleRow}>
                         <Text style={styles.cardTitle}>{caravan.name}</Text>
+                        <WishlistButton 
+                            isWishlisted={isWishListed}
+                            onToggle={onWishListToggle}
+                        />
                     </View>
 
                     <Text style={styles.priceText}>{caravan.currentPrice}</Text>

@@ -44,6 +44,9 @@ export const styles = StyleSheet.create({
         borderRadius: 15,
         padding: 10,
     },
+    addressChangeContainer: {
+
+    },
     addressInputContainer: {
         backgroundColor: 'rgba(142, 139, 123, 0.4)',
         borderRadius: 15,
@@ -125,6 +128,17 @@ export const styles = StyleSheet.create({
     },
 
     // --- ADDRESS INPUTS ---
+    addressFullInputContainer: {
+        ...commonInputElementContainerStyle
+    },
+    addressFullInputLabel: {
+        ...commonInputElementLabelStyle
+    },
+    addressFullInput: {
+        ...commonInputElementStyle,
+    },
+
+
     addressCountryInputContainer: { 
         ...commonInputElementContainerStyle 
     },

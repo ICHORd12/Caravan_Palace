@@ -8,6 +8,9 @@ export const API_BASE_URL = 'http://localhost:8080';
 
 // EndPoints
 const base = '/api/v3';
+
+export const ME_END_POINT = `${base}/users/me`;
+
 export const loginEndPoint = `${base}/auth/login`;
 export const registerEndPoint = `${base}/auth/register`;
 export const TOKEN_VALIDATE = `${base}/users/me`
@@ -26,3 +29,5 @@ export const GET_ORDERS_END_POINT = `${base}/users/me/orders`;
 export const GET_ORDER_DETAILS_END_POINT = `${base}/users/me/orders`;
 
 export const REVIEWS_ENDPOINT = `${base}/reviews`
+
+
