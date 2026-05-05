@@ -159,3 +159,23 @@ exports.decreaseStock = async ({ productId, quantity }, client) => {
   return result.rows[0];
 };
 
+exports.increaseStock = async ({ productId, quantity }, client) => {
+  const executor = client || pool;
+
+  const result = await executor.query(
+    `
+    UPDATE products
+    SET quantity_in_stocks = quantity_in_stocks + $1
+    WHERE product_id = $2
+    RETURNING product_id, quantity_in_stocks
+    `,
+    [quantity, productId]
+  );
+
+  if (result.rowCount === 0) {
+    throw new Error("Failed to increase stock");
+  }
+
+  return result.rows[0];
+};
+

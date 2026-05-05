@@ -8,6 +8,8 @@ const checkoutRoutes = require("./checkoutRoutes");
 const invoiceRoutes = require("./invoiceRoutes");
 const reviewRoutes = require("./reviewRoutes");
 const wishlistRoutes = require("./wishlistRoutes");
+const refundRoutes = require("./refundRoutes");
+const orderManagementRoutes = require("./orderManagementRoutes");
 
 const router = express.Router();
 
@@ -20,5 +22,7 @@ router.use("/checkout", checkoutRoutes);
 router.use("/invoices", invoiceRoutes);
 router.use("/reviews", reviewRoutes);
 router.use("/wishlist", wishlistRoutes);
+router.use("/refunds", refundRoutes);
+router.use("/orders", orderManagementRoutes);
 
 module.exports = router;

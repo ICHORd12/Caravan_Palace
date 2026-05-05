@@ -54,3 +54,61 @@ exports.getOrderByCustomerIdAndOrderId = async (customerId, orderId, client) => 
 
   return mapOrder(result.rows[0]);
 };
+
+exports.getOrderByCustomerIdAndOrderIdForUpdate = async (
+  customerId,
+  orderId,
+  client
+) => {
+  const executor = client || pool;
+
+  const result = await executor.query(
+    `
+    SELECT *
+    FROM orders
+    WHERE customer_id = $1 AND order_id = $2
+    FOR UPDATE
+    `,
+    [customerId, orderId]
+  );
+
+  if (result.rowCount === 0) return null;
+
+  return mapOrder(result.rows[0]);
+};
+
+exports.getOrderByIdForUpdate = async (orderId, client) => {
+  const executor = client || pool;
+
+  const result = await executor.query(
+    `
+    SELECT *
+    FROM orders
+    WHERE order_id = $1
+    FOR UPDATE
+    `,
+    [orderId]
+  );
+
+  if (result.rowCount === 0) return null;
+
+  return mapOrder(result.rows[0]);
+};
+
+exports.updateOrderStatus = async ({ orderId, status }, client) => {
+  const executor = client || pool;
+
+  const result = await executor.query(
+    `
+    UPDATE orders
+    SET status = $1
+    WHERE order_id = $2
+    RETURNING *
+    `,
+    [status, orderId]
+  );
+
+  if (result.rowCount === 0) return null;
+
+  return mapOrder(result.rows[0]);
+};
