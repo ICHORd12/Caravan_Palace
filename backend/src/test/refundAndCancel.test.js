@@ -223,6 +223,10 @@ describe("refundService.updateRefundStatus", () => {
       approved: 2,
     });
 
+    jest
+      .spyOn(orderItemModel, "getOrderItemCountByOrderId")
+      .mockResolvedValue(2);
+
     const updateOrderSpy = jest
       .spyOn(orderModel, "updateOrderStatus")
       .mockResolvedValue({
@@ -249,5 +253,71 @@ describe("refundService.updateRefundStatus", () => {
     expect(result.message).toBe("Refund status updated successfully");
     expect(updateOrderSpy).toHaveBeenCalledTimes(1);
     expect(emailSpy).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("refundService.requestRefundForOrderItem", () => {
+  let client;
+
+  beforeEach(() => {
+    client = buildClient();
+    jest.spyOn(pool, "connect").mockResolvedValue(client);
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  test("creates a refund for a specific order item", async () => {
+    jest
+      .spyOn(orderModel, "getOrderByCustomerIdAndOrderIdForUpdate")
+      .mockResolvedValue({
+        orderId: "order-5",
+        customerId: "user-5",
+        status: "delivered",
+      });
+
+    jest
+      .spyOn(deliveryModel, "getLatestCompletedDeliveryDateByOrderId")
+      .mockResolvedValue(new Date());
+
+    jest.spyOn(orderItemModel, "getOrderItemById").mockResolvedValue({
+      orderItemId: "item-5",
+      orderId: "order-5",
+      quantity: 1,
+      purchasedPrice: 250,
+    });
+
+    jest
+      .spyOn(refundModel, "getRefundByOrderItemId")
+      .mockResolvedValue(null);
+
+    jest.spyOn(refundModel, "createRefund").mockResolvedValue({
+      refundId: "refund-5",
+      orderItemId: "item-5",
+      status: "pending",
+      refundAmount: 250,
+      requestDate: new Date().toISOString(),
+      processedAt: null,
+    });
+
+    jest.spyOn(userModel, "findById").mockResolvedValue({
+      userId: "user-5",
+      name: "Item Refund",
+      email: "item@example.com",
+    });
+
+    jest
+      .spyOn(emailService, "sendOrderStatusEmail")
+      .mockResolvedValue({});
+
+    const result = await refundService.requestRefundForOrderItem({
+      userId: "user-5",
+      orderId: "order-5",
+      orderItemId: "item-5",
+    });
+
+    expect(result.message).toBe("Refund request submitted successfully");
+    expect(result.refund.orderItemId).toBe("item-5");
   });
 });

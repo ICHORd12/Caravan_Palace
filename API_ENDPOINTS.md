@@ -385,6 +385,62 @@ Status: `201 Created`
 
 ---
 
+### `POST /api/v3/users/me/orders/:orderId/items/:orderItemId/refund-requests`
+
+Creates a refund request for a specific order item.
+
+#### Auth
+
+- Required
+
+#### Path Params
+
+- `orderId`: target order id
+- `orderItemId`: target order item id
+
+#### Request Body
+
+No request body.
+
+#### Notes
+
+- Only orders with `status = "delivered"` are eligible for refunds.
+- Refunds must be requested within 30 days of the latest completed delivery (`deliveries.updated_at`).
+- A refund request creates a single refund row for the selected order item.
+
+#### Success Response
+
+Status: `201 Created`
+
+```json
+{
+  "message": "Refund request submitted successfully",
+  "refund": {
+    "refundId": "d1a7f3b9-2b4e-4a8e-8aa2-3c1c18f9a701",
+    "orderItemId": "abc12345-def6-4789-ghij-klmn0pqr1234",
+    "orderId": "7e8f8f62-4a2f-4a60-bec5-3bfdfb879c1b",
+    "customerId": "b3c3f74e-4aba-4e46-8e5c-53c344f2d259",
+    "status": "pending",
+    "refundAmount": 479999.99,
+    "requestDate": "2026-05-04T10:00:00.000Z",
+    "processedAt": null
+  }
+}
+```
+
+#### Common Errors
+
+- `400` if authenticated user id is missing in request context
+- `400` if `orderId` or `orderItemId` is missing
+- `401` if token is missing
+- `401` if token is invalid
+- `404` if order or order item is not found for the authenticated user
+- `409` if order status is not `delivered`
+- `409` if the refund window has expired
+- `409` if a refund request already exists for this item
+
+---
+
 ### `GET /api/v3/users/me/addresses`
 
 Returns all addresses of the authenticated user.
@@ -2072,6 +2128,7 @@ These must be set on the backend for `POST /api/v3/invoices/:orderId/email` to w
 - `GET /api/v3/users/me/orders/:orderId`
 - `POST /api/v3/users/me/orders/:orderId/cancel`
 - `POST /api/v3/users/me/orders/:orderId/refund-requests`
+- `POST /api/v3/users/me/orders/:orderId/items/:orderItemId/refund-requests`
 - `GET /api/v3/cart/`
 - `POST /api/v3/cart/items`
 - `PATCH /api/v3/cart/items/:productId`
@@ -2114,4 +2171,5 @@ These must be set on the backend for `POST /api/v3/invoices/:orderId/email` to w
 16. `PATCH /orders/:orderId/status` is restricted to `sales_manager` users and handles `processing -> in-transit -> delivered` transitions while populating deliveries.
 17. `POST /users/me/orders/:orderId/cancel` only works when order status is `processing` and will restock items.
 18. `POST /users/me/orders/:orderId/refund-requests` only works when order status is `delivered` and within 30 days of the latest completed delivery; it creates one refund per order item.
-19. `GET /refunds/` and `PATCH /refunds/:refundId` are restricted to `sales_manager` users.
+19. `POST /users/me/orders/:orderId/items/:orderItemId/refund-requests` allows item-level refunds under the same delivery and window rules.
+20. `GET /refunds/` and `PATCH /refunds/:refundId` are restricted to `sales_manager` users.
