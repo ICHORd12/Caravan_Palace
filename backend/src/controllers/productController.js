@@ -55,3 +55,20 @@ exports.searchProductsByNameOrDescription = async (req, res, next) => {
         next(err);
     }
 };
+
+exports.updateProductDiscount = async (req, res, next) => {
+  try {
+    const { productId } = req.params;
+    const userRole = req.user.role;
+
+    const result = await productService.updateProductDiscount({
+      productId,
+      discountRate: req.body.discountRate,
+      userRole,
+    });
+
+    res.status(200).json(result);
+  } catch (err) {
+    next(err);
+  }
+};
