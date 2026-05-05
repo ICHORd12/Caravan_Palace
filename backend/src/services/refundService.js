@@ -27,6 +27,37 @@ const isWithinRefundWindow = (deliveredAt) => {
   return diffDays <= REFUND_WINDOW_DAYS;
 };
 
+const validateRefundEligibility = async ({ userId, orderId, client }) => {
+  const order = await orderModel.getOrderByCustomerIdAndOrderIdForUpdate(
+    userId,
+    orderId,
+    client
+  );
+
+  if (!order) {
+    throw new ApiError(404, "Order not found");
+  }
+
+  if (order.status !== "delivered") {
+    throw new ApiError(409, "Only delivered orders can be refunded");
+  }
+
+  const deliveredAt = await deliveryModel.getLatestCompletedDeliveryDateByOrderId(
+    orderId,
+    client
+  );
+
+  if (!deliveredAt) {
+    throw new ApiError(409, "Order has no completed delivery record");
+  }
+
+  if (!isWithinRefundWindow(deliveredAt)) {
+    throw new ApiError(409, "Refund window has expired");
+  }
+
+  return order;
+};
+
 exports.requestRefundForOrder = async ({ userId, orderId }) => {
   if (!userId) {
     throw new ApiError(400, "User id is required");
@@ -41,32 +72,7 @@ exports.requestRefundForOrder = async ({ userId, orderId }) => {
   try {
     await client.query("BEGIN");
 
-    const order = await orderModel.getOrderByCustomerIdAndOrderIdForUpdate(
-      userId,
-      orderId,
-      client
-    );
-
-    if (!order) {
-      throw new ApiError(404, "Order not found");
-    }
-
-    if (order.status !== "delivered") {
-      throw new ApiError(409, "Only delivered orders can be refunded");
-    }
-
-    const deliveredAt = await deliveryModel.getLatestCompletedDeliveryDateByOrderId(
-      orderId,
-      client
-    );
-
-    if (!deliveredAt) {
-      throw new ApiError(409, "Order has no completed delivery record");
-    }
-
-    if (!isWithinRefundWindow(deliveredAt)) {
-      throw new ApiError(409, "Refund window has expired");
-    }
+    const order = await validateRefundEligibility({ userId, orderId, client });
 
     const existingRefunds = await refundModel.getRefundsByOrderId(orderId, client);
 
@@ -132,6 +138,83 @@ exports.requestRefundForOrder = async ({ userId, orderId }) => {
   }
 };
 
+exports.requestRefundForOrderItem = async ({ userId, orderId, orderItemId }) => {
+  if (!userId) {
+    throw new ApiError(400, "User id is required");
+  }
+
+  if (!orderId) {
+    throw new ApiError(400, "Order ID is required");
+  }
+
+  if (!orderItemId) {
+    throw new ApiError(400, "Order item ID is required");
+  }
+
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    const order = await validateRefundEligibility({ userId, orderId, client });
+
+    const orderItem = await orderItemModel.getOrderItemById(orderItemId, client);
+
+    if (!orderItem || orderItem.orderId !== order.orderId) {
+      throw new ApiError(404, "Order item not found for this order");
+    }
+
+    const existingRefund = await refundModel.getRefundByOrderItemId(
+      orderItemId,
+      client
+    );
+
+    if (existingRefund && existingRefund.status !== "rejected") {
+      throw new ApiError(409, "Refund request already exists for this item");
+    }
+
+    const refundAmount = Number(orderItem.purchasedPrice) * Number(orderItem.quantity);
+
+    const refund = await refundModel.createRefund(
+      {
+        orderItemId: orderItem.orderItemId,
+        refundAmount,
+      },
+      client
+    );
+
+    await client.query("COMMIT");
+
+    const user = await userModel.findById(userId);
+    if (user && user.email) {
+      try {
+        await emailService.sendOrderStatusEmail({
+          to: user.email,
+          orderId: order.orderId,
+          status: "refund_requested",
+          customerName: user.name,
+        });
+      } catch (_err) {
+        // Email failures should not block refund request creation.
+      }
+    }
+
+    return {
+      message: "Refund request submitted successfully",
+      refund: {
+        ...refund,
+        orderId: order.orderId,
+        customerId: order.customerId,
+      },
+    };
+  } catch (err) {
+    await client.query("ROLLBACK");
+    throw err;
+  } finally {
+    client.release();
+  }
+};
+
 exports.listRefunds = async ({ status, userRole }) => {
   assertSalesManager(userRole);
 
@@ -183,8 +266,16 @@ exports.updateRefundStatus = async ({ refundId, status, userRole }) => {
         refundWithOrder.orderId,
         client
       );
+      const orderItemCount = await orderItemModel.getOrderItemCountByOrderId(
+        refundWithOrder.orderId,
+        client
+      );
 
-      if (counts.total > 0 && counts.approved === counts.total) {
+      if (
+        orderItemCount > 0 &&
+        counts.total === orderItemCount &&
+        counts.approved === orderItemCount
+      ) {
         await orderModel.updateOrderStatus(
           {
             orderId: refundWithOrder.orderId,

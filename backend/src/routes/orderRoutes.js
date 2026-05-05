@@ -13,5 +13,10 @@ router.post(
 	authMiddleware,
 	refundController.requestRefundForOrder
 );
+router.post(
+	"/:orderId/items/:orderItemId/refund-requests",
+	authMiddleware,
+	refundController.requestRefundForOrderItem
+);
 
 module.exports = router;

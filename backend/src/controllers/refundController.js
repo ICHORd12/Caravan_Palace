@@ -16,6 +16,23 @@ exports.requestRefundForOrder = async (req, res, next) => {
   }
 };
 
+exports.requestRefundForOrderItem = async (req, res, next) => {
+  try {
+    const userId = req.user.userId;
+    const { orderId, orderItemId } = req.params;
+
+    const result = await refundService.requestRefundForOrderItem({
+      userId,
+      orderId,
+      orderItemId,
+    });
+
+    res.status(201).json(result);
+  } catch (err) {
+    next(err);
+  }
+};
+
 exports.listRefunds = async (req, res, next) => {
   try {
     const { status } = req.query;

@@ -34,6 +34,23 @@ exports.getRefundById = async (refundId, client) => {
   return mapRefund(result.rows[0]);
 };
 
+exports.getRefundByOrderItemId = async (orderItemId, client) => {
+  const executor = client || pool;
+
+  const result = await executor.query(
+    `
+    SELECT *
+    FROM refunds
+    WHERE order_item_id = $1
+    ORDER BY request_date DESC
+    LIMIT 1
+    `,
+    [orderItemId]
+  );
+
+  return mapRefund(result.rows[0]);
+};
+
 exports.getRefundsByOrderId = async (orderId, client) => {
   const executor = client || pool;
 
