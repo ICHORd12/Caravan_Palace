@@ -1763,6 +1763,63 @@ Status: `200 OK`
 
 ---
 
+## Order Management Endpoints
+
+All order management endpoints require authentication and are restricted to `sales_manager` users.
+
+### `PATCH /api/v3/orders/:orderId/status`
+
+Updates an order status and populates deliveries when the order enters transit.
+
+#### Auth
+
+- Required (sales manager only)
+
+#### Path Params
+
+- `orderId`: target order id
+
+#### Request Body
+
+```json
+{
+  "status": "in-transit"
+}
+```
+
+Allowed values: `in-transit`, `delivered`
+
+#### Notes
+
+- `processing -> in-transit` inserts one delivery row per order item.
+- `in-transit -> delivered` marks deliveries as completed.
+
+#### Success Response
+
+Status: `200 OK`
+
+```json
+{
+  "message": "Order status updated successfully",
+  "order": {
+    "orderId": "7e8f8f62-4a2f-4a60-bec5-3bfdfb879c1b",
+    "status": "in-transit"
+  }
+}
+```
+
+#### Common Errors
+
+- `400` if `orderId` is missing
+- `400` if `status` is missing or invalid
+- `401` if token is missing
+- `401` if token is invalid
+- `403` if user is not a sales manager
+- `404` if order is not found
+- `409` if the status transition is not allowed
+
+---
+
 ## Refund Endpoints
 
 All refund endpoints require authentication and are restricted to `sales_manager` users.
@@ -2029,6 +2086,7 @@ These must be set on the backend for `POST /api/v3/invoices/:orderId/email` to w
 - `DELETE /api/v3/reviews/:reviewId`
 - `POST /api/v3/checkout/validate`
 - `POST /api/v3/payments/`
+- `PATCH /api/v3/orders/:orderId/status`
 - `GET /api/v3/refunds/`
 - `PATCH /api/v3/refunds/:refundId`
 - `GET /api/v3/invoices/:orderId/pdf`
@@ -2053,6 +2111,7 @@ These must be set on the backend for `POST /api/v3/invoices/:orderId/email` to w
 13. `GET /invoices/:orderId/pdf` returns a binary PDF (not JSON). The frontend should treat the response as a `Blob`/`ArrayBuffer` (e.g. `fetch(...).then(r => r.blob())` or axios `responseType: 'blob'`) and trigger a download. The `Content-Disposition` header carries the filename.
 14. `POST /invoices/:orderId/email` always emails the PDF to the authenticated user's email on file — no recipient field is accepted from the client. The endpoint can be called multiple times for the same order. SMTP credentials must be configured in backend env vars (see **Environment Variables** in the Invoice section).
 15. Wishlist endpoints use `productId` as a path parameter. `GET /wishlist/` returns product summary data and the primary image URL; `POST /wishlist/:productId` only returns the created wishlist row, so refetch the wishlist if the UI needs full product details.
-16. `POST /users/me/orders/:orderId/cancel` only works when order status is `processing` and will restock items.
-17. `POST /users/me/orders/:orderId/refund-requests` only works when order status is `delivered` and within 30 days of the latest completed delivery; it creates one refund per order item.
-18. `GET /refunds/` and `PATCH /refunds/:refundId` are restricted to `sales_manager` users.
+16. `PATCH /orders/:orderId/status` is restricted to `sales_manager` users and handles `processing -> in-transit -> delivered` transitions while populating deliveries.
+17. `POST /users/me/orders/:orderId/cancel` only works when order status is `processing` and will restock items.
+18. `POST /users/me/orders/:orderId/refund-requests` only works when order status is `delivered` and within 30 days of the latest completed delivery; it creates one refund per order item.
+19. `GET /refunds/` and `PATCH /refunds/:refundId` are restricted to `sales_manager` users.
