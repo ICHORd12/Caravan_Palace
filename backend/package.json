@@ -5,7 +5,7 @@
   "main": "src/server.js",
   "scripts": {
     "dev": "node --watch src/server.js",
-    "test": "jest --testPathPatterns=\"(pdfAndEmail|Product)\\.test\\.js\"",
+    "test": "jest --testPathPatterns=\"(pdfAndEmail|Product|discountFinancialInvoice)\\.test\\.js\"",
     "test:all": "jest",
     "db:test": "node src/test/testDbConnection.js"
   },

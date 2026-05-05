@@ -146,6 +146,40 @@ exports.sendInvoiceEmail = async ({
   });
 };
 
+exports.sendWishlistDiscountEmail = async ({
+  to,
+  customerName,
+  productName,
+  previousDiscountRate,
+  newDiscountRate,
+  basePrice,
+  currentPrice,
+  transporter,
+}) => {
+  if (!productName || typeof productName !== "string") {
+    throw new ApiError(400, "Product name is required");
+  }
+
+  const discountNotificationService = require("./discountNotificationService");
+  const { subject, text, html } =
+    discountNotificationService.buildWishlistDiscountEmail({
+      customerName,
+      productName,
+      previousDiscountRate,
+      newDiscountRate,
+      basePrice,
+      currentPrice,
+    });
+
+  return exports.sendMail({
+    to,
+    subject,
+    text,
+    html,
+    transporter,
+  });
+};
+
 /**
  * Sends an order status email for cancellation and refund events.
  */
