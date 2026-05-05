@@ -2,7 +2,7 @@
 
 
 import { useCallback, useEffect, useState } from "react";
-import { View, Text, StyleSheet, ActivityIndicator, Pressable, TextInput, Platform, Image, TouchableOpacity } from "react-native";
+import { View, Text, StyleSheet, ActivityIndicator, Pressable, TextInput, Platform, Image, TouchableOpacity, FlatList } from "react-native";
 import { useFocusEffect, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 
@@ -17,8 +17,11 @@ import {Colors, Fonts} from '@/constants/theme'
 
 import WrappedGeneralButton from "@/components/Buttons/GeneralButtonWithWrapper/GeneralButtonWithWrapper";
 import Navbar from "@/components/Navbar/Navbar";
+import { WishlistButton } from "@/components/ProductCard/ProductCard";
 //#endregion
 
+
+// COMPONENTS
 
 //#region FeatureWithBackground Component
 
@@ -141,6 +144,11 @@ function UpdateQuantityButton({currentQuantity, quantityInStocks, isLoading = fa
 
                 </View>
             )}
+
+            <View>
+
+            </View>
+            
         </View>
     )
 }
@@ -154,10 +162,12 @@ interface ProductDetailsProps {
     product: Caravan;
     currentQuantity: number;
     isLoading?: boolean;
+    isWishlisted: boolean;
     onUpdateQuantity: (payload: UpdateQuantityPayload) => void;
+    onWishListToggle: () => void;
 }
 
-function ProductDetails({product, currentQuantity, isLoading, onUpdateQuantity}: ProductDetailsProps)
+function ProductDetails({product, currentQuantity, isLoading, isWishlisted, onUpdateQuantity, onWishListToggle}: ProductDetailsProps)
 {   
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
@@ -272,6 +282,11 @@ function ProductDetails({product, currentQuantity, isLoading, onUpdateQuantity}:
                         isLoading={isLoading}
                         onUpdateQuantity={onUpdateQuantity}
                     />
+                    <WishlistButton 
+                        isWishlisted={isWishlisted}
+                        size={40}
+                        onToggle={onWishListToggle}
+                    />
                 </View>
 
             </View>
@@ -283,13 +298,13 @@ function ProductDetails({product, currentQuantity, isLoading, onUpdateQuantity}:
 
 //#region Write Review Component
 
-interface WriteCommentProps {
+interface WriteReviewProps {
     isEligible: boolean;
     userReview: Review | null;
     onUserReviewChange: ({rating, commentText}: {rating: number, commentText: string}) => Promise<boolean>;
 }
 
-function WriteReview({isEligible, userReview, onUserReviewChange}: WriteCommentProps)
+function WriteReview({isEligible, userReview, onUserReviewChange}: WriteReviewProps)
 {   
     if (!isEligible && userReview === null) return null;
 
@@ -462,40 +477,106 @@ function WriteReview({isEligible, userReview, onUserReviewChange}: WriteCommentP
 //#endregion
 
 
-//#region Reviews Summary Component
-
-
-function ReviewsSummary()
-{
-    return (
-        <View>
-
-        </View>
-    )
-}
-//#endregion
-
-
 //#region Flat List Top Aggregation Component
 
+interface FlatListTopAggregationProps {
+    productDetailsProps: ProductDetailsProps;
+    writeReviewProps: WriteReviewProps;
+}
 
-function FlatListTopAggregation()
+function FlatListTopAggregation({productDetailsProps, writeReviewProps}: FlatListTopAggregationProps)
 {
     return (
         <View>
-            <View style={styles.productDetailsContainer}>
-            </View>
+            <ProductDetails 
+                product={productDetailsProps.product}
+                currentQuantity={productDetailsProps.currentQuantity}
+                isLoading={productDetailsProps.isLoading}
+                isWishlisted={productDetailsProps.isWishlisted}
+                onUpdateQuantity={productDetailsProps.onUpdateQuantity}
+                onWishListToggle={productDetailsProps.onWishListToggle}
+            />
 
-            <View style={styles.writeCommentContainer}>
+            <View style={flatListTopAggregationStyles.reviewsTitleContainer}>
+                <Text style={flatListTopAggregationStyles.reviewsTitleText}>REVIEWS</Text>
             </View>
+            
 
-            <View style={styles.commentSummaryContainer}>
-            </View>
+            <WriteReview 
+                isEligible={writeReviewProps.isEligible}
+                userReview={writeReviewProps.userReview}
+                onUserReviewChange={writeReviewProps.onUserReviewChange}                    
+            />
+
+            
+            
         </View>
     )
 }
 //#endregion
 
+
+//#region Flat List Card Component
+
+interface FlatListCardProps {
+    review: Review | null;
+}
+
+function FlatListCard({review}: FlatListCardProps)
+{
+    if (!review) return null;
+
+    return (
+        <View style={flatListCardStyles.mainContainer}>
+            <View style={flatListCardStyles.contentContainer}>
+
+                <View style={flatListCardStyles.topBarContainer}>
+                    {/* Star Component */}
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <View>
+                            {/* Background Empty Stars */}
+                            <View style={{ flexDirection: 'row' }}>
+                                {[1, 2, 3, 4, 5].map((_, index) => (
+                                    <Text key={`empty-${index}`} style={{ color: '#E0E0E0', fontSize: 18 }}>★</Text>
+                                ))}
+                            </View>
+                            {/* Foreground Filled Stars overlaid with exact percentage width */}
+                            <View style={{ position: 'absolute', top: 0, left: 0, overflow: 'hidden', width: `${(Math.max(0, Math.min(5, review.rating)) / 5) * 100}%`, flexDirection: 'row' }}>
+                                {[1, 2, 3, 4, 5].map((_, index) => (
+                                    <Text key={`filled-${index}`} style={{ color: '#FFD700', fontSize: 18 }}>★</Text>
+                                ))}
+                            </View>
+                        </View>
+                        {/* Rating text representation */}
+                        <Text style={{ marginLeft: 8, fontSize: 14 }}>{review.rating.toFixed(1)}</Text>
+                    </View>
+
+                    <Text style={flatListCardStyles.userNameText}>{review.userName}</Text>
+                </View>
+                <View style={flatListCardStyles.commentContainer}>
+                    <Text style={flatListCardStyles.commentText}>{review.commentText}</Text>
+                </View>
+                <View style={flatListCardStyles.footerContainer}>
+                    <View style={flatListCardStyles.dateContainer}>
+                        <Text style={flatListCardStyles.dateText}>Created: {review.createdAt}</Text>
+                        <Text style={flatListCardStyles.dateText}>Updated: {review.updatedAt}</Text>
+                    </View>
+                </View>
+
+            </View>
+        </View>
+    )
+}
+
+
+//#endregion
+
+
+
+
+
+
+// MAIN COMPONENT
 
 export default function Product()
 {   
@@ -513,6 +594,7 @@ export default function Product()
 
     const [product, setProduct] = useState<Caravan | null>(null)
     const [productQuantity, setProductQuantity] = useState(0);
+    const [isWishlist, setIsWishlist] = useState(false);
 
     const [reviews, setReviews] = useState<Review[]>([]);
     const [userReview, setUserReview] = useState<Review | null>(null);
@@ -654,6 +736,42 @@ export default function Product()
     //#endregion
 
 
+    //#region FETCH WISHLIST
+
+
+    async function fetchUserWishlist(controller: AbortController, currentProductId: string) 
+    {
+        if (!isAuthenticated || !token) {
+            setIsWishlist(false);
+            return;
+        }
+        
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/v3/wishlist/`, {
+                method: 'GET',
+                headers: { 'Authorization': `Bearer ${token}` },
+                signal: controller.signal
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                
+                // Check if THIS specific product is in the user's wishlist array
+                const isInWishlist = data.wishlist.some(
+                    (item: any) => item.productId === currentProductId
+                );
+                
+                setIsWishlist(isInWishlist);
+            }
+        } catch (error: any) {
+            if (error.name !== 'AbortError') {
+                console.error("Failed to fetch wishlist status:", error);
+            }
+        }
+    }
+
+    //#endregion
+
     //#region ON UPDATE QUANTITY
 
 
@@ -753,17 +871,62 @@ export default function Product()
     //#endregion
 
 
+    //#region ON TOGGLE WISHLIST
+
+
+    async function handleToggleWishlist(currentProductId: string) 
+    {
+        // Capture the current state before we optimistically change it
+        const previousState = isWishlist;
+        const method = previousState ? 'DELETE' : 'POST';
+        const endpoint = `${API_BASE_URL}/api/v3/wishlist/${currentProductId}`;
+
+        // Optimistic UI Update: instantly toggle the local state
+        setIsWishlist(!previousState);
+
+        try {
+            const response = await fetch(endpoint, {
+                method,
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error('API request failed');
+            }
+
+            showToast(method === 'DELETE' ? 'Removed from wishlist' : 'Added to wishlist', 'success');
+
+        } catch (error) {
+            // Revert the UI update to the previous state if the API call fails
+            setIsWishlist(previousState);
+            console.error("Failed to update wishlist:", error);
+            showToast('Failed to update wishlist', 'error'); // Optional: notify user of failure
+        }
+    }
+    //#endregion
+
     //#region EFFECTS
 
 
     useFocusEffect(
-        useCallback(() => {
-            if (isLoading) return; 
+    useCallback(() => {
+        if (isLoading) return; 
 
-            getProductDetails();
-            getQuantityInformation();
-        }, [isLoading]) 
-    );
+        const controller = new AbortController();
+
+        getProductDetails();
+        getQuantityInformation();
+        
+        // Assuming `productId` is available in your component's scope from route params
+        if (id) {
+            fetchUserWishlist(controller, id as string);
+        }
+
+        return () => controller.abort();
+    }, [isLoading, isAuthenticated, token, id]) // Ensure dependencies are accurate
+);
 
     useEffect(() => {
         if (!isPageLoading) revealWipe();
@@ -774,32 +937,43 @@ export default function Product()
 
     return (
         <View style={styles.mainContainer}>
-            {isPageLoading ? (
-                <ActivityIndicator size="large" color="#21758f" />
-            ) : (
-                <>
-                <Navbar/>
+        {isPageLoading ? (
+            <ActivityIndicator size="large" color="#21758f" />
+        ) : (
+            <>
+                <Navbar />
+                <FlatList
+                    contentContainerStyle={styles.contentContainer} 
+                    data={reviews || []}
+                    keyExtractor={(item, index) => item.userId ? item.userId.toString() : index.toString()}
+                    
+                    ListHeaderComponent={
+                        <FlatListTopAggregation
+                            productDetailsProps={{
+                                product: product!,
+                                currentQuantity: productQuantity,
+                                isLoading: isLoadingUpdateQuantity,
+                                isWishlisted: isWishlist,
+                                onUpdateQuantity: onUpdateQuantity,
+                                onWishListToggle: () => handleToggleWishlist(id as string)
+                            }}
+                            writeReviewProps={{
+                                isEligible: reviewEligibility ? reviewEligibility.canReview : false,
+                                userReview: userReview,
+                                onUserReviewChange: onSubmitReview
+                            }}
+                        />
+                    }
 
-                <View style={styles.contentContainer}>
+                    renderItem={({ item }) => (
+                        <FlatListCard review={item} />
+                    )}
 
-                    <ProductDetails 
-                        product={product!}
-                        currentQuantity={productQuantity}
-                        isLoading={isLoadingUpdateQuantity}
-                        onUpdateQuantity={onUpdateQuantity}
-                    />
-
-                    <WriteReview 
-                        isEligible={reviewEligibility ? reviewEligibility.canReview : false}
-                        userReview={userReview}
-                        onUserReviewChange={onSubmitReview}                    
-                    />
-               
-                </View>
-                </>
-            )}
-            
-        </View>
+                    showsVerticalScrollIndicator={true} 
+                />
+            </>
+        )}
+    </View>
     )
 }
 
@@ -810,6 +984,7 @@ export default function Product()
 const updateQuantityButtonStyles = StyleSheet.create({
     mainContainer: {
         height: 60, 
+        flex: 1,
         paddingHorizontal: '3%',
         justifyContent: 'center',
     },
@@ -964,7 +1139,8 @@ const productDetailsStyles = StyleSheet.create({
         color: Colors.light.discountTextColor,
     },
     updateQuantityButtonContainer: {
-
+        flexDirection: 'row',
+        alignItems: 'center'
     }
 });
 
@@ -1055,6 +1231,62 @@ const writeReviewStyles = StyleSheet.create({
 
 const reviewsSummaryStyles = StyleSheet.create({
 
+});
+
+const flatListTopAggregationStyles = StyleSheet.create({
+    reviewsTitleContainer: {
+        padding: 10,
+        borderRadius: 8,
+        backgroundColor: Colors.light.productDetailsBackground,
+        marginVertical: 10,
+    },
+    reviewsTitleText: {
+        fontFamily: Fonts.bold,
+        fontSize: 22,
+        color: Colors.light.mainTextColor,
+    }
+});
+
+const flatListCardStyles = StyleSheet.create({
+    mainContainer: {
+        borderRadius: 8,
+        backgroundColor: Colors.light.productDetailsBackground,
+        padding: 10,
+        overflow: 'hidden'
+    },
+    contentContainer: {
+
+    },
+    topBarContainer: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 10
+    },
+    userNameText: {
+        fontFamily: Fonts.semibold,
+        fontSize: 16,
+        color: Colors.light.mainTextColor,
+    },
+    commentContainer: {
+        marginBottom: 10,
+    },
+    commentText: {
+        fontFamily: Fonts.regular,
+        fontSize: 16,
+        color: Colors.light.commentTextColor,
+    },
+    footerContainer: {
+        alignItems: 'flex-end'
+    },
+    dateContainer: {
+        alignItems: 'flex-end'
+    },
+    dateText: {
+        fontFamily: Fonts.regular,
+        fontSize: 12,
+        color: Colors.light.commentTextColor,
+    }
 });
 
 const styles = StyleSheet.create({

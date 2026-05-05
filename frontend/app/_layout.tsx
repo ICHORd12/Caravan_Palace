@@ -2,6 +2,7 @@ import { SplashScreen, Stack } from 'expo-router';
 import { AuthProvider } from '../context/AuthContext';
 import { ToastProvider } from '../context/ToastContext';
 import { TransitionProvider } from '../context/TransitionContext';
+import { UserProvider } from '@/context/UserContext';
 
 import {
     useFonts,
@@ -33,11 +34,12 @@ export default function RootLayout() {
         <TransitionProvider>
             <ToastProvider>
                 <AuthProvider>
+                    <UserProvider>
 
 
-                    <Stack screenOptions={{ headerShown: false }} />
+                        <Stack screenOptions={{ headerShown: false }} />
 
-
+                    </UserProvider>
                 </AuthProvider>
             </ToastProvider>
         </TransitionProvider>

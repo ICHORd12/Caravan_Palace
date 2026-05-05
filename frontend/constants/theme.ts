@@ -30,6 +30,7 @@ export const Colors = {
     basePriceDiscountedTextColor: '#606060',
     currentPriceTextColor: '#af6d0c',
     errorText: '#8c1919',
+    commentTextColor: '#1b1b1b',
 
     /* Filler Colors */
     imageFillerColor: '#5d0c2b'
