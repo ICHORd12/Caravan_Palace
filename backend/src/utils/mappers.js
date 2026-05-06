@@ -47,12 +47,13 @@ exports.mapProduct = (row) => {
     weightKg: row.weight_kg,
     hasKitchen: row.has_kitchen,
     discountRate: row.discount_rate,
+    averageRating: Number(row.average_rating || 0),
+    reviewCount: Number(row.review_count || 0),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     images: Array.isArray(row.images) ? row.images : [],
   };
 };
-
 exports.mapUser = (row) => {
   if (!row) return null;
 
