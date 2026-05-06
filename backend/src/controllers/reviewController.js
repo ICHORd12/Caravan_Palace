@@ -67,3 +67,18 @@ exports.deleteReview = async (req, res, next) => {
     next(err);
   }
 };
+
+
+exports.updateReview = async (req, res, next) => {
+    try {
+        const result = await reviewService.updateReview(
+            req.user.userId,
+            req.params.reviewId,
+            req.body
+        );
+
+        res.status(200).json(result);
+    } catch (err) {
+        next(err);
+    }
+};

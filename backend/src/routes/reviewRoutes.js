@@ -10,5 +10,6 @@ router.get("/:productId/reviews", reviewController.getReviewsByProductId);
 router.get("/:productId/review-eligibility", authMiddleware, reviewController.checkReviewEligibility);
 router.post("/:productId/reviews", authMiddleware, reviewController.createReview);
 router.delete("/:reviewId", authMiddleware, reviewController.deleteReview);
+router.patch("/:reviewId", authMiddleware, reviewController.updateReview);
 
 module.exports = router;

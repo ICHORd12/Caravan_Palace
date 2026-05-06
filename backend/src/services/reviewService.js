@@ -105,3 +105,31 @@ exports.deleteReview = async ({ reviewId, userId, userRole }) => {
     message: "Review deleted successfully",
   };
 };
+
+
+exports.updateReview = async (userId, reviewId, { comment, rating }) => {
+    if (!comment && rating === undefined) {
+        throw new ApiError(400, "At least one field must be provided");
+    }
+
+    const existingReview = await reviewModel.getReviewById(reviewId);
+
+    if (!existingReview) {
+        throw new ApiError(404, "Review not found");
+    }
+
+    if (existingReview.user_id !== userId) {
+        throw new ApiError(403, "You can only update your own review");
+    }
+
+    const updatedReview = await reviewModel.updateReview(reviewId, {
+        comment,
+        rating,
+        approvalStatus: "pending"
+    });
+
+    return {
+        message: "Review updated successfully and is pending approval",
+        review: updatedReview
+    };
+};
