@@ -281,7 +281,7 @@ export default function ShoppingCart() {
         }
     }
     
-    async function pay(): Promise<{result: boolean, message: string}> 
+ async function pay(): Promise<{result: boolean, message: string, orderId?: string}> 
     {
         try {
             const payloadBody: PayInput = createPayBody();
@@ -303,7 +303,12 @@ export default function ShoppingCart() {
             }
             else
             {
-                return { result: true, message: responseData.message || 'Payment successful' };
+            
+                return { 
+                    result: true, 
+                    message: responseData.message || 'Payment successful',
+                    orderId: responseData.order.orderId 
+                };
             }
 
         } catch (error) {
@@ -315,7 +320,6 @@ export default function ShoppingCart() {
                 message: error instanceof Error ? error.message : 'An unexpected error occurred' 
             };
         }
-        
     }
     //#endregion
 
@@ -544,7 +548,7 @@ export default function ShoppingCart() {
         setIsPressedCartButton(false);
     }
 
-    async function doPaymentButtonFunction()
+  async function doPaymentButtonFunction()
     {
         setIsPressesPayButton(true);
 
@@ -565,7 +569,8 @@ export default function ShoppingCart() {
             {
                 setRoutePayload({
                     cartItems: cartItemFEs,
-                    totalPaid: calculateTotal()
+                    totalPaid: calculateTotal(),
+                    orderId: result.orderId 
                 });
                 navigateWithWipe("/shopping/paymentSuccessful")
             }
