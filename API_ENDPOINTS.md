@@ -1085,6 +1085,65 @@ Status: `200 OK`
 
 ---
 
+### `PATCH /api/v3/reviews/:reviewId`
+
+Updates the authenticated user's own review and marks it as pending approval again.
+
+#### Auth
+
+- Required
+- The authenticated user must own the review.
+
+#### Path Params
+
+- `reviewId`: target review id
+
+#### Request Body
+
+At least one field is required:
+
+```json
+{
+  "rating": 4,
+  "comment": "Still very happy with it after another trip."
+}
+```
+
+#### Request Fields
+
+- `rating`: optional updated rating
+- `comment`: optional updated review text
+
+#### Success Response
+
+Status: `200 OK`
+
+```json
+{
+  "message": "Review updated successfully and is pending approval",
+  "review": {
+    "reviewId": "3a2fd384-e018-4f7d-81c5-9e0b9a57a2bf",
+    "productId": "8924ed90-3acb-4e39-a9a5-5c47a84255e9",
+    "userId": "b3c3f74e-4aba-4e46-8e5c-53c344f2d259",
+    "rating": 4,
+    "commentText": "Still very happy with it after another trip.",
+    "isApproved": false,
+    "createdAt": "2026-04-20T14:30:00.000Z",
+    "updatedAt": "2026-05-06T14:30:00.000Z"
+  }
+}
+```
+
+#### Common Errors
+
+- `400` if neither `rating` nor `comment` is provided
+- `401` if token is missing
+- `401` if token is invalid
+- `403` if the authenticated user does not own the review
+- `404` if review is not found
+
+---
+
 ## Cart Endpoints
 
 All cart endpoints require authentication.
@@ -1586,7 +1645,7 @@ When checkout validation finds stock issues:
 
 ### `POST /api/v3/payments/`
 
-Processes the authenticated user's checkout payment, creates an order, decreases stock, and clears the cart.
+Processes the authenticated user's checkout payment, creates an order, decreases stock, clears the cart, and attempts to email the invoice to the user.
 
 #### Auth
 
@@ -1620,6 +1679,8 @@ Processes the authenticated user's checkout payment, creates an order, decreases
 - The backend calculates the total amount from the current cart items. The client does not send `amount`.
 - Before creating the order, the backend re-checks stock using locked product rows inside a transaction.
 - If payment succeeds, the backend creates an order, creates order items, decreases product stock, and clears the user's cart.
+- After the payment transaction commits, the backend generates the invoice PDF and attempts to email it to the authenticated user's email on file.
+- Invoice email delivery is best-effort in this payment flow: if SMTP/email sending fails, the failure is logged and the payment response still returns `200 OK`.
 
 #### Success Response
 
@@ -1660,13 +1721,12 @@ Status: `200 OK`
 
 ## Invoice / Email Endpoints
 
-All invoice endpoints require authentication. They generate a PDF invoice for one of the authenticated user's existing orders and either return it as a file download or email it to the user.
+All invoice endpoints require authentication. They generate a PDF invoice for one of the authenticated user's existing orders and either return it as a file download or email it to the user. A successful payment also automatically attempts to email the invoice after the order is created.
 
 > **Backend integration note:** the routes, controllers, services and tests are wired up in code (`src/routes/invoiceRoutes.js`, `src/controllers/invoiceController.js`, `src/services/{pdfService,emailService,invoiceService}.js`). Before these endpoints can actually deliver email in a deployed environment, the backend team still needs to:
 >
 > 1. Set the SMTP environment variables described in **Environment Variables** below (`SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`, `MAIL_FROM`).
 > 2. Make sure outbound SMTP is allowed from the deployment environment.
-> 3. Optionally call `POST /api/v3/invoices/:orderId/email` automatically from the payment flow (e.g. right after a successful `POST /api/v3/payments/`) instead of leaving it as a manual user action.
 
 ---
 
@@ -1814,6 +1874,7 @@ These must be set on the backend for `POST /api/v3/invoices/:orderId/email` to w
 - `GET /api/v3/reviews/:productId/review-eligibility`
 - `POST /api/v3/reviews/:productId/reviews`
 - `DELETE /api/v3/reviews/:reviewId`
+- `PATCH /api/v3/reviews/:reviewId`
 - `POST /api/v3/checkout/validate`
 - `POST /api/v3/payments/`
 - `GET /api/v3/invoices/:orderId/pdf`
@@ -1832,9 +1893,9 @@ These must be set on the backend for `POST /api/v3/invoices/:orderId/email` to w
 7. Cart item payloads use `productId` in path params and bodies.
 8. `GET /products/search` expects query parameter `q` and optional `sort` in query string.
 9. `POST /checkout/validate` is the pre-payment stock safety check for the current cart.
-10. `POST /payments/` now computes the total from the cart on the backend and creates an order on success.
+10. `POST /payments/` now computes the total from the cart on the backend, creates an order on success, then attempts to email the invoice automatically.
 11. `GET /products/:productId/details` uses optional auth; missing or invalid tokens are treated as guest access.
-12. Review creation requires the user to have received the product and prevents duplicate reviews.
+12. Review creation requires the user to have received the product and prevents duplicate reviews. Review updates use `PATCH /reviews/:reviewId`, require the review owner, and move the review back to pending approval.
 13. `GET /invoices/:orderId/pdf` returns a binary PDF (not JSON). The frontend should treat the response as a `Blob`/`ArrayBuffer` (e.g. `fetch(...).then(r => r.blob())` or axios `responseType: 'blob'`) and trigger a download. The `Content-Disposition` header carries the filename.
 14. `POST /invoices/:orderId/email` always emails the PDF to the authenticated user's email on file — no recipient field is accepted from the client. The endpoint can be called multiple times for the same order. SMTP credentials must be configured in backend env vars (see **Environment Variables** in the Invoice section).
 15. Wishlist endpoints use `productId` as a path parameter. `GET /wishlist/` returns product summary data and the primary image URL; `POST /wishlist/:productId` only returns the created wishlist row, so refetch the wishlist if the UI needs full product details.
