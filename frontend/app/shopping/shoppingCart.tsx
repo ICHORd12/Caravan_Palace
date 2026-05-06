@@ -29,6 +29,7 @@ import { useTransition } from '@/context/TransitionContext';
 import { useUser } from '@/context/UserContext';
 import { FetchProductDetailsResponse} from '@/models/BACKEND_MODELS';
 import { useAuth } from '@/context/AuthContext'
+import { useRoutePayload } from '@/context/RoutePayloadPassing';
 
 
 import getLocalCartMap from '@/functions/getLocalCartMap';
@@ -71,6 +72,7 @@ export default function ShoppingCart() {
     const { navigateWithWipe, revealWipe } = useTransition();
     const {token, isAuthenticated} = useAuth();
     const {user, isLoadingUser, addAddress, updateAddress, removeAddress, } = useUser();
+    const {setRoutePayload} = useRoutePayload();
     
 
     const wipeProgress = useRef(new Animated.Value(0)).current;
@@ -561,9 +563,11 @@ export default function ShoppingCart() {
             }
             else
             {
-                fetchCart();
-                runRevealAnimation(CART);
-                showToast(result.message, 'success');
+                setRoutePayload({
+                    cartItems: cartItemFEs,
+                    totalPaid: calculateTotal()
+                });
+                navigateWithWipe("/shopping/paymentSuccessful")
             }
         }
 

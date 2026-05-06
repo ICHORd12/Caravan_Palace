@@ -3,6 +3,7 @@ import { AuthProvider } from '../context/AuthContext';
 import { ToastProvider } from '../context/ToastContext';
 import { TransitionProvider } from '../context/TransitionContext';
 import { UserProvider } from '@/context/UserContext';
+import { RoutePayloadProvider } from '@/context/RoutePayloadPassing';
 
 import {
     useFonts,
@@ -31,17 +32,19 @@ export default function RootLayout() {
     }
 
     return (
-        <TransitionProvider>
-            <ToastProvider>
-                <AuthProvider>
-                    <UserProvider>
+        <RoutePayloadProvider>
+            <TransitionProvider>
+                <ToastProvider>
+                    <AuthProvider>
+                        <UserProvider>
 
 
-                        <Stack screenOptions={{ headerShown: false }} />
+                            <Stack screenOptions={{ headerShown: false }} />
 
-                    </UserProvider>
-                </AuthProvider>
-            </ToastProvider>
-        </TransitionProvider>
+                        </UserProvider>
+                    </AuthProvider>
+                </ToastProvider>
+            </TransitionProvider>
+        </RoutePayloadProvider>
     );
 }

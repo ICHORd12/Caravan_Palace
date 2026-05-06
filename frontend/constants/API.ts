@@ -4,7 +4,7 @@
 // (e.g., 'http://192.168.1.5:8080') later.
 // But for iOS simulator or web, localhost works perfectly.
 //export const API_BASE_URL = 'http://localhost:8080';
-export const API_BASE_URL = 'http://localhost:8080';
+export const API_BASE_URL = 'http://localhost:3000';
 
 // EndPoints
 const base = '/api/v3';

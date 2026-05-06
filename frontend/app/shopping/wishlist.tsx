@@ -9,8 +9,6 @@ import { API_BASE_URL } from '@/constants/API';
 import Navbar from '@/components/Navbar/Navbar';
 import WrappedGeneralButton from '@/components/Buttons/GeneralButtonWithWrapper/GeneralButtonWithWrapper';
 
-
-// Updated types to match the new API response
 type ProductInfo = {
     name: string;
     model: string;
@@ -29,37 +27,18 @@ type WishlistItem = {
 };
 
 export default function Wishlist() {
-    const { token, isAuthenticated } = useAuth();
+    const { token, isAuthenticated, isLoading } = useAuth();
     const { showToast } = useToast();
     const { revealWipe, navigateWithWipe } = useTransition();
 
     const [wishlistItems, setWishlistItems] = useState<WishlistItem[]>([]);
-    const [isLoading, setIsLoading] = useState(false);
-    const [isFetching, setIsFetching] = useState(true);
+    const [isFetching, setIsFetching] = useState(false);
+    const [isWaitingResponse, setIsWaitingResponse] = useState(false);
 
-    const authTracker = useRef(isAuthenticated);
-
-    useEffect(() => {
-        authTracker.current = isAuthenticated;
-        if (!isAuthenticated) {
-            navigateWithWipe('/login');
-        }
-    }, [isAuthenticated]);
-
-    useFocusEffect(
-        useCallback(() => {
-            if (!authTracker.current) {
-                showToast('Please login to view your wishlist.', 'error');
-                navigateWithWipe('/login');
-            } else {
-                fetchWishlistData();
-                revealWipe();
-            }
-        }, [])
-    );
-
+    
     const fetchWishlistData = async () => {
         setIsFetching(true);
+
         try {
             const response = await fetch(`${API_BASE_URL}/api/v3/wishlist/`, {
                 method: 'GET',
@@ -82,7 +61,7 @@ export default function Wishlist() {
     };
 
     const handleRemoveItem = async (productId: string) => {
-        setIsLoading(true);
+        setIsWaitingResponse(true);
         
         // Optimistic UI update
         const previousItems = [...wishlistItems];
@@ -107,9 +86,39 @@ export default function Wishlist() {
             setWishlistItems(previousItems);
             showToast('Network error removing item', 'error');
         } finally {
-            setIsLoading(false);
+            setIsWaitingResponse(false);
         }
     };
+
+    //#region EFFECTS
+
+    useEffect(() => {
+        if (isAuthenticated)
+        {
+            fetchWishlistData();
+        }
+
+    }, [isAuthenticated]);
+
+    useFocusEffect(
+        useCallback(() => {
+            if (isLoading) return;
+            if (!isAuthenticated) 
+            {
+                showToast("You need to log in to see your wish list", 'error');
+                navigateWithWipe("/login");
+                return;
+            }
+            else
+            {
+                if(!isFetching)
+                {
+                    revealWipe();
+                }
+            }
+        }, [isAuthenticated, isLoading, isFetching])
+    );
+    //#endregion
 
     return (
         <View style={styles.mainContainer}>
@@ -117,7 +126,10 @@ export default function Wishlist() {
 
             <ScrollView style={styles.contentContainer} contentContainerStyle={styles.scrollContent}>
                 
-                <Text style={styles.titleText}>MY WISHLIST</Text>
+                <View style={styles.titleContainer}>
+
+                    <Text style={styles.titleText}>MY WISHLIST</Text>
+                </View>
 
                 <View style={styles.formContainer}>
                     <Text style={styles.sectionHeader}>Saved Products</Text>
@@ -194,6 +206,10 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         paddingVertical: 40,
         paddingHorizontal: 20,
+    },
+    titleContainer: {
+        
+        
     },
     titleText: {
         fontFamily: 'Montserrat_700Bold',
