@@ -1,12 +1,14 @@
-import React, { useEffect } from "react";
-import { View, Text, StyleSheet, FlatList, TouchableOpacity } from "react-native";
+import React, { useEffect, useState } from "react";
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Platform, Alert } from "react-native";
 import Navbar from "@/components/Navbar/Navbar";
 import { Colors } from '@/constants/theme';
-import { useRoutePayload } from "@/context/RoutePayloadPassing"; // Update with your actual path
-import { useTransition } from "@/context/TransitionContext"
-import { router } from "expo-router"; // Assuming you use expo-router for the 'Go Home' button
+import { useRoutePayload } from "@/context/RoutePayloadPassing"; 
+import { useTransition } from "@/context/TransitionContext";
+import { router } from "expo-router"; 
 
-// Your provided models
+import { useAuth } from '@/context/AuthContext';
+import { API_BASE_URL, INVOICE_API_END_POINT } from '@/constants/API';
+
 export type CartProduct = {
     name: string;
     currentPrice: string;
@@ -20,17 +22,19 @@ export type CartItemFE = {
     product: CartProduct;
 };
 
-// Define the shape of the payload we expect
 type PaymentSuccessPayload = {
     cartItems: CartItemFE[];
     totalPaid: number | string;
+    orderId: string; 
 };
 
 export default function PaymentSuccessfulPage() {
     const { routePayload, clearRoutePayload } = useRoutePayload();
-    const {revealWipe, navigateWithWipe} = useTransition();
+    const { revealWipe, navigateWithWipe } = useTransition();
+    
+    const { token } = useAuth();
+    const [isEmailing, setIsEmailing] = useState(false);
 
-    // Clean up the payload when leaving the page
     useEffect(() => {
         revealWipe();
         
@@ -39,10 +43,62 @@ export default function PaymentSuccessfulPage() {
         };
     }, [revealWipe, clearRoutePayload]);
 
-    // Safely cast the generic context payload to our specific type
     const orderDetails = routePayload as PaymentSuccessPayload | null;
 
-    // Fallback UI if accessed directly without a payload
+    const handleEmailInvoice = async () => {
+        if (!orderDetails?.orderId) return;
+        try {
+            setIsEmailing(true);
+            const response = await fetch(`${API_BASE_URL}${INVOICE_API_END_POINT}/${orderDetails.orderId}/email`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (response.ok) {
+                if (Platform.OS === 'web') window.alert('Invoice emailed successfully!');
+                else Alert.alert('Success', 'Invoice emailed successfully!');
+            } else {
+                throw new Error('Failed to send email');
+            }
+        } catch (error) {
+            if (Platform.OS === 'web') window.alert('Backend SMTP not configured yet.');
+            else Alert.alert('Notice', 'Backend SMTP not configured yet.');
+        } finally {
+            setIsEmailing(false);
+        }
+    };
+
+    const handleDownloadPDF = async () => {
+        if (!orderDetails?.orderId) return;
+        try {
+            if (Platform.OS !== 'web') {
+                Alert.alert('Notice', 'PDF downloads on mobile require Expo FileSystem. Try this on web!');
+                return;
+            }
+
+            const response = await fetch(`${API_BASE_URL}${INVOICE_API_END_POINT}/${orderDetails.orderId}/pdf`, {
+                method: 'GET',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (!response.ok) throw new Error('Failed to download PDF');
+
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `invoice-order-${orderDetails.orderId}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            window.URL.revokeObjectURL(url);
+
+        } catch (error) {
+            console.error("Error downloading PDF:", error);
+            if (Platform.OS === 'web') window.alert('Failed to download PDF.');
+        }
+    };
+
     if (!orderDetails || !orderDetails.cartItems) {
         return (
             <View style={styles.mainContainer}>
@@ -74,19 +130,43 @@ export default function PaymentSuccessfulPage() {
             <Navbar />
             <View style={styles.contentContainer}>
                 
-                {/* Header Section */}
                 <View style={styles.header}>
                     <Text style={styles.successTitle}>Payment Successful!</Text>
                     <Text style={styles.successSubtitle}>Thank you for your purchase.</Text>
                 </View>
 
-                {/* Total Paid Section */}
+              
+                {orderDetails.orderId && (
+                    <View style={styles.invoiceButtonRow}>
+                        <TouchableOpacity 
+                            style={styles.actionButton} 
+                            onPress={() => router.push(`/invoice/${orderDetails.orderId}`)}
+                        >
+                            <Text style={styles.actionButtonText}>📄 View Invoice</Text>
+                        </TouchableOpacity>
+                        
+                        <TouchableOpacity 
+                            style={[styles.actionButton, { backgroundColor: '#bc4749' }]} 
+                            onPress={handleDownloadPDF}
+                        >
+                            <Text style={styles.actionButtonText}>⬇️ Download PDF</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity 
+                            style={[styles.actionButton, { backgroundColor: '#5b0f79' }]} 
+                            onPress={handleEmailInvoice}
+                            disabled={isEmailing}
+                        >
+                            <Text style={styles.actionButtonText}>{isEmailing ? "Sending..." : "✉️ Email PDF"}</Text>
+                        </TouchableOpacity>
+                    </View>
+                )}
+
                 <View style={styles.totalContainer}>
                     <Text style={styles.totalLabel}>Total Paid:</Text>
                     <Text style={styles.totalAmount}>${orderDetails.totalPaid}</Text>
                 </View>
 
-                {/* Items List */}
                 <Text style={styles.sectionTitle}>Order Summary</Text>
                 <FlatList
                     data={orderDetails.cartItems}
@@ -96,7 +176,6 @@ export default function PaymentSuccessfulPage() {
                     showsVerticalScrollIndicator={false}
                 />
 
-                {/* Action Button */}
                 <TouchableOpacity style={styles.homeButton} onPress={() => navigateWithWipe("/")}>
                     <Text style={styles.homeButtonText}>Continue Shopping</Text>
                 </TouchableOpacity>
@@ -109,12 +188,12 @@ export default function PaymentSuccessfulPage() {
 const styles = StyleSheet.create({
     mainContainer: {
         flex: 1,
-        backgroundColor: Colors.light.mainBackground || '#F5F7FA', // Fallback color added
+        backgroundColor: Colors.light.mainBackground || '#F5F7FA', 
     },
     contentContainer: {
         flex: 1,
         width: '100%',
-        maxWidth: 800, // Web-friendly constraint
+        maxWidth: 800, 
         alignSelf: 'center',
         padding: 20,
     },
@@ -125,7 +204,7 @@ const styles = StyleSheet.create({
     successTitle: {
         fontSize: 28,
         fontWeight: 'bold',
-        color: '#2E7D32', // A pleasant success green
+        color: '#2E7D32', 
         marginBottom: 8,
     },
     successSubtitle: {
@@ -202,7 +281,7 @@ const styles = StyleSheet.create({
         color: '#666',
     },
     homeButton: {
-        backgroundColor: '#007BFF', // Replace with your theme's primary color
+        backgroundColor: '#007BFF', 
         paddingVertical: 16,
         borderRadius: 12,
         alignItems: 'center',
@@ -220,5 +299,24 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         marginTop: 40,
         marginBottom: 20,
+    },
+    // --- NEW INVOICE BUTTON STYLES ---
+    invoiceButtonRow: { 
+        flexDirection: 'row', 
+        gap: 10, 
+        marginBottom: 20 
+    },
+    actionButton: { 
+        backgroundColor: '#283618', 
+        paddingVertical: 12, 
+        paddingHorizontal: 10, 
+        borderRadius: 8, 
+        alignItems: 'center', 
+        flex: 1 
+    },
+    actionButtonText: { 
+        fontWeight: 'bold', 
+        fontSize: 14, 
+        color: '#fff' 
     }
 });
