@@ -5,6 +5,7 @@ const cartModel = require("../models/cartModel");
 const orderModel = require("../models/orderModel");
 const orderItemModel = require("../models/orderItemModel");
 const productModel = require("../models/productModel");
+const invoiceService = require("./invoiceService");
 
 exports.processPayment = async ({ userId, card, deliveryAddress }) => {
   if (!userId) {
@@ -106,6 +107,15 @@ exports.processPayment = async ({ userId, card, deliveryAddress }) => {
     await cartModel.clearCartByUserId(userId, client);
 
     await client.query("COMMIT");
+
+    try {
+      await invoiceService.emailInvoice({
+        userId,
+        orderId: order.orderId,
+      });
+    } catch (emailErr) {
+      console.error("Invoice email failed:", emailErr);
+    }
 
     return {
       message: "Payment successful",
