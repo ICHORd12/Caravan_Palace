@@ -476,7 +476,12 @@ Status: `200 OK`
 
 ## Product Endpoints
 
-Product objects returned by the product listing/search endpoints include an `images` array. Images are ordered with primary images first, then by creation date.
+Product objects returned by the product endpoints below include an `images` array plus approved-review rating summary fields. Images are ordered with primary images first, then by creation date.
+
+#### Product Rating Fields
+
+- `averageRating`: average rating from approved reviews, rounded to 1 decimal place. Returns `0` when the product has no approved reviews.
+- `reviewCount`: number of approved reviews included in `averageRating`. Returns `0` when the product has no approved reviews.
 
 #### Product Image Object
 
@@ -535,6 +540,8 @@ Note: the current backend returns `201`, even though this is a read endpoint.
       "weightKg": 2500,
       "hasKitchen": true,
       "discountRate": 5,
+      "averageRating": 4.6,
+      "reviewCount": 12,
       "createdAt": "2026-04-09T00:00:00.000Z",
       "updatedAt": "2026-04-09T00:00:00.000Z",
       "images": [
@@ -615,6 +622,8 @@ Status: `201 Created`
       "weightKg": 2500,
       "hasKitchen": true,
       "discountRate": 5,
+      "averageRating": 4.6,
+      "reviewCount": 12,
       "createdAt": "2026-04-09T00:00:00.000Z",
       "updatedAt": "2026-04-09T00:00:00.000Z",
       "images": [
@@ -690,6 +699,8 @@ Status: `200 OK`
       "weightKg": 2500,
       "hasKitchen": true,
       "discountRate": 5,
+      "averageRating": 4.7,
+      "reviewCount": 18,
       "createdAt": "2026-04-09T00:00:00.000Z",
       "updatedAt": "2026-04-09T00:00:00.000Z",
       "images": [
@@ -769,6 +780,8 @@ Status: `200 OK`
       "weightKg": 2500,
       "hasKitchen": true,
       "discountRate": 5,
+      "averageRating": 4.7,
+      "reviewCount": 18,
       "createdAt": "2026-04-09T00:00:00.000Z",
       "updatedAt": "2026-04-09T00:00:00.000Z",
       "images": [
@@ -841,6 +854,8 @@ Status: `200 OK`
         "weightKg": 1500,
         "hasKitchen": false,
         "discountRate": 0,
+        "averageRating": 4.5,
+        "reviewCount": 6,
         "createdAt": "2026-03-23T15:02:31.883Z",
         "updatedAt": "2026-03-23T15:02:31.883Z",
         "images": []
@@ -1889,13 +1904,14 @@ These must be set on the backend for `POST /api/v3/invoices/:orderId/email` to w
    - `price_asc`
    - `price_desc`
 5. `POST /products/by-ids` accepts `productIds` array and optional `sort`.
-6. `/users/me` returns a wrapped profile payload with `message` and `user`.
-7. Cart item payloads use `productId` in path params and bodies.
-8. `GET /products/search` expects query parameter `q` and optional `sort` in query string.
-9. `POST /checkout/validate` is the pre-payment stock safety check for the current cart.
-10. `POST /payments/` now computes the total from the cart on the backend, creates an order on success, then attempts to email the invoice automatically.
-11. `GET /products/:productId/details` uses optional auth; missing or invalid tokens are treated as guest access.
-12. Review creation requires the user to have received the product and prevents duplicate reviews. Review updates use `PATCH /reviews/:reviewId`, require the review owner, and move the review back to pending approval.
-13. `GET /invoices/:orderId/pdf` returns a binary PDF (not JSON). The frontend should treat the response as a `Blob`/`ArrayBuffer` (e.g. `fetch(...).then(r => r.blob())` or axios `responseType: 'blob'`) and trigger a download. The `Content-Disposition` header carries the filename.
-14. `POST /invoices/:orderId/email` always emails the PDF to the authenticated user's email on file — no recipient field is accepted from the client. The endpoint can be called multiple times for the same order. SMTP credentials must be configured in backend env vars (see **Environment Variables** in the Invoice section).
-15. Wishlist endpoints use `productId` as a path parameter. `GET /wishlist/` returns product summary data and the primary image URL; `POST /wishlist/:productId` only returns the created wishlist row, so refetch the wishlist if the UI needs full product details.
+6. Product responses from `/products/all`, `/products/category_name`, `/products/search`, `/products/by-ids`, and `/products/:productId/details` include `averageRating` and `reviewCount` based on approved reviews.
+7. `/users/me` returns a wrapped profile payload with `message` and `user`.
+8. Cart item payloads use `productId` in path params and bodies.
+9. `GET /products/search` expects query parameter `q` and optional `sort` in query string.
+10. `POST /checkout/validate` is the pre-payment stock safety check for the current cart.
+11. `POST /payments/` now computes the total from the cart on the backend, creates an order on success, then attempts to email the invoice automatically.
+12. `GET /products/:productId/details` uses optional auth; missing or invalid tokens are treated as guest access.
+13. Review creation requires the user to have received the product and prevents duplicate reviews. Review updates use `PATCH /reviews/:reviewId`, require the review owner, and move the review back to pending approval.
+14. `GET /invoices/:orderId/pdf` returns a binary PDF (not JSON). The frontend should treat the response as a `Blob`/`ArrayBuffer` (e.g. `fetch(...).then(r => r.blob())` or axios `responseType: 'blob'`) and trigger a download. The `Content-Disposition` header carries the filename.
+15. `POST /invoices/:orderId/email` always emails the PDF to the authenticated user's email on file — no recipient field is accepted from the client. The endpoint can be called multiple times for the same order. SMTP credentials must be configured in backend env vars (see **Environment Variables** in the Invoice section).
+16. Wishlist endpoints use `productId` as a path parameter. `GET /wishlist/` returns product summary data and the primary image URL; `POST /wishlist/:productId` only returns the created wishlist row, so refetch the wishlist if the UI needs full product details.
