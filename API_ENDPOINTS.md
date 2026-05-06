@@ -637,7 +637,12 @@ Status: `200 OK`
 
 ## Product Endpoints
 
-Product objects returned by the product listing/search endpoints include an `images` array. Images are ordered with primary images first, then by creation date.
+Product objects returned by the product endpoints below include an `images` array plus approved-review rating summary fields. Images are ordered with primary images first, then by creation date.
+
+#### Product Rating Fields
+
+- `averageRating`: average rating from approved reviews, rounded to 1 decimal place. Returns `0` when the product has no approved reviews.
+- `reviewCount`: number of approved reviews included in `averageRating`. Returns `0` when the product has no approved reviews.
 
 #### Product Image Object
 
@@ -696,6 +701,8 @@ Note: the current backend returns `201`, even though this is a read endpoint.
       "weightKg": 2500,
       "hasKitchen": true,
       "discountRate": 5,
+      "averageRating": 4.6,
+      "reviewCount": 12,
       "createdAt": "2026-04-09T00:00:00.000Z",
       "updatedAt": "2026-04-09T00:00:00.000Z",
       "images": [
@@ -776,6 +783,8 @@ Status: `201 Created`
       "weightKg": 2500,
       "hasKitchen": true,
       "discountRate": 5,
+      "averageRating": 4.6,
+      "reviewCount": 12,
       "createdAt": "2026-04-09T00:00:00.000Z",
       "updatedAt": "2026-04-09T00:00:00.000Z",
       "images": [
@@ -851,6 +860,8 @@ Status: `200 OK`
       "weightKg": 2500,
       "hasKitchen": true,
       "discountRate": 5,
+      "averageRating": 4.7,
+      "reviewCount": 18,
       "createdAt": "2026-04-09T00:00:00.000Z",
       "updatedAt": "2026-04-09T00:00:00.000Z",
       "images": [
@@ -930,6 +941,8 @@ Status: `200 OK`
       "weightKg": 2500,
       "hasKitchen": true,
       "discountRate": 5,
+      "averageRating": 4.7,
+      "reviewCount": 18,
       "createdAt": "2026-04-09T00:00:00.000Z",
       "updatedAt": "2026-04-09T00:00:00.000Z",
       "images": [
@@ -1002,6 +1015,8 @@ Status: `200 OK`
         "weightKg": 1500,
         "hasKitchen": false,
         "discountRate": 0,
+        "averageRating": 4.5,
+        "reviewCount": 6,
         "createdAt": "2026-03-23T15:02:31.883Z",
         "updatedAt": "2026-03-23T15:02:31.883Z",
         "images": []
@@ -1242,6 +1257,65 @@ Status: `200 OK`
 - `401` if token is missing
 - `401` if token is invalid
 - `403` if the user is not allowed to delete the review
+- `404` if review is not found
+
+---
+
+### `PATCH /api/v3/reviews/:reviewId`
+
+Updates the authenticated user's own review and marks it as pending approval again.
+
+#### Auth
+
+- Required
+- The authenticated user must own the review.
+
+#### Path Params
+
+- `reviewId`: target review id
+
+#### Request Body
+
+At least one field is required:
+
+```json
+{
+  "rating": 4,
+  "comment": "Still very happy with it after another trip."
+}
+```
+
+#### Request Fields
+
+- `rating`: optional updated rating
+- `comment`: optional updated review text
+
+#### Success Response
+
+Status: `200 OK`
+
+```json
+{
+  "message": "Review updated successfully and is pending approval",
+  "review": {
+    "reviewId": "3a2fd384-e018-4f7d-81c5-9e0b9a57a2bf",
+    "productId": "8924ed90-3acb-4e39-a9a5-5c47a84255e9",
+    "userId": "b3c3f74e-4aba-4e46-8e5c-53c344f2d259",
+    "rating": 4,
+    "commentText": "Still very happy with it after another trip.",
+    "isApproved": false,
+    "createdAt": "2026-04-20T14:30:00.000Z",
+    "updatedAt": "2026-05-06T14:30:00.000Z"
+  }
+}
+```
+
+#### Common Errors
+
+- `400` if neither `rating` nor `comment` is provided
+- `401` if token is missing
+- `401` if token is invalid
+- `403` if the authenticated user does not own the review
 - `404` if review is not found
 
 ---
@@ -1747,7 +1821,7 @@ When checkout validation finds stock issues:
 
 ### `POST /api/v3/payments/`
 
-Processes the authenticated user's checkout payment, creates an order, decreases stock, and clears the cart.
+Processes the authenticated user's checkout payment, creates an order, decreases stock, clears the cart, and attempts to email the invoice to the user.
 
 #### Auth
 
@@ -1781,6 +1855,8 @@ Processes the authenticated user's checkout payment, creates an order, decreases
 - The backend calculates the total amount from the current cart items. The client does not send `amount`.
 - Before creating the order, the backend re-checks stock using locked product rows inside a transaction.
 - If payment succeeds, the backend creates an order, creates order items, decreases product stock, and clears the user's cart.
+- After the payment transaction commits, the backend generates the invoice PDF and attempts to email it to the authenticated user's email on file.
+- Invoice email delivery is best-effort in this payment flow: if SMTP/email sending fails, the failure is logged and the payment response still returns `200 OK`.
 
 #### Success Response
 
@@ -1984,13 +2060,12 @@ Status: `200 OK`
 
 ## Invoice / Email Endpoints
 
-All invoice endpoints require authentication. They generate a PDF invoice for one of the authenticated user's existing orders and either return it as a file download or email it to the user.
+All invoice endpoints require authentication. They generate a PDF invoice for one of the authenticated user's existing orders and either return it as a file download or email it to the user. A successful payment also automatically attempts to email the invoice after the order is created.
 
 > **Backend integration note:** the routes, controllers, services and tests are wired up in code (`src/routes/invoiceRoutes.js`, `src/controllers/invoiceController.js`, `src/services/{pdfService,emailService,invoiceService}.js`). Before these endpoints can actually deliver email in a deployed environment, the backend team still needs to:
 >
 > 1. Set the SMTP environment variables described in **Environment Variables** below (`SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`, `MAIL_FROM`).
 > 2. Make sure outbound SMTP is allowed from the deployment environment.
-> 3. Optionally call `POST /api/v3/invoices/:orderId/email` automatically from the payment flow (e.g. right after a successful `POST /api/v3/payments/`) instead of leaving it as a manual user action.
 
 ---
 
@@ -2141,6 +2216,7 @@ These must be set on the backend for `POST /api/v3/invoices/:orderId/email` to w
 - `GET /api/v3/reviews/:productId/review-eligibility`
 - `POST /api/v3/reviews/:productId/reviews`
 - `DELETE /api/v3/reviews/:reviewId`
+- `PATCH /api/v3/reviews/:reviewId`
 - `POST /api/v3/checkout/validate`
 - `POST /api/v3/payments/`
 - `PATCH /api/v3/orders/:orderId/status`

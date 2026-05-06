@@ -183,3 +183,22 @@ exports.deleteReview = async (reviewId) => {
     [reviewId]
   );
 };
+
+
+exports.updateReview = async (reviewId, { comment, rating, approvalStatus }) => {
+    const result = await pool.query(
+        `
+        UPDATE reviews
+        SET
+            comment = COALESCE($1, comment),
+            rating = COALESCE($2, rating),
+            approval_status = $3,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE review_id = $4
+        RETURNING *
+        `,
+        [comment, rating, approvalStatus, reviewId]
+    );
+
+    return result.rows[0];
+};

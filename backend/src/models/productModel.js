@@ -1,22 +1,23 @@
 const pool = require("../config/db");
 const { mapProduct } = require("../utils/mappers");
 const { getOrderByClause } = require("../utils/sorter");
-const { productImagesSelect } = require("../utils/sqlHelpers");
+const { productImagesSelect, productRatingSelect, productRatingJoin } = require("../utils/sqlHelpers");
 
 exports.getAllProducts = async (sort) => {
-  console.log("here");
   const result = await pool.query(
     `
     SELECT 
       p.*,
-      ${productImagesSelect}
+      ${productImagesSelect},
+      ${productRatingSelect}
     FROM products p
     LEFT JOIN product_images pi ON p.product_id = pi.product_id
-    GROUP BY p.product_id
+    ${productRatingJoin}
+    GROUP BY p.product_id, pr.average_rating, pr.review_count
     ${getOrderByClause(sort)}
     `
   );
-  console.log("there")
+
   return result.rows.map(mapProduct);
 };
 
@@ -26,12 +27,14 @@ exports.getProductsByCategoryName = async (category_name, sort) => {
     `
     SELECT 
       p.*,
-      ${productImagesSelect}
+      ${productImagesSelect},
+      ${productRatingSelect}
     FROM products p
     INNER JOIN categories c ON p.category_id = c.category_id
     LEFT JOIN product_images pi ON p.product_id = pi.product_id
+    ${productRatingJoin}
     WHERE c.category_name = $1
-    GROUP BY p.product_id
+    GROUP BY p.product_id, pr.average_rating, pr.review_count
     ${getOrderByClause(sort)}
     `,
     [category_name]
@@ -64,11 +67,13 @@ exports.getProductDetailsById = async (productId) => {
     `
     SELECT 
       p.*,
-      ${productImagesSelect}
+      ${productImagesSelect},
+      ${productRatingSelect}
     FROM products p
     LEFT JOIN product_images pi ON p.product_id = pi.product_id
+    ${productRatingJoin}
     WHERE p.product_id = $1
-    GROUP BY p.product_id
+    GROUP BY p.product_id, pr.average_rating, pr.review_count
     `,
     [productId]
   );
@@ -82,11 +87,13 @@ exports.getProductsByIds = async (productIds, sort) => {
     `
     SELECT 
       p.*,
-      ${productImagesSelect}
+      ${productImagesSelect},
+      ${productRatingSelect}
     FROM products p
     LEFT JOIN product_images pi ON p.product_id = pi.product_id
+    ${productRatingJoin}
     WHERE p.product_id = ANY($1::uuid[])
-    GROUP BY p.product_id
+    GROUP BY p.product_id, pr.average_rating, pr.review_count
     ${getOrderByClause(sort)}
     `,
     [productIds]
@@ -166,11 +173,13 @@ exports.searchProductsByNameOrDescription = async (searchTerm, sort) => {
     `
     SELECT 
       p.*,
-      ${productImagesSelect}
+      ${productImagesSelect},
+      ${productRatingSelect}
     FROM products p
     LEFT JOIN product_images pi ON p.product_id = pi.product_id
+    ${productRatingJoin}
     WHERE p.name ILIKE $1 OR p.description ILIKE $1
-    GROUP BY p.product_id
+    GROUP BY p.product_id, pr.average_rating, pr.review_count
     ${getOrderByClause(sort)}
     `,
     [likePattern]
@@ -178,7 +187,6 @@ exports.searchProductsByNameOrDescription = async (searchTerm, sort) => {
 
   return result.rows.map(mapProduct);
 };
-
 
 exports.decreaseStock = async ({ productId, quantity }, client) => {
   const executor = client || pool;
