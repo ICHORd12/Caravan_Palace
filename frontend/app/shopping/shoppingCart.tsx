@@ -26,8 +26,10 @@ import { Caravan, CartItem, GetBackendCartResponse } from '@/models/BACKEND_MODE
 import { CartItemFE } from '@/models/FRONTEND_MODELS';
 import { useToast } from '@/context/ToastContext';
 import { useTransition } from '@/context/TransitionContext';
+import { useUser } from '@/context/UserContext';
 import { FetchProductDetailsResponse} from '@/models/BACKEND_MODELS';
 import { useAuth } from '@/context/AuthContext'
+import { useRoutePayload } from '@/context/RoutePayloadPassing';
 
 
 import getLocalCartMap from '@/functions/getLocalCartMap';
@@ -66,10 +68,11 @@ export default function ShoppingCart() {
     const PAYMENT: boolean = true;
     const CART: boolean = false;
 
-    const router = useRouter();
     const { showToast } = useToast();
     const { navigateWithWipe, revealWipe } = useTransition();
     const {token, isAuthenticated} = useAuth();
+    const {user, isLoadingUser, addAddress, updateAddress, removeAddress, } = useUser();
+    const {setRoutePayload} = useRoutePayload();
     
 
     const wipeProgress = useRef(new Animated.Value(0)).current;
@@ -85,6 +88,8 @@ export default function ShoppingCart() {
     const [isPressedCartButton, setIsPressedCartButton] = useState(false);
     const [isPressesPayButton, setIsPressesPayButton] = useState(false);
 
+    
+    const hasInitializedAddress = useRef(false);
 
     const [inputErrors, setErrors] = useState<Record<string, string>>({});
 
@@ -94,6 +99,7 @@ export default function ShoppingCart() {
     const [cardExpiryMonth, setCardExpiryMonth] = useState(0);
     const [cardCvv, setCardCvv] = useState("");
 
+    const [addressFull, setAddressFull] = useState("");
     const [addressCountry, setAddressCountry] = useState("");
     const [addressCity, setAddressCity] = useState("");
     const [addressStreet, setAddressStreet] = useState("");
@@ -145,6 +151,7 @@ export default function ShoppingCart() {
     function onCardExpiryYearChange (expiryYear: number):   void {setCardExpiryYear(expiryYear)};
     function onCardExpiryMonthChange(expiryMonth: number):  void {setCardExpiryMonth(expiryMonth)};
     function onCardCvvChange        (CVV: string):          void {setCardCvv(CVV)};
+    function onAddressFullChange    (fullAddress: string):  void {setAddressFull(fullAddress)};
     function onAdressCountryChange  (country: string):      void {setAddressCountry(country)};
     function onAdressCityChange     (city: string):         void {setAddressCity(city)};
     function onAdressStreetChange   (street: string):       void {setAddressStreet(street)};
@@ -213,6 +220,7 @@ export default function ShoppingCart() {
             isValid = false;
         }
 
+        /*
         // Validate Address 
         if (addressCountry.trim().length === 0) {
             newErrors.addressCountry = "Country is required";
@@ -230,6 +238,7 @@ export default function ShoppingCart() {
             newErrors.addressZip = "Zip is required";
             isValid = false;
         }
+        */
 
         setErrors(newErrors);
         return isValid;
@@ -242,6 +251,7 @@ export default function ShoppingCart() {
 
     function linearizeAddressInputs(): string
     {
+        /*
         const addressParts = [
             addressStreet.trim(),
             addressCity.trim(),
@@ -252,6 +262,8 @@ export default function ShoppingCart() {
         return addressParts
             .filter((part) => part.length > 0)
             .join(", ");
+        */
+        return addressFull.trim();
     }
 
     function createPayBody(): PayInput
@@ -551,9 +563,11 @@ export default function ShoppingCart() {
             }
             else
             {
-                fetchCart();
-                runRevealAnimation(CART);
-                showToast(result.message, 'success');
+                setRoutePayload({
+                    cartItems: cartItemFEs,
+                    totalPaid: calculateTotal()
+                });
+                navigateWithWipe("/shopping/paymentSuccessful")
             }
         }
 
@@ -579,6 +593,23 @@ export default function ShoppingCart() {
             fetchCart();
         }, [isAuthenticated])
     );
+
+    useEffect(() => {
+        if (user && user.addresses && user.addresses.length > 0 && !hasInitializedAddress.current) {
+            const defaultAddress = user.addresses.find(a => a.isDefault);
+            if (defaultAddress) {
+                setAddressFull(defaultAddress.fullAddress);
+            } else {
+                setAddressFull(user.addresses[0].fullAddress);
+            }
+            hasInitializedAddress.current = true; 
+            
+        }
+        if (user && user.name)
+        {
+            setCardHolderName(user.name);
+        }
+    }, [user]);
 
     useEffect(() => {
         if (fontsLoaded && !isLoading) 
@@ -639,6 +670,7 @@ export default function ShoppingCart() {
                                 cardExpiryYear={cardExpiryYear.toString()}
                                 cardExpiryMonth={cardExpiryMonth.toString()}
                                 cardCvv={cardCvv}
+                                addressFull={addressFull}
                                 addressCountry={addressCountry}
                                 addressCity={addressCity}
                                 addressStreet={addressStreet}
@@ -649,6 +681,7 @@ export default function ShoppingCart() {
                                 onCardExpiryYearChange={onCardExpiryYearChange}
                                 onCardExpiryMonthChange={onCardExpiryMonthChange}
                                 onCardCvvChange={onCardCvvChange}
+                                onAddressFullChange={onAddressFullChange}
                                 onAdressCountryChange={onAdressCountryChange}
                                 onAdressCityChange={onAdressCityChange}
                                 onAdressStreetChange={onAdressStreetChange}

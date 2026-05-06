@@ -72,6 +72,7 @@ export default function Caravans() {
     const [caravans, setCaravans] = useState<Caravan[]>([]);
     const [allCaravans, setAllCaravans] = useState<Caravan[]>([]);
     const [cartQuantity, setCartQuantity] = useState<Record<string, number>>({});
+    const [wishlistMap, setWishlistMap] = useState<Record<string, boolean>>({});
 
     const [updatingItems, setUpdatingItems] = useState<Record<string, boolean>>({});
     const [isCaravansLoaded, setisCaravansLoaded] = useState(false);
@@ -353,6 +354,8 @@ export default function Caravans() {
 
     //#endregion
 
+
+    //#region APPLY FILTERS AND SORT
     function applyFiltersAndSort() {
         let result = [...allCaravans];
 
@@ -380,9 +383,18 @@ export default function Caravans() {
             result = result.filter(c => {
                 const price = Number(c.currentPrice);
                 return appliedFilters.prices.some(range => {
-                    if (range === 'under_20k') return price < 20000;
-                    if (range === '20k_to_40k') return price >= 20000 && price <= 40000;
-                    return true;
+                    if (range === 'under_50k') return price < 50000;
+                    if (range === '50k_to_100k') return price >= 50000 && price <= 100000;
+                    if (range === '100k_to_150k') return price > 100000 && price <= 150000;
+                    if (range === '150k_to_200k') return price > 150000 && price <= 200000;
+                    if (range === '200k_to_250k') return price > 200000 && price <= 250000;
+                    if (range === '250k_to_300k') return price > 250000 && price <= 300000;
+                    if (range === '300k_to_350k') return price > 300000 && price <= 350000;
+                    if (range === '350k_to_400k') return price > 350000 && price <= 400000;
+                    if (range === '400k_to_450k') return price > 400000 && price <= 450000;
+                    if (range === '450k_to_500k') return price > 450000 && price <= 500000;
+                    if (range === 'over_500k') return price > 500000;
+                    return false;
                 });
             });
         }
@@ -401,8 +413,9 @@ export default function Caravans() {
                 const w = c.weightKg;
                 return appliedFilters.weights.some(weightCategory => {
                     if (weightCategory === 'lightweight') return w < 1500;
-                    if (weightCategory === 'standard') return w >= 1500;
-                    return true;
+                    if (weightCategory === 'standard') return w >= 1500 && w < 2000;
+                    if (weightCategory === 'heavyweight') return w >= 2000;
+                    return false;
                 });
             });
         }
@@ -431,6 +444,83 @@ export default function Caravans() {
 
         setCaravans(result);
     }
+    //#endregion
+
+
+    //#region WISHLIST 
+    async function handleToggleWishlist(productId: string) 
+    {
+        // Determine the current state and what the new state should be
+        const currentlyWishlisted = !!wishlistMap[productId];
+        const method = currentlyWishlisted ? 'DELETE' : 'POST';
+        const endpoint = `${API_BASE_URL}/api/v3/wishlist/${productId}`;
+
+        // Optimistic UI Update: instantly update the local state so the icon changes
+        setWishlistMap(prev => ({
+            ...prev,
+            [productId]: !currentlyWishlisted
+        }));
+
+        try {
+            const response = await fetch(endpoint, {
+                method,
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (!response.ok) 
+            {
+                throw new Error('API request failed');
+            }
+
+            showToast(method === 'DELETE' ? 'Removed from wishlist' : 'Added to wishlist', 'success');
+
+        } catch (error) {
+            // Revert the UI update if the API call fails
+            setWishlistMap(prev => ({
+                ...prev,
+                [productId]: currentlyWishlisted
+            }));
+            console.error("Failed to update wishlist:", error);
+        }
+    };
+
+    async function fetchUserWishlist(controller: AbortController)  
+    {
+        if (!isAuthenticated || !token) {
+            setWishlistMap({});
+            return;
+        }
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/v3/wishlist/`, {
+                method: 'GET',
+                headers: { 'Authorization': `Bearer ${token}` },
+                signal: controller.signal
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                
+                // Create a mapping of productId -> true
+                const newWishlistMap: Record<string, boolean> = {};
+                
+                // Note: Ensure `item.productId` matches the actual key returned by your wishlist API
+                data.wishlist.forEach((item: any) => {
+                    newWishlistMap[item.productId] = true; 
+                });
+                
+                setWishlistMap(newWishlistMap);
+                
+            }
+        } catch (error: any) {
+            if (error.name !== 'AbortError') {
+                console.error("Failed to fetch wishlist mapping:", error);
+            }
+        }
+    };
+    //#endregion
+
 
     useEffect(() => {
         applyFiltersAndSort();
@@ -467,6 +557,8 @@ export default function Caravans() {
                 GET_BACKEND_CART,
                 signal: controller.signal
             });
+
+            fetchUserWishlist(controller);
 
             return () => controller.abort();
 
@@ -605,9 +697,11 @@ export default function Caravans() {
                                         caravan={item} 
                                         // Pass specific quantity (fallback to 0 if undefined)
                                         quantity={cartQuantity?.[item.productId] || 0}
+                                        isWishListed={!!wishlistMap[item.productId]} 
                                         // Pass updater callback
                                         disabled={!!updatingItems[item.productId]}
                                         onUpdateQuantity={(newAmount) => updateQuantity({productId: item.productId, delta: newAmount})}
+                                        onWishListToggle={() => handleToggleWishlist(item.productId)}
                                     />
                                 )}
                                 ListEmptyComponent={

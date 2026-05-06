@@ -23,7 +23,8 @@ export type Caravan = {
     weightKg: number,
     hasKitchen: boolean,
     createdAt: string,
-    updatedAt: string
+    updatedAt: string,
+    images: any[]
 }
 
 
@@ -70,6 +71,30 @@ export type GetBackendCartResponse = {
     items: CartItem[]
 }
 
+export type ReviewEligibility = {
+    canReview: boolean,
+    reason: string
+}
+
+export type Review = {
+    reviewId: string,
+    productId: string,
+    userId: string,
+    userName: string,
+    rating: number,
+    commentText: string,
+    isApproved: boolean,
+    createdAt: string,
+    updatedAt: string
+}
+
+export type GetProductIdDetailsResponse = {
+    message: string,
+    product: Caravan,
+    reviewEligibility: ReviewEligibility,
+    userReview: Review,
+    reviews: Review[]
+}
 
 
 

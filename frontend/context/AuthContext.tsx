@@ -11,8 +11,9 @@ import deleteLocalCart from '@/functions/deleteLocalCart';
 interface AuthContextData {
     isAuthenticated: boolean;
     token: string | null;
+    user: any | null;
     isLoading: boolean; 
-    login: (token: string) => Promise<void>;
+    login: (token: string, userData: any) => Promise<void>;
     logout: () => Promise<void>;
 }
 
@@ -31,6 +32,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [token, setToken] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true); // ADDED: Start in a loading state
+    const [user, setUser] = useState<any | null>(null);
 
     const logout = useCallback(async () => {
         
@@ -40,6 +42,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             await SecureStore.deleteItemAsync('userToken');
         }
         setToken(null);
+        setUser(null);
         setIsAuthenticated(false);
 
         // Delete all cache
@@ -74,7 +77,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 });
 
                 if (response.ok) {
+                    const data = await response.json();
+
                     setToken(savedToken);
+                    setUser(data.user);
                     setIsAuthenticated(true);
                 } else {
                     
@@ -91,13 +97,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         checkToken();
     }, [logout]); 
 
-    const login = async (newToken: string) => {
+    const login = async (newToken: string, userData: any) => {
         if (Platform.OS === 'web') {
             localStorage.setItem('userToken', newToken);
         } else {
             await SecureStore.setItemAsync('userToken', newToken);
         }
         setToken(newToken);
+        setUser(userData);
         setIsAuthenticated(true);
 
         // Merge with backend
@@ -127,7 +134,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     return (
-        <AuthContext.Provider value={{ isAuthenticated, token, isLoading, login, logout }}>
+        <AuthContext.Provider value={{ isAuthenticated, token, isLoading, login, logout, user }}>
             {children}
         </AuthContext.Provider>
     );

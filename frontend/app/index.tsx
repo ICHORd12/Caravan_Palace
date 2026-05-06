@@ -2,7 +2,7 @@
 
 import { useFocusEffect } from 'expo-router';
 import React, { useCallback } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View, Image} from 'react-native';
 
 import {
     Montserrat_400Regular,
@@ -46,17 +46,20 @@ export default function Home() {
 
             {/* MAIN CONTENT AREA */}
             <View style={styles.mainContent}>
-                <Text style={styles.titleText}>
-                    BUILD YOUR DREAM CARAVAN
-                </Text>
 
-                <Text style={styles.secondTitleText}>
-                    YOUR HOME AWAY FROM HOME
-                </Text>
+                <View style={styles.upperContentContainer}>
+                    <Text style={styles.titleText}>
+                        BUILD YOUR DREAM CARAVAN
+                    </Text>
 
-                <View style={styles.mainContentButtonRow}>
+                    <Text style={styles.secondTitleText}>
+                        YOUR HOME AWAY FROM HOME
+                    </Text>
+
                     <GeneralButton title="CARAVANS" onPress={() => navigateWithWipe('/shopping/caravans')} />
+                    
                 </View>
+
             </View>
 
         </View>
@@ -71,17 +74,11 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: '#d6cba6',
     },
-    slidingBackground: {
-        ...StyleSheet.absoluteFillObject,
-        backgroundColor: '#a94c0f',
-        zIndex: 9999,
-        elevation: 9999, 
-    },
     mainContent: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        paddingBottom: '15%',
+        marginTop: '15%'
+    },
+    upperContentContainer: {
+        marginBottom: 20,
     },
     titleText: {
         fontFamily: 'Montserrat_700Bold',
@@ -94,12 +91,7 @@ const styles = StyleSheet.create({
         fontSize: 15,
         textAlign: 'center',
         color: '#222222',
-        marginTop: 5,
+        marginBottom: 40
     },
-    mainContentButtonRow: {
-        flexDirection: 'row',
-        gap: 40,
-        marginTop: 50,
-    }
 });
 //#endregion

@@ -78,3 +78,28 @@ exports.removeFromWishlist = async (userId, productId) => {
 
     return mapWishlistItem(result.rows[0]);
 };
+
+exports.getUsersWatchingProduct = async (productId) => {
+    const result = await pool.query(
+        `
+        SELECT DISTINCT
+            u.user_id,
+            u.name,
+            u.email
+        FROM wishlists w
+        INNER JOIN users u
+            ON w.user_id = u.user_id
+        WHERE w.product_id = $1
+          AND u.email IS NOT NULL
+          AND TRIM(u.email) <> ''
+        ORDER BY u.name ASC
+        `,
+        [productId]
+    );
+
+    return result.rows.map((row) => ({
+        userId: row.user_id,
+        name: row.name,
+        email: row.email,
+    }));
+};

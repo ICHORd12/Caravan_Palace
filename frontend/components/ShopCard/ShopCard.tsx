@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from "react";
-import { Text, TouchableOpacity, View, TextInput } from 'react-native';
+import { Text, TouchableOpacity, View, TextInput, Image } from 'react-native';
 import { styles } from './ShopCard.style';
 import { CartItemFE } from "@/models/FRONTEND_MODELS";
 import {UpdateQuantityInput} from '@/app/shopping/shoppingCart'
+import getImageForProduct from '@/functions/getImageForProduct';
 
 
 //#region TO DO
@@ -47,7 +48,7 @@ function ShopCard({ cartItem, disabled=false, updateQuantity }: ShopCardProps)
 
     return(
          <View style={styles.cartCard}>
-            
+            <Image source={getImageForProduct(cartItem.productId)} style={styles.itemImage} />
             <View style={styles.itemDetails}>
                 <Text style={styles.itemNameText} numberOfLines={2}>{cartItem.product.name}</Text>
                 <Text style={styles.itemPriceText}>${cartItem.product.currentPrice}</Text>

@@ -46,6 +46,7 @@ export default function Navbar({ navbarContainerStyle, navbarLinksStyle, loginRe
                         <>
                             <GeneralButton title="MY ACCOUNT" onPress={() => navigateWithWipe('/profile')} />
                             <GeneralButton title="ORDERS" onPress={() => navigateWithWipe('/orderHistory')} />
+                                <GeneralButton title="WISHLIST" onPress={() => navigateWithWipe('/shopping/wishlist')} />
                             <GeneralButton title="LOGOUT" onPress={() => {
                                 if (pathname === '/profile') {
                                     navigateWithWipe('/login', () => logout());

@@ -25,6 +25,18 @@ const mapBackendStatus = (backendStatus: string): ExtendedStatus => {
   if (status === 'cancelled') return 'Cancelled';
   return 'Processing'; 
 };
+const isRefundEligible = (status: string, dateString: string) => {
+  if (status !== 'Delivered') return false;
+  
+  const orderDate = new Date(dateString);
+  const currentDate = new Date();
+  
+  const differenceInTime = currentDate.getTime() - orderDate.getTime();
+
+  const differenceInDays = differenceInTime / (1000 * 3600 * 24);
+  
+  return differenceInDays <= 30;
+};
 
 export default function OrderHistoryScreen() {
 
@@ -71,6 +83,7 @@ export default function OrderHistoryScreen() {
         }));
         
         setOrders(formattedOrders);
+
       }
     } catch (error) {
       console.error("Failed to fetch orders:", error);
@@ -165,13 +178,19 @@ useFocusEffect(
         </View>
       )}
 
-      {item.status === 'Delivered' && (
+      {item.status === 'Delivered' && isRefundEligible(item.status, item.date) && (
         <TouchableOpacity 
           style={[styles.actionButton, styles.refundButton]} 
           onPress={() => handleRefundRequest(item.id)}
         >
           <Text style={styles.actionButtonText}>Request Refund</Text>
         </TouchableOpacity>
+      )}
+
+      {item.status === 'Delivered' && !isRefundEligible(item.status, item.date) && (
+        <View style={[styles.actionButton, styles.disabledButton]}>
+          <Text style={styles.disabledButtonText}>Refund Period Expired</Text>
+        </View>
       )}
 
       {item.status === 'Cancelled' && (

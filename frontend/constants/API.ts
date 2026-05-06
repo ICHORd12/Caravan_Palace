@@ -8,9 +8,13 @@ export const API_BASE_URL = 'http://localhost:3000';
 
 // EndPoints
 const base = '/api/v3';
+
+export const ME_END_POINT = `${base}/users/me`;
+
 export const loginEndPoint = `${base}/auth/login`;
 export const registerEndPoint = `${base}/auth/register`;
 export const TOKEN_VALIDATE = `${base}/users/me`
+export const PRODUCTS_BASE_ENDPOINT = `${base}/products`;
 export const PRODUCTS_END_POINT = `${base}/products/all`;
 export const FETCH_PRODUCTS_DETAILS_END_POINT = `${base}/products/by-ids`;
 export const MERGE_BACKEND_CART_END_POINT = `${base}/cart/merge`;
@@ -23,3 +27,7 @@ export const UPDATE_PROFILE_ENDPOINT = `${base}/users/me`;
 export const ADDRESSES_ENDPOINT = `${base}/users/me/addresses`;
 export const GET_ORDERS_END_POINT = `${base}/users/me/orders`;
 export const GET_ORDER_DETAILS_END_POINT = `${base}/users/me/orders`;
+
+export const REVIEWS_ENDPOINT = `${base}/reviews`
+
+

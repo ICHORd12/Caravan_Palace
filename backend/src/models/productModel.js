@@ -124,6 +124,48 @@ exports.getProductByIdForUpdate = async (productId, client) => {
 };
 
 
+exports.getProductDiscountForUpdate = async (productId, client) => {
+  const executor = client || pool;
+
+  const result = await executor.query(
+    `
+    SELECT
+      product_id,
+      name,
+      model,
+      base_price,
+      current_price,
+      discount_rate
+    FROM products
+    WHERE product_id = $1
+    FOR UPDATE
+    `,
+    [productId]
+  );
+
+  return mapProduct(result.rows[0] || null);
+};
+
+
+exports.updateProductDiscount = async ({ productId, discountRate }, client) => {
+  const executor = client || pool;
+
+  const result = await executor.query(
+    `
+    UPDATE products
+    SET discount_rate = $1,
+        current_price = ROUND((base_price * (1 - ($1::numeric / 100)))::numeric, 2),
+        updated_at = NOW()
+    WHERE product_id = $2
+    RETURNING *
+    `,
+    [discountRate, productId]
+  );
+
+  return mapProduct(result.rows[0] || null);
+};
+
+
 exports.searchProductsByNameOrDescription = async (searchTerm, sort) => {
   const likePattern = "%" + searchTerm + "%";
 
@@ -167,3 +209,22 @@ exports.decreaseStock = async ({ productId, quantity }, client) => {
   return result.rows[0];
 };
 
+exports.increaseStock = async ({ productId, quantity }, client) => {
+  const executor = client || pool;
+
+  const result = await executor.query(
+    `
+    UPDATE products
+    SET quantity_in_stocks = quantity_in_stocks + $1
+    WHERE product_id = $2
+    RETURNING product_id, quantity_in_stocks
+    `,
+    [quantity, productId]
+  );
+
+  if (result.rowCount === 0) {
+    throw new Error("Failed to increase stock");
+  }
+
+  return result.rows[0];
+};

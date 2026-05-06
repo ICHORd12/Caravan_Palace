@@ -71,7 +71,7 @@ export default function Login() {
             {
                 const data = await response.json();
 
-                await login(data.token);
+                await login(data.token, data.user);
 
                 console.log('Token saved securely via AuthContext!');
                 

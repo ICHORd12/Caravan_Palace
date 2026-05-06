@@ -39,3 +39,33 @@ exports.getOrderItemsByOrderId = async (orderId, client) => {
 
   return result.rows.map(mapOrderItem);
 };
+
+exports.getOrderItemById = async (orderItemId, client) => {
+  const executor = client || pool;
+
+  const result = await executor.query(
+    `
+    SELECT *
+    FROM order_items
+    WHERE order_item_id = $1
+    `,
+    [orderItemId]
+  );
+
+  return mapOrderItem(result.rows[0]);
+};
+
+exports.getOrderItemCountByOrderId = async (orderId, client) => {
+  const executor = client || pool;
+
+  const result = await executor.query(
+    `
+    SELECT COUNT(*)::int AS count
+    FROM order_items
+    WHERE order_id = $1
+    `,
+    [orderId]
+  );
+
+  return result.rows[0] ? result.rows[0].count : 0;
+};
