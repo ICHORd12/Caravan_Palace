@@ -303,13 +303,11 @@ interface WriteReviewProps {
     isEligible: boolean;
     userReview: Review | null;
     onUserReviewChange: ({rating, commentText}: {rating: number, commentText: string}) => Promise<boolean>;
-    onUserReviewDelete: (reviewId: string) => void;
+    onUserReviewDelete: (reviewId: string) => Promise<boolean>;
 }
 
 function WriteReview({isEligible, userReview, onUserReviewChange, onUserReviewDelete}: WriteReviewProps)
 {   
-    if (!isEligible && userReview === null) return null;
-
     const {showToast} = useToast();
     const [commentText, setCommentText] = useState("");
     const [rating, setRating] = useState(5);
@@ -348,19 +346,20 @@ function WriteReview({isEligible, userReview, onUserReviewChange, onUserReviewDe
         setIsEditing(false);
         setIsLoadingSubmitReview(true);
 
-        const response = await onUserReviewDelete();
+        const reviewId: string = userReview ? userReview.reviewId : "";
 
+        const response = await onUserReviewDelete(reviewId);
         if (response === true)
         {
-            showToast("Your Review Successfully submitted", 'success');
+            showToast("Your Review Successfully Deleted", 'success');
             setDidSomethingWentWrong(false);
         }
         else
         {
             showToast("Something Went Wrong", 'info');
             setDidSomethingWentWrong(true);
-        } 
-
+        }
+        
         setIsLoadingSubmitReview(false);
     }
 
@@ -421,6 +420,9 @@ function WriteReview({isEligible, userReview, onUserReviewChange, onUserReviewDe
         console.log("UserName: ", userName);
 
     },[userReview])
+
+
+    if (!isEligible && userReview === null) return null;
 
     const isUserReviewExists: boolean = (userReview !== null);
     const isChanged: boolean = calculateChange();
@@ -541,7 +543,8 @@ function FlatListTopAggregation({productDetailsProps, writeReviewProps}: FlatLis
             <WriteReview 
                 isEligible={writeReviewProps.isEligible}
                 userReview={writeReviewProps.userReview}
-                onUserReviewChange={writeReviewProps.onUserReviewChange}                    
+                onUserReviewChange={writeReviewProps.onUserReviewChange}  
+                onUserReviewDelete={writeReviewProps.onUserReviewDelete}                 
             />
 
             
@@ -634,6 +637,7 @@ export default function Product()
     const [reviews, setReviews] = useState<Review[]>([]);
     const [userReview, setUserReview] = useState<Review | null>(null);
     const [reviewEligibility, setReviewEligibility] = useState<ReviewEligibility | null>(null);
+    const [reviewRefreshKey, setReviewRefreshKey] = useState(0);
     //#endregion
 
 
@@ -873,6 +877,34 @@ export default function Product()
 
     //#region ON SUBMIT REVIEW
 
+    async function onDeleteReview(reviewId: string): Promise<boolean>
+    {
+        try {
+            const response = await fetch(`${API_BASE_URL}${REVIEWS_ENDPOINT}/${reviewId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+            });
+
+            const responseData = await response.json();
+            if (response.ok)
+            {
+                setReviewRefreshKey(prev => prev + 1); // force re-fetch
+                return true;
+            }
+            else
+            {
+                showToast("Something Went Wrong While Deleting", 'info');
+                return false;
+            }
+        } catch(err) {
+            showToast("Something Went Wrong While Deleting", 'error');
+            return false;
+        }   
+    }
+
     async function onSubmitReview({rating, commentText}: {rating: number, commentText: string}): Promise<boolean>
     {
         try {
@@ -948,22 +980,22 @@ export default function Product()
 
 
     useFocusEffect(
-    useCallback(() => {
-        if (isLoading) return; 
+        useCallback(() => {
+            if (isLoading) return; 
 
-        const controller = new AbortController();
+            const controller = new AbortController();
 
-        getProductDetails();
-        getQuantityInformation();
-        
-        // Assuming `productId` is available in your component's scope from route params
-        if (id) {
-            fetchUserWishlist(controller, id as string);
-        }
+            getProductDetails();
+            getQuantityInformation();
+            
+            // Assuming `productId` is available in your component's scope from route params
+            if (id) {
+                fetchUserWishlist(controller, id as string);
+            }
 
-        return () => controller.abort();
-    }, [isLoading, isAuthenticated, token, id]) // Ensure dependencies are accurate
-);
+            return () => controller.abort();
+        }, [isLoading, isAuthenticated, token, id, reviewRefreshKey]) // Ensure dependencies are accurate
+    );
 
     useEffect(() => {
         if (!isPageLoading) revealWipe();
@@ -997,7 +1029,8 @@ export default function Product()
                             writeReviewProps={{
                                 isEligible: reviewEligibility ? reviewEligibility.canReview : false,
                                 userReview: userReview,
-                                onUserReviewChange: onSubmitReview
+                                onUserReviewChange: onSubmitReview,
+                                onUserReviewDelete: onDeleteReview
                             }}
                         />
                     }
