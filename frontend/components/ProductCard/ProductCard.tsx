@@ -155,6 +155,13 @@ export default function ProductCard({ dimensionStyle, caravan, quantity, isWishL
                             onToggle={onWishListToggle}
                         />
                     </View>
+                    
+                    <View style={styles.ratingContainer}>
+                        <Ionicons name="star" size={16} color="#F5C542" />
+                        <Text style={styles.ratingText}>
+                            {caravan.averageRating?.toFixed(1) ?? "0.0"}
+                        </Text>
+                    </View>
 
                     <Text style={styles.priceText}>{caravan.currentPrice}</Text>
 

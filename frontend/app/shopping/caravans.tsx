@@ -430,15 +430,12 @@ export default function Caravans() {
 
         // Sort
         result.sort((a, b) => {
-            if (sortOption === 'price_asc') {
-                return Number(a.currentPrice) - Number(b.currentPrice);
-            } else if (sortOption === 'price_desc') {
-                return Number(b.currentPrice) - Number(a.currentPrice);
-            } else if (sortOption === 'date_asc') {
-                return new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
-            } else if (sortOption === 'date_desc') {
-                return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
-            }
+            if (sortOption === 'price_asc') return Number(a.currentPrice) - Number(b.currentPrice);
+            if (sortOption === 'price_desc') return Number(b.currentPrice) - Number(a.currentPrice);
+            if (sortOption === 'date_asc') return new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
+            if (sortOption === 'date_desc') return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+            if (sortOption === 'rating_desc')return Number(b.averageRating || 0) - Number(a.averageRating || 0);
+            if (sortOption === 'rating_asc') return Number(a.averageRating || 0) - Number(b.averageRating || 0);
             return 0;
         });
 

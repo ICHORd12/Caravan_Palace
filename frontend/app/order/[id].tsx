@@ -16,6 +16,7 @@ const mapBackendStatus = (backendStatus: string) => {
   const status = backendStatus.toLowerCase();
   if (status === 'pending') return 'Processing';
   if (status === 'shipped') return 'In-transit';
+  if (status === 'in-transit') return 'In-transit';
   if (status === 'delivered') return 'Delivered';
   if (status === 'cancelled') return 'Cancelled';
   return 'Processing'; 
@@ -173,7 +174,7 @@ export default function OrderDetailsScreen() {
         ) : (
             <>
                 <View style={styles.summaryCard}>
-                    <Text style={styles.summaryLabel}>Order ID: <Text style={styles.summaryValue}>#{id ? id.split('-')[0].toUpperCase() : 'UNKNOWN'}</Text></Text>
+                    <Text style={styles.summaryLabel}>Order ID: <Text style={styles.summaryValue}>#{id ? id : 'UNKNOWN'}</Text></Text>
                     <Text style={styles.summaryLabel}>Date: <Text style={styles.summaryValue}>{orderData.date}</Text></Text>
                     <Text style={styles.summaryLabel}>Status: <Text style={styles.summaryValue}>{orderData.status}</Text></Text>
                     

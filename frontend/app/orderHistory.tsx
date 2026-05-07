@@ -21,6 +21,7 @@ const mapBackendStatus = (backendStatus: string): ExtendedStatus => {
   const status = backendStatus.toLowerCase();
   if (status === 'pending') return 'Processing';
   if (status === 'shipped') return 'In-transit';
+  if (status === 'in-transit') return 'In-transit';
   if (status === 'delivered') return 'Delivered';
   if (status === 'cancelled') return 'Cancelled';
   return 'Processing'; 

@@ -88,6 +88,17 @@ export const styles = StyleSheet.create({
         fontSize: 12,
         marginLeft: 4,
     },
+    ratingContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        marginBottom: 12,
+    },
+    ratingText: {
+        fontFamily: 'Montserrat_700Bold',
+        fontSize: 14,
+        color: '#F5C542',
+    },
     priceText: {
         fontFamily: 'Montserrat_700Bold',
         fontSize: 20,
