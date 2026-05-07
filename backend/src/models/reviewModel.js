@@ -157,9 +157,7 @@ exports.getApprovedReviewsByProductId = async (productId) => {
 
 exports.createReview = async ({ userId, productId, rating, commentText }) => {
   const normalizedComment =
-    typeof commentText === "string"
-      ? commentText.trim()
-      : "";
+    typeof commentText === "string" ? commentText.trim() : "";
 
   const isApproved = normalizedComment === "";
   
@@ -175,7 +173,7 @@ exports.createReview = async ({ userId, productId, rating, commentText }) => {
     VALUES ($1, $2, $3, $4, $5)
     RETURNING *
     `,
-    [productId, userId, rating, commentText, isApproved || null]
+    [productId, userId, rating, commentText, isApproved]
   );
 
   return mapReview(result.rows[0]);
