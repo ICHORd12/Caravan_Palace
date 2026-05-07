@@ -1,0 +1,28 @@
+const express = require("express");
+const authRoutes = require("./authRoutes");
+const userRoutes = require("./userRoutes");
+const productRoutes = require("./productRoutes");
+const cartRoutes = require("./cartRoutes");
+const paymentRoutes = require("./paymentRoutes");
+const checkoutRoutes = require("./checkoutRoutes");
+const invoiceRoutes = require("./invoiceRoutes");
+const reviewRoutes = require("./reviewRoutes");
+const wishlistRoutes = require("./wishlistRoutes");
+const refundRoutes = require("./refundRoutes");
+const orderManagementRoutes = require("./orderManagementRoutes");
+
+const router = express.Router();
+
+router.use("/auth", authRoutes);
+router.use("/users", userRoutes);
+router.use("/products", productRoutes);
+router.use("/cart", cartRoutes);
+router.use("/payments", paymentRoutes);
+router.use("/checkout", checkoutRoutes);
+router.use("/invoices", invoiceRoutes);
+router.use("/reviews", reviewRoutes);
+router.use("/wishlist", wishlistRoutes);
+router.use("/refunds", refundRoutes);
+router.use("/orders", orderManagementRoutes);
+
+module.exports = router;

@@ -1,0 +1,88 @@
+import React, { useState, useEffect } from "react";
+import { Text, TouchableOpacity, View, TextInput, Image } from 'react-native';
+import { styles } from './ShopCard.style';
+import { CartItemFE } from "@/models/FRONTEND_MODELS";
+import {UpdateQuantityInput} from '@/app/shopping/shoppingCart'
+import getImageForProduct from '@/functions/getImageForProduct';
+
+
+//#region TO DO
+/*
+    ShopCard'in alt tarafinda toplam ucret de gozuksun
+*/
+
+//#endregion
+
+interface ShopCardProps {
+    cartItem: CartItemFE;
+    disabled: boolean;
+    updateQuantity: ({productId, delta}: UpdateQuantityInput) => void;
+}
+
+function ShopCard({ cartItem, disabled=false, updateQuantity }: ShopCardProps)
+{
+    const [localQty, setLocalQty] = useState(cartItem.quantity.toString());
+
+    useEffect(() => {
+        setLocalQty(cartItem.quantity.toString());
+    }, [cartItem.quantity]);
+
+    const handleQtyChange = (text: string) => {
+        const numericText = text.replace(/[^0-9]/g, '');
+        setLocalQty(numericText);
+    };
+
+    const handleBlur = () => {
+        let newQty = parseInt(localQty, 10);
+        if (isNaN(newQty) || newQty < 1) newQty = 1;
+        if (newQty > cartItem.product.quantityInStocks) {
+            newQty = cartItem.product.quantityInStocks;
+        }
+        
+        if (newQty !== cartItem.quantity) {
+            updateQuantity({ productId: cartItem.productId, delta: newQty - cartItem.quantity });
+        } else {
+            setLocalQty(newQty.toString());
+        }
+    };
+
+    return(
+         <View style={styles.cartCard}>
+            <Image source={getImageForProduct(cartItem.productId)} style={styles.itemImage} />
+            <View style={styles.itemDetails}>
+                <Text style={styles.itemNameText} numberOfLines={2}>{cartItem.product.name}</Text>
+                <Text style={styles.itemPriceText}>${cartItem.product.currentPrice}</Text>
+                <Text style={styles.itemStockInfoText}>Stock Quantity: {cartItem.product.quantityInStocks}</Text>
+                <TouchableOpacity onPress={() => updateQuantity({productId: cartItem.productId, delta: -2 })}>
+                    <Text style={styles.removeText}>Remove</Text>
+                </TouchableOpacity>
+
+            </View>
+
+            <View style={styles.quantityContainer}>
+
+                <TouchableOpacity disabled={disabled} style={[styles.qtyBtn, disabled && {opacity: 0.6}]} onPress={() => updateQuantity({productId: cartItem.productId, delta: -1 })}>
+                    <Text style={styles.qtyBtnText}>-</Text>
+                </TouchableOpacity>
+
+                <TextInput 
+                    style={styles.qtyText} 
+                    value={localQty} 
+                    onChangeText={handleQtyChange}
+                    onBlur={handleBlur}
+                    onSubmitEditing={handleBlur}
+                    keyboardType="numeric"
+                    editable={!disabled}
+                />
+
+                <TouchableOpacity disabled={disabled} style={[styles.qtyBtn, disabled && {opacity: 0.6}]} onPress={() => updateQuantity({productId: cartItem.productId, delta: 1 })}>
+                    <Text style={styles.qtyBtnText}>+</Text>
+                </TouchableOpacity>
+
+            </View>
+        </View>
+    )
+};
+
+export default ShopCard;
+    
