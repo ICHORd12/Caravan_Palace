@@ -173,7 +173,7 @@ export default function OrderDetailsScreen() {
         ) : (
             <>
                 <View style={styles.summaryCard}>
-                    <Text style={styles.summaryLabel}>Order ID: <Text style={styles.summaryValue}>#{id ? id.split('-')[0].toUpperCase() : 'UNKNOWN'}</Text></Text>
+                    <Text style={styles.summaryLabel}>Order ID: <Text style={styles.summaryValue}>#{id ? id : 'UNKNOWN'}</Text></Text>
                     <Text style={styles.summaryLabel}>Date: <Text style={styles.summaryValue}>{orderData.date}</Text></Text>
                     <Text style={styles.summaryLabel}>Status: <Text style={styles.summaryValue}>{orderData.status}</Text></Text>
                     

@@ -16,6 +16,8 @@ export const Colors = {
     greenButtonTextColor: '#fefae0',
     editButtonBackground: '#ACC8E5',
     editButtonTextColor: '#112A46',
+    deleteButtonBackground: '#7d2323',
+    deleteButtonTextColor: '#fefae0',
 
     /* Quantity Control Colors */
     quantityControlBackground: '#cfb098',

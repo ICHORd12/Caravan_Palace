@@ -42,4 +42,6 @@ export const sortOptions = [
     { label: 'Oldest to Newest', value: 'date_asc' },
     { label: 'Price: High to Low', value: 'price_desc' },
     { label: 'Price: Low to High', value: 'price_asc' },
+    { label: 'Rating: High to Low', value: 'rating_desc' },
+    { label: 'Rating: Low to High', value: 'rating_asc' },
 ];

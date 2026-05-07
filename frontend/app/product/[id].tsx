@@ -18,6 +18,7 @@ import {Colors, Fonts} from '@/constants/theme'
 import WrappedGeneralButton from "@/components/Buttons/GeneralButtonWithWrapper/GeneralButtonWithWrapper";
 import Navbar from "@/components/Navbar/Navbar";
 import { WishlistButton } from "@/components/ProductCard/ProductCard";
+import { useUser } from "@/context/UserContext";
 //#endregion
 
 
@@ -302,12 +303,11 @@ interface WriteReviewProps {
     isEligible: boolean;
     userReview: Review | null;
     onUserReviewChange: ({rating, commentText}: {rating: number, commentText: string}) => Promise<boolean>;
+    onUserReviewDelete: (reviewId: string) => Promise<boolean>;
 }
 
-function WriteReview({isEligible, userReview, onUserReviewChange}: WriteReviewProps)
+function WriteReview({isEligible, userReview, onUserReviewChange, onUserReviewDelete}: WriteReviewProps)
 {   
-    if (!isEligible && userReview === null) return null;
-
     const {showToast} = useToast();
     const [commentText, setCommentText] = useState("");
     const [rating, setRating] = useState(5);
@@ -339,6 +339,28 @@ function WriteReview({isEligible, userReview, onUserReviewChange}: WriteReviewPr
             setUpdatedAt(prevUpdatedDate);
         }
         setIsEditing(target);
+    }
+
+    async function handleDelete()
+    {
+        setIsEditing(false);
+        setIsLoadingSubmitReview(true);
+
+        const reviewId: string = userReview ? userReview.reviewId : "";
+
+        const response = await onUserReviewDelete(reviewId);
+        if (response === true)
+        {
+            showToast("Your Review Successfully Deleted", 'success');
+            setDidSomethingWentWrong(false);
+        }
+        else
+        {
+            showToast("Something Went Wrong", 'info');
+            setDidSomethingWentWrong(true);
+        }
+        
+        setIsLoadingSubmitReview(false);
     }
 
     async function handleSubmit({rating, commentText}: {rating: number, commentText: string})
@@ -395,7 +417,12 @@ function WriteReview({isEligible, userReview, onUserReviewChange}: WriteReviewPr
         setCreatedAt(prevCreatedDate);
         setUpdatedAt(prevUpdatedDate);
 
+        console.log("UserName: ", userName);
+
     },[userReview])
+
+
+    if (!isEligible && userReview === null) return null;
 
     const isUserReviewExists: boolean = (userReview !== null);
     const isChanged: boolean = calculateChange();
@@ -411,6 +438,7 @@ function WriteReview({isEligible, userReview, onUserReviewChange}: WriteReviewPr
                 </View>
 
                 {isUserReviewExists && (
+                    <>
                     <View style={writeReviewStyles.editCommentButtonContainer}>
                         <WrappedGeneralButton 
                             wrapperStyles={writeReviewStyles.editCommentButtonWrapper}
@@ -419,14 +447,23 @@ function WriteReview({isEligible, userReview, onUserReviewChange}: WriteReviewPr
                             disabled={isLoadingSubmitReview}
                             onPress={() => handleEditCancel(!isEditing)}                
                         />
+
+                        <WrappedGeneralButton 
+                            wrapperStyles={writeReviewStyles.deleteCommentButtonWrapper}
+                            textStyles={writeReviewStyles.deleteCommentButtonText}
+                            title={"Delete"}
+                            disabled={isLoadingSubmitReview}
+                            onPress={() => handleDelete()}                
+                        />
                     </View>
-                )}        
 
                     <View style={writeReviewStyles.nameContainer}> 
                         <Text style={writeReviewStyles.nameText}>{isApproved ? `${userName} (Review Approved)` : `${userName} (Review Pending)`}</Text>
                         <Text style={writeReviewStyles.dateText}>Created At: {createdAt}</Text>
                         <Text style={writeReviewStyles.dateText}>Updated At: {updatedAt}</Text>
                     </View>
+                    </>
+                )}        
 
                     <View style={[writeReviewStyles.ratingContainer, isDisabled && {opacity: 0.5}]}>
                         {[1, 2, 3, 4, 5].map((star) => (
@@ -450,6 +487,7 @@ function WriteReview({isEligible, userReview, onUserReviewChange}: WriteReviewPr
                         <TextInput 
                             style={[writeReviewStyles.commentTextInput]}
                             value={commentText}
+                            placeholder="Write Your Comment..."
                             onChangeText={setCommentText}
                             editable={!isDisabled}
                             multiline={true}
@@ -505,7 +543,8 @@ function FlatListTopAggregation({productDetailsProps, writeReviewProps}: FlatLis
             <WriteReview 
                 isEligible={writeReviewProps.isEligible}
                 userReview={writeReviewProps.userReview}
-                onUserReviewChange={writeReviewProps.onUserReviewChange}                    
+                onUserReviewChange={writeReviewProps.onUserReviewChange}  
+                onUserReviewDelete={writeReviewProps.onUserReviewDelete}                 
             />
 
             
@@ -574,8 +613,6 @@ function FlatListCard({review}: FlatListCardProps)
 
 
 
-
-
 // MAIN COMPONENT
 
 export default function Product()
@@ -586,6 +623,7 @@ export default function Product()
     const {revealWipe} = useTransition();
     const {showToast} = useToast();
     const {isAuthenticated, token, isLoading} = useAuth();
+    const {user} = useUser();
     
     const { id } = useLocalSearchParams();
 
@@ -599,6 +637,7 @@ export default function Product()
     const [reviews, setReviews] = useState<Review[]>([]);
     const [userReview, setUserReview] = useState<Review | null>(null);
     const [reviewEligibility, setReviewEligibility] = useState<ReviewEligibility | null>(null);
+    const [reviewRefreshKey, setReviewRefreshKey] = useState(0);
     //#endregion
 
 
@@ -772,6 +811,7 @@ export default function Product()
 
     //#endregion
 
+
     //#region ON UPDATE QUANTITY
 
 
@@ -837,6 +877,33 @@ export default function Product()
 
     //#region ON SUBMIT REVIEW
 
+    async function onDeleteReview(reviewId: string): Promise<boolean>
+    {
+        try {
+            const response = await fetch(`${API_BASE_URL}${REVIEWS_ENDPOINT}/${reviewId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+            });
+
+            const responseData = await response.json();
+            if (response.ok)
+            {
+                setReviewRefreshKey(prev => prev + 1); // force re-fetch
+                return true;
+            }
+            else
+            {
+                showToast("Something Went Wrong While Deleting", 'info');
+                return false;
+            }
+        } catch(err) {
+            showToast("Something Went Wrong While Deleting", 'error');
+            return false;
+        }   
+    }
 
     async function onSubmitReview({rating, commentText}: {rating: number, commentText: string}): Promise<boolean>
     {
@@ -854,6 +921,7 @@ export default function Product()
             if (response.ok)
             {
                 const responseReview = responseData.review;
+                responseReview.userName = user?.name;
                 setUserReview(responseReview);
                 return true;
             }
@@ -907,26 +975,27 @@ export default function Product()
     }
     //#endregion
 
+
     //#region EFFECTS
 
 
     useFocusEffect(
-    useCallback(() => {
-        if (isLoading) return; 
+        useCallback(() => {
+            if (isLoading) return; 
 
-        const controller = new AbortController();
+            const controller = new AbortController();
 
-        getProductDetails();
-        getQuantityInformation();
-        
-        // Assuming `productId` is available in your component's scope from route params
-        if (id) {
-            fetchUserWishlist(controller, id as string);
-        }
+            getProductDetails();
+            getQuantityInformation();
+            
+            // Assuming `productId` is available in your component's scope from route params
+            if (id) {
+                fetchUserWishlist(controller, id as string);
+            }
 
-        return () => controller.abort();
-    }, [isLoading, isAuthenticated, token, id]) // Ensure dependencies are accurate
-);
+            return () => controller.abort();
+        }, [isLoading, isAuthenticated, token, id, reviewRefreshKey]) // Ensure dependencies are accurate
+    );
 
     useEffect(() => {
         if (!isPageLoading) revealWipe();
@@ -960,7 +1029,8 @@ export default function Product()
                             writeReviewProps={{
                                 isEligible: reviewEligibility ? reviewEligibility.canReview : false,
                                 userReview: userReview,
-                                onUserReviewChange: onSubmitReview
+                                onUserReviewChange: onSubmitReview,
+                                onUserReviewDelete: onDeleteReview
                             }}
                         />
                     }
@@ -1159,7 +1229,7 @@ const writeReviewStyles = StyleSheet.create({
         color: Colors.light.errorText,
     },
     editCommentButtonContainer: {
-        justifyContent: 'center',
+        flexDirection: 'row',
         alignItems: 'flex-start',
         height: 40,
         marginBottom: 10,
@@ -1175,6 +1245,18 @@ const writeReviewStyles = StyleSheet.create({
         fontFamily: Fonts.semibold,
         fontSize: 16,
         color: Colors.light.editButtonTextColor,
+    },
+    deleteCommentButtonWrapper: {
+        height: 30,
+        width: 100,
+        borderRadius: 8,
+        marginLeft: 10,
+        backgroundColor: Colors.light.deleteButtonBackground
+    },
+    deleteCommentButtonText: {
+        fontFamily: Fonts.semibold,
+        fontSize: 16,
+        color: Colors.light.deleteButtonTextColor,
     },
     nameContainer: {
         marginLeft: 10,
