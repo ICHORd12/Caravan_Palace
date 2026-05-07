@@ -15,7 +15,7 @@ import { API_BASE_URL, GET_ORDERS_END_POINT, FETCH_PRODUCTS_DETAILS_END_POINT, I
 const mapBackendStatus = (backendStatus: string) => {
   const status = backendStatus.toLowerCase();
   if (status === 'pending') return 'Processing';
-  if (status === 'shipped') return 'In-transit';
+  if (status === 'in-transit') return 'In-transit';
   if (status === 'delivered') return 'Delivered';
   if (status === 'cancelled') return 'Cancelled';
   return 'Processing'; 

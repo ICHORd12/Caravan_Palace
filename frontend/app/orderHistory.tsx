@@ -15,24 +15,31 @@ import { useAuth } from '@/context/AuthContext';
 import { useTransition } from '@/context/TransitionContext';
 import { API_BASE_URL, GET_ORDERS_END_POINT } from '@/constants/API';
 
-export type ExtendedStatus = StatusType | 'Cancelled' | 'Refund Requested';
+// Added 'Returned' to the type definitions
+export type ExtendedStatus = StatusType | 'Cancelled' | 'Refund Requested' | 'Returned';
+
 
 const mapBackendStatus = (backendStatus: string): ExtendedStatus => {
   const status = backendStatus.toLowerCase();
-  if (status === 'pending') return 'Processing';
-  if (status === 'shipped') return 'In-transit';
+  
+
+  if (status === 'pending' || status === 'processing') return 'Processing';
+  if (status === 'in-transit' || status === 'shipped') return 'In-transit';
   if (status === 'delivered') return 'Delivered';
   if (status === 'cancelled') return 'Cancelled';
+  
+ 
+  if (status === 'returned') return 'Returned'; 
+  
   return 'Processing'; 
 };
+
 const isRefundEligible = (status: string, dateString: string) => {
   if (status !== 'Delivered') return false;
   
   const orderDate = new Date(dateString);
   const currentDate = new Date();
-  
   const differenceInTime = currentDate.getTime() - orderDate.getTime();
-
   const differenceInDays = differenceInTime / (1000 * 3600 * 24);
   
   return differenceInDays <= 30;
@@ -55,9 +62,7 @@ export default function OrderHistoryScreen() {
   });
 
   useEffect(() => {
-      const timer = setTimeout(() => {
-          setIsAuthChecking(false);
-      }, 100); 
+      const timer = setTimeout(() => setIsAuthChecking(false), 100); 
       return () => clearTimeout(timer);
   }, []);
 
@@ -73,8 +78,6 @@ export default function OrderHistoryScreen() {
 
       if (response.ok) {
         const data = await response.json();
-        
-       
         const formattedOrders = data.orders.map((backendOrder: any) => ({
           id: backendOrder.orderId,
           date: backendOrder.orderDate.split('T')[0], 
@@ -83,7 +86,6 @@ export default function OrderHistoryScreen() {
         }));
         
         setOrders(formattedOrders);
-
       }
     } catch (error) {
       console.error("Failed to fetch orders:", error);
@@ -92,7 +94,7 @@ export default function OrderHistoryScreen() {
     }
   }, [token]);
 
-useFocusEffect(
+  useFocusEffect(
     useCallback(() => {
       const verifyAuthStatus = async () => {
         if (isAuthenticated) {
@@ -107,18 +109,14 @@ useFocusEffect(
           savedToken = await SecureStore.getItemAsync('userToken');
         }
 
-        if (!savedToken) {
-          router.replace('/login');
-        } else {
-          fetchOrders();
-        }
+        if (!savedToken) router.replace('/login');
+        else fetchOrders();
       };
 
-      if (!isAuthChecking) {
-        verifyAuthStatus();
-      }
+      if (!isAuthChecking) verifyAuthStatus();
     }, [isAuthenticated, isAuthChecking, router, fetchOrders])
   );
+
   useEffect(() => {
     if (fontsLoaded && !isAuthChecking && isAuthenticated && !isLoadingOrders) {
         revealWipe();
@@ -126,24 +124,61 @@ useFocusEffect(
   }, [fontsLoaded, isAuthChecking, isAuthenticated, isLoadingOrders, revealWipe]);
 
 
-  const handleCancelOrder = (orderId: string) => {
-    setOrders(prevOrders => 
-      prevOrders.map(order => 
-        order.id === orderId ? { ...order, status: 'Cancelled' } : order
-      )
-    );
-    if (Platform.OS === 'web') window.alert('Order cancelled successfully.');
-    else Alert.alert('Success', 'Order cancelled successfully.');
+  const handleCancelOrder = async (orderId: string) => {
+    try {
+        const response = await fetch(`${API_BASE_URL}${GET_ORDERS_END_POINT}/${orderId}/cancel`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (response.ok) {
+            setOrders(prevOrders => 
+              prevOrders.map(order => 
+                order.id === orderId ? { ...order, status: 'Cancelled' } : order
+              )
+            );
+            if (Platform.OS === 'web') window.alert('Order cancelled successfully.');
+            else Alert.alert('Success', 'Order cancelled successfully.');
+        } else {
+            const data = await response.json();
+            if (Platform.OS === 'web') window.alert(data.message || 'Failed to cancel order.');
+            else Alert.alert('Error', data.message || 'Failed to cancel order.');
+        }
+    } catch (error) {
+        console.error("Cancel order error:", error);
+    }
   };
 
-  const handleRefundRequest = (orderId: string) => {
-    setOrders(prevOrders => 
-      prevOrders.map(order => 
-        order.id === orderId ? { ...order, status: 'Refund Requested' } : order
-      )
-    );
-    if (Platform.OS === 'web') window.alert('Refund request sent to customer support.');
-    else Alert.alert('Request Sent', 'Refund request sent to customer support.');
+  const handleRefundRequest = async (orderId: string) => {
+    try {
+        const response = await fetch(`${API_BASE_URL}${GET_ORDERS_END_POINT}/${orderId}/refund-requests`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        // Backend returns 201 Created on success
+        if (response.ok || response.status === 201) { 
+            setOrders(prevOrders => 
+              prevOrders.map(order => 
+                order.id === orderId ? { ...order, status: 'Refund Requested' } : order
+              )
+            );
+            if (Platform.OS === 'web') window.alert('Refund request sent to customer support.');
+            else Alert.alert('Request Sent', 'Refund request sent to customer support.');
+        } else {
+            const data = await response.json();
+            if (Platform.OS === 'web') window.alert(data.message || 'Failed to request refund.');
+            else Alert.alert('Error', data.message || 'Failed to request refund.');
+        }
+    } catch (error) {
+        console.error("Refund request error:", error);
+    }
   };
 
   const renderOrderItem = ({ item }: { item: any }) => (
@@ -199,6 +234,10 @@ useFocusEffect(
 
       {item.status === 'Refund Requested' && (
         <Text style={[styles.statusMessageText, { color: '#283618' }]}>Refund Pending Approval</Text>
+      )}
+
+      {item.status === 'Returned' && (
+        <Text style={[styles.statusMessageText, { color: '#283618' }]}>Refund Approved & Returned</Text>
       )}
     </View>
   );
