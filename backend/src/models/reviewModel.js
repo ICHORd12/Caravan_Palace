@@ -156,18 +156,26 @@ exports.getApprovedReviewsByProductId = async (productId) => {
 
 
 exports.createReview = async ({ userId, productId, rating, commentText }) => {
+  const normalizedComment =
+    typeof commentText === "string"
+      ? commentText.trim()
+      : "";
+
+  const isApproved = normalizedComment === "";
+  
   const result = await pool.query(
     `
     INSERT INTO reviews (
       product_id,
       user_id,
       rating,
-      comment_text
+      comment_text,
+      is_approved
     )
-    VALUES ($1, $2, $3, $4)
+    VALUES ($1, $2, $3, $4, $5)
     RETURNING *
     `,
-    [productId, userId, rating, commentText || null]
+    [productId, userId, rating, commentText, isApproved || null]
   );
 
   return mapReview(result.rows[0]);
