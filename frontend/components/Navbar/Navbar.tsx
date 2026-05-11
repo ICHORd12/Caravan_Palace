@@ -23,8 +23,10 @@ interface NavbarProps {
 
 export default function Navbar({ navbarContainerStyle, navbarLinksStyle, loginRegisterButtonStyle }: NavbarProps) {
     const pathname = usePathname();
-    const { isAuthenticated, logout } = useAuth();
+    const { isAuthenticated, logout, user } = useAuth();
     const { setWipe, navigateWithWipe, revealWipe } = useTransition();
+
+    const isSM = user?.role === 'sales_manager';
 
     const isAuthScreen = pathname === '/login' || pathname === '/register';
 
@@ -45,8 +47,14 @@ export default function Navbar({ navbarContainerStyle, navbarLinksStyle, loginRe
                         // IF LOGGED IN
                         <>
                             <GeneralButton title="MY ACCOUNT" onPress={() => navigateWithWipe('/profile')} />
-                            <GeneralButton title="ORDERS" onPress={() => navigateWithWipe('/orderHistory')} />
-                                <GeneralButton title="WISHLIST" onPress={() => navigateWithWipe('/shopping/wishlist')} />
+                            {isSM ? (
+                                <GeneralButton title="DASHBOARD" onPress={() => navigateWithWipe('/sm-dashboard')} />
+                            ) : (
+                                <>
+                                    <GeneralButton title="ORDERS" onPress={() => navigateWithWipe('/orderHistory')} />
+                                    <GeneralButton title="WISHLIST" onPress={() => navigateWithWipe('/shopping/wishlist')} />
+                                </>
+                            )}
                             <GeneralButton title="LOGOUT" onPress={() => {
                                 if (pathname === '/profile') {
                                     navigateWithWipe('/login', () => logout());
@@ -76,7 +84,7 @@ export default function Navbar({ navbarContainerStyle, navbarLinksStyle, loginRe
                     <GeneralButton title="HOME" onPress={() => navigateWithWipe('/')} />
                 )}
 
-                {pathname !== '/login' && pathname !== '/register' && (
+                {pathname !== '/login' && pathname !== '/register' && !isSM && (
                     <>
                         <GeneralButton textStyle={styles.caravansTextStyle} title="CARAVANS" onPress={() => navigateWithWipe('/shopping/caravans')} />
                         <GeneralButton textStyle={styles.shopTextStyle} title="SHOP" onPress={() => navigateWithWipe('/shopping/shoppingCart')} />
