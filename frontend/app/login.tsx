@@ -77,7 +77,12 @@ export default function Login() {
                 
                 setEmail('');
                 setPassword('');
-                navigateWithWipe('/'); 
+                
+                if (data.user.role === 'sales_manager') {
+                    navigateWithWipe('/sm-dashboard');
+                } else {
+                    navigateWithWipe('/'); 
+                }
 
             }
             else 
