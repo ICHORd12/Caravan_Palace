@@ -5,9 +5,9 @@ const ApiError = require("../utils/ApiError");
 const { normalizeSort } = require("../utils/sorter");
 const discountNotificationService = require("./discountNotificationService");
 
-const assertProductManager = (userRole) => {
-  if (userRole !== "product_manager") {
-    throw new ApiError(403, "Only product managers can update discounts");
+const assertSalesManager = (userRole) => {
+  if (userRole !== "sales_manager") {
+    throw new ApiError(403, "Only sales managers can update discounts");
   }
 };
 
@@ -161,7 +161,7 @@ exports.searchProductsByNameOrDescription = async ({q, sort}) => {
 };
 
 exports.updateProductDiscount = async ({ productId, discountRate, userRole }) => {
-  assertProductManager(userRole);
+  assertSalesManager(userRole);
 
   if (!productId) {
     throw new ApiError(400, "Product ID is required");

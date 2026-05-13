@@ -60,7 +60,7 @@ describe("productService.updateProductDiscount", () => {
     const result = await productService.updateProductDiscount({
       productId: "prod-1",
       discountRate: 20,
-      userRole: "product_manager",
+      userRole: "sales_manager",
     });
 
     expect(result.message).toBe("Product discount updated successfully");
@@ -98,21 +98,21 @@ describe("productService.updateProductDiscount", () => {
     const result = await productService.updateProductDiscount({
       productId: "prod-2",
       discountRate: 15,
-      userRole: "product_manager",
+      userRole: "sales_manager",
     });
 
     expect(result.notificationSummary.triggered).toBe(false);
     expect(notifySpy).not.toHaveBeenCalled();
   });
 
-  test("rejects non product managers", async () => {
+  test("rejects non sales managers", async () => {
     await expect(
       productService.updateProductDiscount({
         productId: "prod-3",
         discountRate: 10,
         userRole: "customer",
       })
-    ).rejects.toThrow(/product managers/i);
+    ).rejects.toThrow(/sales managers/i);
   });
 });
 

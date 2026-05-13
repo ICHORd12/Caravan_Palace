@@ -1065,7 +1065,7 @@ Updates a product's discount rate. If the new discount is greater than the previ
 
 #### Auth
 
-- Required (product manager only)
+- Required (sales manager only)
 
 #### Path Params
 
@@ -1116,7 +1116,7 @@ Status: `200 OK`
 - `400` if `discountRate` is missing, not numeric, or outside `0` to `100`
 - `401` if token is missing
 - `401` if token is invalid
-- `403` if user is not a product manager
+- `403` if user is not a sales manager
 - `404` if product is not found
 
 ---
@@ -2495,6 +2495,6 @@ These must be set on the backend for invoice emails and wishlist discount notifi
 18. `POST /users/me/orders/:orderId/refund-requests` only works when order status is `delivered` and within 30 days of the latest completed delivery; it creates one refund per order item.
 19. `POST /users/me/orders/:orderId/items/:orderItemId/refund-requests` allows item-level refunds under the same delivery and window rules.
 20. `GET /refunds/` and `PATCH /refunds/:refundId` are restricted to `sales_manager` users.
-21. `PATCH /products/:productId/discount` is restricted to `product_manager` users and automatically emails wishlist users when the discount increases.
+21. `PATCH /products/:productId/discount` is restricted to `sales_manager` users and automatically emails wishlist users when the discount increases.
 22. `GET /orders/reports/financial-summary` is restricted to `sales_manager` users and requires `startDate` and `endDate` query params in `YYYY-MM-DD` format.
 23. `GET /orders` is restricted to `sales_manager` users and supports optional `status` and `startDate`/`endDate` filters.
