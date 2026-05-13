@@ -6,6 +6,7 @@ const { describe, test, expect, beforeEach, afterEach } = require("@jest/globals
 const pool = require("../config/db");
 const orderService = require("../services/orderService");
 const orderModel = require("../models/orderModel");
+const orderItemModel = require("../models/orderItemModel");
 const deliveryModel = require("../models/deliveryModel");
 
 const buildClient = () => ({
@@ -89,6 +90,10 @@ describe("orderService.updateOrderStatusForManager", () => {
       .spyOn(deliveryModel, "markDeliveriesCompletedByOrderId")
       .mockResolvedValue(2);
 
+    const markItemsDeliveredSpy = jest
+      .spyOn(orderItemModel, "markOrderItemsDeliveredByOrderId")
+      .mockResolvedValue(2);
+
     jest.spyOn(orderModel, "updateOrderStatus").mockResolvedValue({
       orderId: "order-3",
       status: "delivered",
@@ -103,5 +108,6 @@ describe("orderService.updateOrderStatusForManager", () => {
     expect(result.message).toBe("Order status updated successfully");
     expect(result.order.status).toBe("delivered");
     expect(completeSpy).toHaveBeenCalledTimes(1);
+    expect(markItemsDeliveredSpy).toHaveBeenCalledWith("order-3", client);
   });
 });

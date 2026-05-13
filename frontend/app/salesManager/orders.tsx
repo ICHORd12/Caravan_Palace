@@ -459,9 +459,18 @@ export default function SalesManagerOrders() {
 
             if (response.ok) 
             {
+                const nextStatus = normalizeOrderStatus(status);
                 setOrders(prevOrders =>
                     prevOrders.map(order =>
-                        order.orderId === orderId ? { ...order, status: normalizeOrderStatus(status) } : order
+                        order.orderId === orderId
+                            ? {
+                                ...order,
+                                status: nextStatus,
+                                items: nextStatus === "delivered"
+                                    ? order.items.map(item => ({ ...item, isDelivered: true }))
+                                    : order.items,
+                            }
+                            : order
                     )
                 );
                 showToast(`Order status changed to ${formatStatus(status)}`, "success");

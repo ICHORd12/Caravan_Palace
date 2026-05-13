@@ -63,7 +63,7 @@ exports.updateProductDiscount = async (req, res, next) => {
 
     const result = await productService.updateProductDiscount({
       productId,
-      discountRate: req.body.discountRate,
+      discountRate: req.body.discountRate ?? req.body.discount_rate,
       userRole,
     });
 

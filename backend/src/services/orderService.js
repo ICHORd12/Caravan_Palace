@@ -220,6 +220,7 @@ exports.updateOrderStatusForManager = async ({ orderId, status, userRole }) => {
 
     if (status === "delivered") {
       await deliveryModel.markDeliveriesCompletedByOrderId(orderId, client);
+      await orderItemModel.markOrderItemsDeliveredByOrderId(orderId, client);
     }
 
     const updatedOrder = await orderModel.updateOrderStatus(

@@ -69,3 +69,18 @@ exports.getOrderItemCountByOrderId = async (orderId, client) => {
 
   return result.rows[0] ? result.rows[0].count : 0;
 };
+
+exports.markOrderItemsDeliveredByOrderId = async (orderId, client) => {
+  const executor = client || pool;
+
+  const result = await executor.query(
+    `
+    UPDATE order_items
+    SET is_delivered = true
+    WHERE order_id = $1
+    `,
+    [orderId]
+  );
+
+  return result.rowCount;
+};
