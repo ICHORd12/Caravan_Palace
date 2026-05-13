@@ -79,7 +79,7 @@ export default function Login() {
                 setPassword('');
                 
                 if (data.user.role === 'sales_manager') {
-                    navigateWithWipe('/sm-dashboard');
+                    navigateWithWipe('/salesManager/home');
                 } else {
                     navigateWithWipe('/'); 
                 }

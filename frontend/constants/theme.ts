@@ -9,6 +9,8 @@ export const Colors = {
     productDetailsBackground: '#7d7d7d5e',
     writeReviewBackground: '#7d7d7d5e',
     submitButtonContainerBackground: '#41070721',
+    
+    salesManagerBackground: '#628b81a5',
 
     /* Button Colors */
     
