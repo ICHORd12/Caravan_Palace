@@ -8,17 +8,12 @@ This document summarizes the backend API endpoints currently implemented in the 
 - Example local URL: `http://localhost:<PORT>/api/v3`
 
 ## General Notes
-
 - The backend uses JSON request/response bodies.
 - Protected endpoints require this header:
 
-```http
-Authorization: Bearer <token>
-```
 
 - Error responses generally look like this:
 
-```json
 {
   "message": "Error message here"
 }
@@ -2397,6 +2392,7 @@ These must be set on the backend for invoice emails and wishlist discount notifi
 - `PATCH /api/v3/reviews/:reviewId`
 - `POST /api/v3/checkout/validate`
 - `POST /api/v3/payments/`
+- `GET /api/v3/orders`
 - `GET /api/v3/orders/reports/financial-summary`
 - `PATCH /api/v3/orders/:orderId/status`
 - `GET /api/v3/refunds/`
@@ -2428,5 +2424,6 @@ These must be set on the backend for invoice emails and wishlist discount notifi
 18. `POST /users/me/orders/:orderId/refund-requests` only works when order status is `delivered` and within 30 days of the latest completed delivery; it creates one refund per order item.
 19. `POST /users/me/orders/:orderId/items/:orderItemId/refund-requests` allows item-level refunds under the same delivery and window rules.
 20. `GET /refunds/` and `PATCH /refunds/:refundId` are restricted to `sales_manager` users.
+21. `GET /orders` is restricted to `sales_manager` users and supports optional `status` and `startDate`/`endDate` filters.
 21. `PATCH /products/:productId/discount` is restricted to `product_manager` users and automatically emails wishlist users when the discount increases.
 22. `GET /orders/reports/financial-summary` is restricted to `sales_manager` users and requires `startDate` and `endDate` query params in `YYYY-MM-DD` format.
