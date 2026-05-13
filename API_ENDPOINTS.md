@@ -1059,6 +1059,68 @@ Status: `200 OK`
 
 ---
 
+### `PATCH /api/v3/products/:productId/discount`
+
+Updates a product's discount rate. If the new discount is greater than the previous discount, the backend emails users who have that product in their wishlist.
+
+#### Auth
+
+- Required (product manager only)
+
+#### Path Params
+
+- `productId`: target product id
+
+#### Request Body
+
+```json
+{
+  "discountRate": 15
+}
+```
+
+#### Notes
+
+- `discountRate` must be a number between `0` and `100`.
+- The backend recalculates `current_price` from `base_price` and the new discount.
+- Wishlist notification emails are sent only when the new discount is greater than the previous discount and greater than `0`.
+- Email delivery is best-effort: the discount update can still succeed if wishlist notification email delivery fails.
+
+#### Success Response
+
+Status: `200 OK`
+
+```json
+{
+  "message": "Product discount updated successfully",
+  "product": {
+    "productId": "8924ed90-3acb-4e39-a9a5-5c47a84255e9",
+    "name": "Eco Camper Van",
+    "basePrice": "500000.00",
+    "currentPrice": "425000.00",
+    "discountRate": 15
+  },
+  "previousDiscountRate": 5,
+  "notificationSummary": {
+    "triggered": true,
+    "productId": "8924ed90-3acb-4e39-a9a5-5c47a84255e9",
+    "attempted": 3,
+    "sent": 3,
+    "failed": 0
+  }
+}
+```
+
+#### Common Errors
+
+- `400` if `discountRate` is missing, not numeric, or outside `0` to `100`
+- `401` if token is missing
+- `401` if token is invalid
+- `403` if user is not a product manager
+- `404` if product is not found
+
+---
+
 ## Review Endpoints
 
 Review routes are mounted under `/api/v3/reviews`.
@@ -1894,9 +1956,9 @@ Status: `200 OK`
 
 All order management endpoints require authentication and are restricted to `sales_manager` users.
 
-### `GET /api/v3/orders`
+### `GET /api/v3/orders/reports/financial-summary`
 
-Returns all orders across all users.
+Returns revenue, loss, refund loss, net revenue, and profit for orders placed inside an inclusive date range.
 
 #### Auth
 
@@ -1904,13 +1966,23 @@ Returns all orders across all users.
 
 #### Query Params
 
-- `status`: optional order status filter
-- `startDate`: optional date filter (YYYY-MM-DD)
-- `endDate`: optional date filter (YYYY-MM-DD)
+- `startDate`: first date in `YYYY-MM-DD` format
+- `endDate`: last date in `YYYY-MM-DD` format
 
-Notes:
+#### Request Example
 
-- `startDate` and `endDate` must be provided together.
+```http
+GET /api/v3/orders/reports/financial-summary?startDate=2026-05-01&endDate=2026-05-31
+```
+
+#### Notes
+
+- `startDate` and `endDate` are inclusive calendar dates.
+- Cancelled orders are excluded.
+- `grossRevenue` is based on purchased order item prices.
+- `discountLoss` is the difference between product base price and purchased price for sold items.
+- `refundLoss` includes approved/completed refunds for sold items in the selected order-date range.
+- `netRevenue` and `profit` are currently calculated as `grossRevenue - refundLoss`.
 
 #### Success Response
 
@@ -1918,44 +1990,33 @@ Status: `200 OK`
 
 ```json
 {
-  "message": "Orders fetched successfully",
-  "orders": [
-    {
-      "orderId": "7e8f8f62-4a2f-4a60-bec5-3bfdfb879c1b",
-      "customerId": "b3c3f74e-4aba-4e46-8e5c-53c344f2d259",
-      "cardLast4": "1111",
-      "totalPrice": 479999.99,
-      "invoiceNumber": "INV-2026-0001",
-      "status": "processing",
-      "deliveryAddress": "Levent, Istanbul",
-      "orderDate": "2026-04-20T14:30:00.000Z",
-      "customer": {
-        "userId": "b3c3f74e-4aba-4e46-8e5c-53c344f2d259",
-        "name": "John Doe",
-        "email": "john@example.com",
-        "taxId": "1234567890",
-        "role": "customer",
-        "createdAt": "2026-04-09T00:00:00.000Z"
-      },
-      "items": [
-        {
-          "orderItemId": "abc12345-def6-4789-ghij-klmn0pqr1234",
-          "orderId": "7e8f8f62-4a2f-4a60-bec5-3bfdfb879c1b",
-          "productId": "8924ed90-3acb-4e39-a9a5-5c47a84255e9",
-          "quantity": 1,
-          "purchasedPrice": 479999.99,
-          "isDelivered": false
-        }
-      ]
-    }
-  ]
+  "message": "Financial summary fetched successfully",
+  "dateRange": {
+    "startDate": "2026-05-01",
+    "endDate": "2026-05-31",
+    "startAt": "2026-05-01T00:00:00.000Z",
+    "endAt": "2026-06-01T00:00:00.000Z"
+  },
+  "summary": {
+    "orderCount": 12,
+    "itemsSold": 18,
+    "refundCount": 1,
+    "potentialRevenue": 6200000,
+    "grossRevenue": 5890000,
+    "discountLoss": 310000,
+    "refundLoss": 150000,
+    "totalLoss": 460000,
+    "netRevenue": 5740000,
+    "profit": 5740000
+  }
 }
 ```
 
 #### Common Errors
 
-- `400` if `status` is invalid
-- `400` if `startDate` or `endDate` is missing or invalid
+- `400` if `startDate` or `endDate` is missing
+- `400` if dates are not valid `YYYY-MM-DD` calendar dates
+- `400` if `startDate` is after `endDate`
 - `401` if token is missing
 - `401` if token is invalid
 - `403` if user is not a sales manager
@@ -2132,6 +2193,52 @@ All invoice endpoints require authentication. They generate a PDF invoice for on
 
 ---
 
+### `GET /api/v3/users/me/orders/:orderId/invoice.pdf`
+
+Generates the invoice PDF for one historical order owned by the authenticated user and streams it back as a file download.
+
+#### Auth
+
+- Required
+
+#### Path Params
+
+- `orderId`: target order id (must belong to the authenticated user)
+
+#### Request Body
+
+No request body.
+
+#### Success Response
+
+Status: `200 OK`
+
+Response is a binary PDF stream (not JSON):
+
+```http
+Content-Type: application/pdf
+Content-Disposition: attachment; filename="invoice-order-<orderId>.pdf"
+Content-Length: <bytes>
+```
+
+#### Alias
+
+This route has the same behavior without the `.pdf` suffix:
+
+```http
+GET /api/v3/users/me/orders/:orderId/invoice
+```
+
+#### Common Errors
+
+- `400` if authenticated user id is missing in request context
+- `400` if `orderId` is missing
+- `401` if token is missing
+- `401` if token is invalid
+- `404` if the order is not found for the authenticated user
+
+---
+
 ### `GET /api/v3/invoices/:orderId/pdf`
 
 Generates the invoice PDF for one of the authenticated user's orders and streams it back as a file download.
@@ -2230,7 +2337,7 @@ Status: `200 OK`
 
 ### Environment Variables (SMTP / Email)
 
-These must be set on the backend for `POST /api/v3/invoices/:orderId/email` to work in production. They live in `src/config/env.js`:
+These must be set on the backend for invoice emails and wishlist discount notification emails to work in production. They live in `src/config/env.js`:
 
 | Variable      | Purpose                                                                  | Example / Default                                       |
 | ------------- | ------------------------------------------------------------------------ | ------------------------------------------------------- |
@@ -2264,9 +2371,12 @@ These must be set on the backend for `POST /api/v3/invoices/:orderId/email` to w
 - `GET /api/v3/users/me`
 - `GET /api/v3/users/me/orders`
 - `GET /api/v3/users/me/orders/:orderId`
+- `GET /api/v3/users/me/orders/:orderId/invoice.pdf`
+- `GET /api/v3/users/me/orders/:orderId/invoice`
 - `POST /api/v3/users/me/orders/:orderId/cancel`
 - `POST /api/v3/users/me/orders/:orderId/refund-requests`
 - `POST /api/v3/users/me/orders/:orderId/items/:orderItemId/refund-requests`
+- `PATCH /api/v3/products/:productId/discount`
 - `GET /api/v3/cart/`
 - `POST /api/v3/cart/items`
 - `PATCH /api/v3/cart/items/:productId`
@@ -2283,6 +2393,7 @@ These must be set on the backend for `POST /api/v3/invoices/:orderId/email` to w
 - `POST /api/v3/checkout/validate`
 - `POST /api/v3/payments/`
 - `GET /api/v3/orders`
+- `GET /api/v3/orders/reports/financial-summary`
 - `PATCH /api/v3/orders/:orderId/status`
 - `GET /api/v3/refunds/`
 - `PATCH /api/v3/refunds/:refundId`
@@ -2302,10 +2413,10 @@ These must be set on the backend for `POST /api/v3/invoices/:orderId/email` to w
 7. Cart item payloads use `productId` in path params and bodies.
 8. `GET /products/search` expects query parameter `q` and optional `sort` in query string.
 9. `POST /checkout/validate` is the pre-payment stock safety check for the current cart.
-10. `POST /payments/` now computes the total from the cart on the backend and creates an order on success.
+10. `POST /payments/` now computes the total from the cart on the backend, creates an order on success, and then best-effort emails the invoice to the authenticated user's email.
 11. `GET /products/:productId/details` uses optional auth; missing or invalid tokens are treated as guest access.
 12. Review creation requires the user to have received the product and prevents duplicate reviews.
-13. `GET /invoices/:orderId/pdf` returns a binary PDF (not JSON). The frontend should treat the response as a `Blob`/`ArrayBuffer` (e.g. `fetch(...).then(r => r.blob())` or axios `responseType: 'blob'`) and trigger a download. The `Content-Disposition` header carries the filename.
+13. `GET /users/me/orders/:orderId/invoice.pdf` and `GET /invoices/:orderId/pdf` return a binary PDF (not JSON). The frontend should treat the response as a `Blob`/`ArrayBuffer` (e.g. `fetch(...).then(r => r.blob())` or axios `responseType: 'blob'`) and trigger a download. The `Content-Disposition` header carries the filename.
 14. `POST /invoices/:orderId/email` always emails the PDF to the authenticated user's email on file — no recipient field is accepted from the client. The endpoint can be called multiple times for the same order. SMTP credentials must be configured in backend env vars (see **Environment Variables** in the Invoice section).
 15. Wishlist endpoints use `productId` as a path parameter. `GET /wishlist/` returns product summary data and the primary image URL; `POST /wishlist/:productId` only returns the created wishlist row, so refetch the wishlist if the UI needs full product details.
 16. `PATCH /orders/:orderId/status` is restricted to `sales_manager` users and handles `processing -> in-transit -> delivered` transitions while populating deliveries.
@@ -2314,3 +2425,5 @@ These must be set on the backend for `POST /api/v3/invoices/:orderId/email` to w
 19. `POST /users/me/orders/:orderId/items/:orderItemId/refund-requests` allows item-level refunds under the same delivery and window rules.
 20. `GET /refunds/` and `PATCH /refunds/:refundId` are restricted to `sales_manager` users.
 21. `GET /orders` is restricted to `sales_manager` users and supports optional `status` and `startDate`/`endDate` filters.
+21. `PATCH /products/:productId/discount` is restricted to `product_manager` users and automatically emails wishlist users when the discount increases.
+22. `GET /orders/reports/financial-summary` is restricted to `sales_manager` users and requires `startDate` and `endDate` query params in `YYYY-MM-DD` format.
