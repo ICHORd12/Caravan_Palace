@@ -30,6 +30,6 @@ export const GET_ORDER_DETAILS_END_POINT = `${base}/users/me/orders`;
 export const INVOICE_API_END_POINT = `${base}/invoices`;
 export const REVIEWS_ENDPOINT = `${base}/reviews`
 
-export const SALES_MANAGER_ORDERS_ENDPOINT = `${base}/sales/orders`;
+export const SALES_MANAGER_ORDERS_ENDPOINT = `${base}/orders`;
 
 

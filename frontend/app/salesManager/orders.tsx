@@ -1,7 +1,7 @@
 //#region IMPORTS
 import { useFocusEffect } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, FlatList, StyleSheet, Text, TextInput, View } from "react-native";
 
 import Navbar from "@/components/Navbar/Navbar";
 import SortDropdown from "@/components/DropDowns/SortDropdown/SortDropdown";
@@ -16,14 +16,22 @@ import { useUser } from "@/context/UserContext";
 //#endregion
 
 
-//#region MOCK API NAMES
-const getOrdersApi = "/api/v3/orders";
+//#region API NAMES
 const updateOrderStatusApi = (orderId: string) => `/api/v3/orders/${orderId}/status`;
 //#endregion
 
 
 //#region TYPES
-type OrderStatus = "pending" | "in-transit" | "delivered" | "cancelled";
+type OrderStatus = "processing" | "pending" | "in-transit" | "delivered" | "cancelled";
+
+interface SalesManagerOrderCustomer {
+    userId: string;
+    name: string;
+    email: string;
+    taxId: string;
+    role: string;
+    createdAt: string;
+}
 
 interface SalesManagerOrderItem {
     orderItemId: string;
@@ -43,6 +51,7 @@ interface SalesManagerOrder {
     status: OrderStatus;
     deliveryAddress: string;
     orderDate: string;
+    customer?: SalesManagerOrderCustomer;
     items: SalesManagerOrderItem[];
 }
 
@@ -60,10 +69,11 @@ interface SalesManagerOrderCardProps {
 
 
 //#region LOCAL CONSTANTS
-const ORDER_STATUSES: OrderStatus[] = ["pending", "in-transit", "delivered", "cancelled"];
+const ORDER_STATUSES: OrderStatus[] = ["processing", "in-transit", "delivered"];
+const DISPLAY_ORDER_STATUSES: OrderStatus[] = ["processing", "in-transit", "delivered", "cancelled"];
 
 const statusSortOptions = [
-    { label: "Status: Pending First", value: "pending" },
+    { label: "Status: Processing First", value: "processing" },
     { label: "Status: In-transit First", value: "in-transit" },
     { label: "Status: Delivered First", value: "delivered" },
     { label: "Status: Cancelled First", value: "cancelled" },
@@ -93,10 +103,131 @@ function formatStatus(status: OrderStatus): string
     return status.charAt(0).toUpperCase() + status.slice(1);
 }
 
+function formatDateFilterInput(text: string): string
+{
+    const digitsOnly = text.replace(/[^0-9]/g, "").slice(0, 8);
+
+    if (digitsOnly.length <= 4) return digitsOnly;
+    if (digitsOnly.length <= 6) return `${digitsOnly.slice(0, 4)}-${digitsOnly.slice(4)}`;
+
+    return `${digitsOnly.slice(0, 4)}-${digitsOnly.slice(4, 6)}-${digitsOnly.slice(6)}`;
+}
+
+function isValidStrictDate(date: string): boolean
+{
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return false;
+
+    const [yearString, monthString, dayString] = date.split("-");
+    const year = Number(yearString);
+    const month = Number(monthString);
+    const day = Number(dayString);
+    const parsedDate = new Date(Date.UTC(year, month - 1, day));
+
+    return (
+        parsedDate.getUTCFullYear() === year &&
+        parsedDate.getUTCMonth() === month - 1 &&
+        parsedDate.getUTCDate() === day
+    );
+}
+
 function getStatusSortRank(status: OrderStatus, selectedStatus: string): number 
 {
-    if (status === selectedStatus) return 0;
-    return ORDER_STATUSES.indexOf(status) + 1;
+    const normalizedStatus = status === "pending" ? "processing" : status;
+    const normalizedSelectedStatus = selectedStatus === "pending" ? "processing" : selectedStatus;
+
+    if (normalizedStatus === normalizedSelectedStatus) return 0;
+    return DISPLAY_ORDER_STATUSES.indexOf(normalizedStatus as OrderStatus) + 1;
+}
+
+function normalizeOrderStatus(status: string): OrderStatus
+{
+    const normalizedStatus = status.toLowerCase();
+
+    if (normalizedStatus === "pending") return "processing";
+    if (normalizedStatus === "processing") return "processing";
+    if (normalizedStatus === "in-transit") return "in-transit";
+    if (normalizedStatus === "delivered") return "delivered";
+    if (normalizedStatus === "cancelled") return "cancelled";
+
+    return "processing";
+}
+
+function normalizeSalesManagerOrder(order: SalesManagerOrder): SalesManagerOrder
+{
+    return {
+        ...order,
+        status: normalizeOrderStatus(order.status),
+        items: order.items || [],
+    };
+}
+
+function getCustomerName(order: SalesManagerOrder): string
+{
+    return order.customer?.name || "Unknown Customer";
+}
+
+function getCustomerEmail(order: SalesManagerOrder): string
+{
+    return order.customer?.email || "Unknown Email";
+}
+
+function getCustomerTaxId(order: SalesManagerOrder): string
+{
+    return order.customer?.taxId || "Unknown Tax ID";
+}
+
+function getCustomerCreatedAt(order: SalesManagerOrder): string
+{
+    return order.customer?.createdAt ? formatDate(order.customer.createdAt) : "Unknown Date";
+}
+
+function getCustomerRole(order: SalesManagerOrder): string
+{
+    return order.customer?.role || "Unknown Role";
+}
+
+function getCustomerUserId(order: SalesManagerOrder): string
+{
+    return order.customer?.userId || order.customerId;
+}
+
+function isDateFilterReady(date: string): boolean
+{
+    return date.length === 10 && isValidStrictDate(date);
+}
+
+function shouldApplyDateFilter(date: string): boolean
+{
+    return date.trim().length === 0 || isDateFilterReady(date);
+}
+
+function shouldApplyDateRangeFilter(startDate: string, endDate: string): boolean
+{
+    return shouldApplyDateFilter(startDate) && shouldApplyDateFilter(endDate);
+}
+
+function isOrderInDateRange(orderDate: string, startDate: string, endDate: string): boolean
+{
+    if (!shouldApplyDateRangeFilter(startDate, endDate)) return false;
+    if (!startDate && !endDate) return true;
+    if (!startDate) return orderDate <= endDate;
+    if (!endDate) return orderDate >= startDate;
+
+    return orderDate >= startDate && orderDate <= endDate;
+}
+
+function getDateFilterError(date: string): string
+{
+    if (date.trim().length === 0 || isDateFilterReady(date)) return "";
+
+    return "Use YYYY-MM-DD";
+}
+
+function getStatusUpdatePayload(status: OrderStatus): OrderStatus
+{
+    if (status === "pending") return "processing";
+
+    return status;
 }
 
 async function readResponseJson<T>(response: Response): Promise<T | null> 
@@ -113,7 +244,7 @@ async function readResponseJson<T>(response: Response): Promise<T | null>
 //#region ORDER CARD COMPONENT
 function SalesManagerOrderCard({ order, isUpdating, onStatusChange }: SalesManagerOrderCardProps) 
 {
-    const activeStatusIndex = ORDER_STATUSES.indexOf(order.status);
+    const activeStatusIndex = DISPLAY_ORDER_STATUSES.indexOf(order.status);
 
     return (
         <View style={styles.orderCard}>
@@ -131,7 +262,32 @@ function SalesManagerOrderCard({ order, isUpdating, onStatusChange }: SalesManag
             <View style={styles.detailGrid}>
                 <View style={styles.detailItem}>
                     <Text style={styles.detailLabel}>Customer ID</Text>
-                    <Text style={styles.detailValue}>{order.customerId}</Text>
+                    <Text style={styles.detailValue}>{getCustomerUserId(order)}</Text>
+                </View>
+
+                <View style={styles.detailItem}>
+                    <Text style={styles.detailLabel}>Customer Name</Text>
+                    <Text style={styles.detailValue}>{getCustomerName(order)}</Text>
+                </View>
+
+                <View style={styles.detailItem}>
+                    <Text style={styles.detailLabel}>Customer Email</Text>
+                    <Text style={styles.detailValue}>{getCustomerEmail(order)}</Text>
+                </View>
+
+                <View style={styles.detailItem}>
+                    <Text style={styles.detailLabel}>Customer Tax ID</Text>
+                    <Text style={styles.detailValue}>{getCustomerTaxId(order)}</Text>
+                </View>
+
+                <View style={styles.detailItem}>
+                    <Text style={styles.detailLabel}>Customer Role</Text>
+                    <Text style={styles.detailValue}>{getCustomerRole(order)}</Text>
+                </View>
+
+                <View style={styles.detailItem}>
+                    <Text style={styles.detailLabel}>Customer Created At</Text>
+                    <Text style={styles.detailValue}>{getCustomerCreatedAt(order)}</Text>
                 </View>
 
                 <View style={styles.detailItem}>
@@ -156,15 +312,12 @@ function SalesManagerOrderCard({ order, isUpdating, onStatusChange }: SalesManag
             </View>
 
             <View style={styles.statusTimelineContainer}>
-                {ORDER_STATUSES.map((status, index) => {
+                {DISPLAY_ORDER_STATUSES.map((status, index) => {
                     const isActive = order.status === status;
                     const isCompleted = activeStatusIndex >= index && order.status !== "cancelled";
-
                     return (
                         <View key={status} style={styles.statusStepContainer}>
-                            <Pressable
-                                disabled={isUpdating || isActive}
-                                onPress={() => onStatusChange(order.orderId, status)}
+                            <View
                                 style={[
                                     styles.statusCircle,
                                     isCompleted && styles.completedStatusCircle,
@@ -176,13 +329,13 @@ function SalesManagerOrderCard({ order, isUpdating, onStatusChange }: SalesManag
                                 <Text style={[styles.statusCircleText, (isCompleted || isActive) && styles.activeStatusCircleText]}>
                                     {index + 1}
                                 </Text>
-                            </Pressable>
+                            </View>
 
                             <Text style={[styles.statusStepText, isActive && styles.activeStatusStepText]}>
                                 {formatStatus(status)}
                             </Text>
 
-                            {index < ORDER_STATUSES.length - 1 && (
+                            {index < DISPLAY_ORDER_STATUSES.length - 1 && (
                                 <View style={[styles.statusConnector, activeStatusIndex > index && order.status !== "cancelled" && styles.completedStatusConnector]} />
                             )}
                         </View>
@@ -217,10 +370,9 @@ function SalesManagerOrderCard({ order, isUpdating, onStatusChange }: SalesManag
                         wrapperStyles={[
                             styles.statusButtonWrapper,
                             order.status === status && styles.currentStatusButtonWrapper,
-                            status === "cancelled" && styles.cancelStatusButtonWrapper,
                         ]}
                         textStyles={styles.statusButtonText}
-                        onPress={() => onStatusChange(order.orderId, status)}
+                        onPress={() => onStatusChange(order.orderId, getStatusUpdatePayload(status))}
                     />
                 ))}
             </View>
@@ -241,14 +393,17 @@ export default function SalesManagerOrders() {
     const [hasHandledAccess, setHasHandledAccess] = useState(false);
     const [updatingOrders, setUpdatingOrders] = useState<Record<string, boolean>>({});
 
-    const [dateFilter, setDateFilter] = useState("");
+    const [beginningDateFilter, setBeginningDateFilter] = useState("");
+    const [endingDateFilter, setEndingDateFilter] = useState("");
     const [customerIdFilter, setCustomerIdFilter] = useState("");
     const [orderIdFilter, setOrderIdFilter] = useState("");
-    const [statusSort, setStatusSort] = useState<OrderStatus>("pending");
+    const [statusSort, setStatusSort] = useState<OrderStatus>("processing");
 
     const activeUser = user ?? authUser;
     const userRole = activeUser?.role ?? "guest";
     const isSalesManager = userRole === "sales_manager";
+    const beginningDateFilterError = getDateFilterError(beginningDateFilter);
+    const endingDateFilterError = getDateFilterError(endingDateFilter);
 
     //#region API FUNCTIONS
     async function fetchOrders(): Promise<void> 
@@ -270,7 +425,7 @@ export default function SalesManagerOrders() {
 
             if (response.ok) 
             {
-                setOrders(responseData?.orders || []);
+                setOrders((responseData?.orders || []).map(normalizeSalesManagerOrder));
             }
             else 
             {   
@@ -297,7 +452,7 @@ export default function SalesManagerOrders() {
                     "Content-Type": "application/json",
                     "Authorization": `Bearer ${token}`,
                 },
-                body: JSON.stringify({ status }),
+                body: JSON.stringify({ status: getStatusUpdatePayload(status) }),
             });
 
             const responseData = await readResponseJson<{ message?: string }>(response);
@@ -306,7 +461,7 @@ export default function SalesManagerOrders() {
             {
                 setOrders(prevOrders =>
                     prevOrders.map(order =>
-                        order.orderId === orderId ? { ...order, status } : order
+                        order.orderId === orderId ? { ...order, status: normalizeOrderStatus(status) } : order
                     )
                 );
                 showToast(`Order status changed to ${formatStatus(status)}`, "success");
@@ -327,31 +482,41 @@ export default function SalesManagerOrders() {
 
     //#region BUTTON FUNCTIONS
     function clearFiltersButtonFunction(): void {
-        setDateFilter("");
+        setBeginningDateFilter("");
+        setEndingDateFilter("");
         setCustomerIdFilter("");
         setOrderIdFilter("");
-        setStatusSort("pending");
+        setStatusSort("processing");
     }
 
     function refreshOrdersButtonFunction(): void {
         fetchOrders();
     }
+
+    function beginningDateFilterInputChange(text: string): void {
+        setBeginningDateFilter(formatDateFilterInput(text));
+    }
+
+    function endingDateFilterInputChange(text: string): void {
+        setEndingDateFilter(formatDateFilterInput(text));
+    }
     //#endregion
 
     //#region FILTER AND SORT
     const filteredOrders = useMemo(() => {
-        const normalizedDateFilter = dateFilter.trim().toLowerCase();
+        const normalizedBeginningDateFilter = beginningDateFilter.trim().toLowerCase();
+        const normalizedEndingDateFilter = endingDateFilter.trim().toLowerCase();
         const normalizedCustomerIdFilter = customerIdFilter.trim().toLowerCase();
         const normalizedOrderIdFilter = orderIdFilter.trim().toLowerCase();
 
         return orders
             .filter(order => {
                 const orderDate = formatDate(order.orderDate).toLowerCase();
-                const customerId = order.customerId.toLowerCase();
+                const customerId = getCustomerUserId(order).toLowerCase();
                 const orderId = order.orderId.toLowerCase();
 
                 return (
-                    (!normalizedDateFilter || orderDate.includes(normalizedDateFilter)) &&
+                    isOrderInDateRange(orderDate, normalizedBeginningDateFilter, normalizedEndingDateFilter) &&
                     (!normalizedCustomerIdFilter || customerId.includes(normalizedCustomerIdFilter)) &&
                     (!normalizedOrderIdFilter || orderId.includes(normalizedOrderIdFilter))
                 );
@@ -363,7 +528,7 @@ export default function SalesManagerOrders() {
 
                 return new Date(secondOrder.orderDate).getTime() - new Date(firstOrder.orderDate).getTime();
             });
-    }, [orders, dateFilter, customerIdFilter, orderIdFilter, statusSort]);
+    }, [orders, beginningDateFilter, endingDateFilter, customerIdFilter, orderIdFilter, statusSort]);
     //#endregion
 
     //#region LIFE CYCLE
@@ -406,18 +571,39 @@ export default function SalesManagerOrders() {
                 <Text style={styles.pageTitle}>Sales Manager Orders</Text>
 
                 <View style={styles.filterContainer}>
-                    <View style={styles.filterInputContainer}>
-                        <Text style={styles.filterLabel}>Date</Text>
+                    <View style={[styles.filterInputContainer, styles.dateFilterInputContainer]}>
+                        <Text style={styles.filterLabel}>Beginning Date</Text>
                         <TextInput
-                            style={styles.filterInput}
-                            value={dateFilter}
-                            onChangeText={setDateFilter}
+                            style={[styles.filterInput, beginningDateFilterError.length > 0 && styles.invalidFilterInput]}
+                            value={beginningDateFilter}
+                            onChangeText={beginningDateFilterInputChange}
                             placeholder="YYYY-MM-DD"
                             placeholderTextColor="#a09a80"
+                            keyboardType="number-pad"
+                            maxLength={10}
                         />
+                        {beginningDateFilterError.length > 0 && (
+                            <Text style={styles.filterErrorText}>{beginningDateFilterError}</Text>
+                        )}
                     </View>
 
-                    <View style={styles.filterInputContainer}>
+                    <View style={[styles.filterInputContainer, styles.dateFilterInputContainer]}>
+                        <Text style={styles.filterLabel}>Ending Date</Text>
+                        <TextInput
+                            style={[styles.filterInput, endingDateFilterError.length > 0 && styles.invalidFilterInput]}
+                            value={endingDateFilter}
+                            onChangeText={endingDateFilterInputChange}
+                            placeholder="YYYY-MM-DD"
+                            placeholderTextColor="#a09a80"
+                            keyboardType="number-pad"
+                            maxLength={10}
+                        />
+                        {endingDateFilterError.length > 0 && (
+                            <Text style={styles.filterErrorText}>{endingDateFilterError}</Text>
+                        )}
+                    </View>
+
+                    <View style={[styles.filterInputContainer, styles.idFilterInputContainer]}>
                         <Text style={styles.filterLabel}>Customer ID</Text>
                         <TextInput
                             style={styles.filterInput}
@@ -428,7 +614,7 @@ export default function SalesManagerOrders() {
                         />
                     </View>
 
-                    <View style={styles.filterInputContainer}>
+                    <View style={[styles.filterInputContainer, styles.idFilterInputContainer]}>
                         <Text style={styles.filterLabel}>Order ID</Text>
                         <TextInput
                             style={styles.filterInput}
@@ -528,6 +714,15 @@ const styles = StyleSheet.create({
         flex: 1,
         minWidth: 190,
     },
+    dateFilterInputContainer: {
+        flexGrow: 0,
+        flexBasis: 180,
+    },
+    idFilterInputContainer: {
+        flexGrow: 1,
+        flexBasis: 430,
+        minWidth: 390,
+    },
     filterLabel: {
         marginBottom: 6,
         fontFamily: Fonts.semibold,
@@ -544,6 +739,15 @@ const styles = StyleSheet.create({
         fontFamily: Fonts.regular,
         fontSize: 14,
         color: Colors.light.mainTextColor,
+    },
+    invalidFilterInput: {
+        borderColor: Colors.light.errorText,
+    },
+    filterErrorText: {
+        marginTop: 4,
+        fontFamily: Fonts.semibold,
+        fontSize: 12,
+        color: Colors.light.errorText,
     },
     sortContainer: {
         flex: 1,
@@ -654,6 +858,7 @@ const styles = StyleSheet.create({
         fontFamily: Fonts.bold,
         fontSize: 14,
         color: Colors.light.mainTextColor,
+        flexWrap: "wrap",
     },
     addressContainer: {
         backgroundColor: "#ffffff",
@@ -792,9 +997,6 @@ const styles = StyleSheet.create({
     },
     currentStatusButtonWrapper: {
         backgroundColor: "#a94c0f",
-    },
-    cancelStatusButtonWrapper: {
-        backgroundColor: Colors.light.deleteButtonBackground,
     },
     statusButtonText: {
         fontFamily: Fonts.semibold,
