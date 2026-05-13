@@ -8,17 +8,12 @@ This document summarizes the backend API endpoints currently implemented in the 
 - Example local URL: `http://localhost:<PORT>/api/v3`
 
 ## General Notes
-
 - The backend uses JSON request/response bodies.
 - Protected endpoints require this header:
 
-```http
-Authorization: Bearer <token>
-```
 
 - Error responses generally look like this:
 
-```json
 {
   "message": "Error message here"
 }
@@ -1899,6 +1894,74 @@ Status: `200 OK`
 
 All order management endpoints require authentication and are restricted to `sales_manager` users.
 
+### `GET /api/v3/orders`
+
+Returns all orders across all users.
+
+#### Auth
+
+- Required (sales manager only)
+
+#### Query Params
+
+- `status`: optional order status filter
+- `startDate`: optional date filter (YYYY-MM-DD)
+- `endDate`: optional date filter (YYYY-MM-DD)
+
+Notes:
+
+- `startDate` and `endDate` must be provided together.
+
+#### Success Response
+
+Status: `200 OK`
+
+```json
+{
+  "message": "Orders fetched successfully",
+  "orders": [
+    {
+      "orderId": "7e8f8f62-4a2f-4a60-bec5-3bfdfb879c1b",
+      "customerId": "b3c3f74e-4aba-4e46-8e5c-53c344f2d259",
+      "cardLast4": "1111",
+      "totalPrice": 479999.99,
+      "invoiceNumber": "INV-2026-0001",
+      "status": "processing",
+      "deliveryAddress": "Levent, Istanbul",
+      "orderDate": "2026-04-20T14:30:00.000Z",
+      "customer": {
+        "userId": "b3c3f74e-4aba-4e46-8e5c-53c344f2d259",
+        "name": "John Doe",
+        "email": "john@example.com",
+        "taxId": "1234567890",
+        "role": "customer",
+        "createdAt": "2026-04-09T00:00:00.000Z"
+      },
+      "items": [
+        {
+          "orderItemId": "abc12345-def6-4789-ghij-klmn0pqr1234",
+          "orderId": "7e8f8f62-4a2f-4a60-bec5-3bfdfb879c1b",
+          "productId": "8924ed90-3acb-4e39-a9a5-5c47a84255e9",
+          "quantity": 1,
+          "purchasedPrice": 479999.99,
+          "isDelivered": false
+        }
+      ]
+    }
+  ]
+}
+```
+
+#### Common Errors
+
+- `400` if `status` is invalid
+- `400` if `startDate` or `endDate` is missing or invalid
+- `401` if token is missing
+- `401` if token is invalid
+- `403` if user is not a sales manager
+
+---
+
 ### `PATCH /api/v3/orders/:orderId/status`
 
 Updates an order status and populates deliveries when the order enters transit.
@@ -2219,6 +2282,7 @@ These must be set on the backend for `POST /api/v3/invoices/:orderId/email` to w
 - `PATCH /api/v3/reviews/:reviewId`
 - `POST /api/v3/checkout/validate`
 - `POST /api/v3/payments/`
+- `GET /api/v3/orders`
 - `PATCH /api/v3/orders/:orderId/status`
 - `GET /api/v3/refunds/`
 - `PATCH /api/v3/refunds/:refundId`
@@ -2249,3 +2313,4 @@ These must be set on the backend for `POST /api/v3/invoices/:orderId/email` to w
 18. `POST /users/me/orders/:orderId/refund-requests` only works when order status is `delivered` and within 30 days of the latest completed delivery; it creates one refund per order item.
 19. `POST /users/me/orders/:orderId/items/:orderItemId/refund-requests` allows item-level refunds under the same delivery and window rules.
 20. `GET /refunds/` and `PATCH /refunds/:refundId` are restricted to `sales_manager` users.
+21. `GET /orders` is restricted to `sales_manager` users and supports optional `status` and `startDate`/`endDate` filters.
