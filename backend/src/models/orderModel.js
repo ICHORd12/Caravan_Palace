@@ -1,5 +1,5 @@
 const pool = require("../config/db");
-const {mapOrder} = require("../utils/mappers");
+const { mapOrder, mapUser } = require("../utils/mappers");
 
 exports.createOrder = async (
   { customerId, cardLast4, totalPrice, deliveryAddress },
@@ -111,4 +111,47 @@ exports.updateOrderStatus = async ({ orderId, status }, client) => {
   if (result.rowCount === 0) return null;
 
   return mapOrder(result.rows[0]);
+};
+
+exports.listOrdersForManager = async ({ status, startAt, endAt }, client) => {
+  const executor = client || pool;
+  const conditions = [];
+  const params = [];
+
+  if (status) {
+    params.push(status);
+    conditions.push(`o.status = $${params.length}`);
+  }
+
+  if (startAt && endAt) {
+    params.push(startAt);
+    conditions.push(`o.order_date >= $${params.length}`);
+    params.push(endAt);
+    conditions.push(`o.order_date < $${params.length}`);
+  }
+
+  const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+
+  const result = await executor.query(
+    `
+    SELECT
+      o.*, 
+      u.user_id,
+      u.name,
+      u.email,
+      u.tax_id,
+      u.role,
+      u.created_at
+    FROM orders o
+    JOIN users u ON o.customer_id = u.user_id
+    ${whereClause}
+    ORDER BY o.order_date DESC
+    `,
+    params
+  );
+
+  return result.rows.map((row) => ({
+    order: mapOrder(row),
+    customer: mapUser(row),
+  }));
 };

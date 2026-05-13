@@ -8,11 +8,43 @@ const deliveryModel = require("../models/deliveryModel");
 const emailService = require("./emailService");
 
 const ALLOWED_MANAGER_STATUSES = ["in-transit", "delivered"];
+const DATE_ONLY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
-const assertSalesManager = (userRole) => {
+const assertSalesManager = (userRole, message) => {
   if (userRole !== "sales_manager") {
-    throw new ApiError(403, "Only sales managers can update order status");
+    throw new ApiError(403, message || "Only sales managers can update order status");
   }
+};
+
+const parseDateOnly = (value, fieldName) => {
+  if (typeof value !== "string" || !value.trim()) {
+    throw new ApiError(400, `${fieldName} is required`);
+  }
+
+  const normalizedValue = value.trim();
+
+  if (!DATE_ONLY_PATTERN.test(normalizedValue)) {
+    throw new ApiError(400, `${fieldName} must use YYYY-MM-DD format`);
+  }
+
+  const [year, month, day] = normalizedValue.split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+
+  if (
+    date.getUTCFullYear() !== year ||
+    date.getUTCMonth() !== month - 1 ||
+    date.getUTCDate() !== day
+  ) {
+    throw new ApiError(400, `${fieldName} is not a valid calendar date`);
+  }
+
+  return { normalizedValue, date };
+};
+
+const addUtcDays = (date, days) => {
+  const nextDate = new Date(date.getTime());
+  nextDate.setUTCDate(nextDate.getUTCDate() + days);
+  return nextDate;
 };
 
 exports.getOrders = async (userId) => {
@@ -207,4 +239,54 @@ exports.updateOrderStatusForManager = async ({ orderId, status, userRole }) => {
   } finally {
     client.release();
   }
+};
+
+exports.getAllOrdersForManager = async ({ status, startDate, endDate, userRole }) => {
+  assertSalesManager(userRole, "Only sales managers can view all orders");
+
+  if ((startDate && !endDate) || (!startDate && endDate)) {
+    throw new ApiError(400, "startDate and endDate must be provided together");
+  }
+
+  if (status && (typeof status !== "string" || !status.trim())) {
+    throw new ApiError(400, "status must be a non-empty string");
+  }
+
+  let startAt;
+  let endAt;
+
+  if (startDate && endDate) {
+    const parsedStartDate = parseDateOnly(startDate, "startDate");
+    const parsedEndDate = parseDateOnly(endDate, "endDate");
+
+    if (parsedStartDate.date.getTime() > parsedEndDate.date.getTime()) {
+      throw new ApiError(400, "startDate cannot be after endDate");
+    }
+
+    startAt = parsedStartDate.date.toISOString();
+    endAt = addUtcDays(parsedEndDate.date, 1).toISOString();
+  }
+
+  const ordersWithCustomers = await orderModel.listOrdersForManager({
+    status: status ? status.trim() : undefined,
+    startAt,
+    endAt,
+  });
+
+  const ordersWithItems = await Promise.all(
+    ordersWithCustomers.map(async ({ order, customer }) => {
+      const items = await orderItemModel.getOrderItemsByOrderId(order.orderId);
+
+      return {
+        ...order,
+        customer,
+        items,
+      };
+    })
+  );
+
+  return {
+    message: "Orders fetched successfully",
+    orders: ordersWithItems,
+  };
 };
