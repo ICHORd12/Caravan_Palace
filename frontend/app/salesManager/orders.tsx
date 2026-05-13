@@ -683,7 +683,7 @@ export default function SalesManagerOrders() {
 const styles = StyleSheet.create({
     mainContainer: {
         flex: 1,
-        backgroundColor: Colors.light.mainBackground,
+        backgroundColor: Colors.light.salesManagerBackground,
     },
     contentContainer: {
         flex: 1,
