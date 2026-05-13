@@ -48,7 +48,11 @@ export default function Navbar({ navbarContainerStyle, navbarLinksStyle, loginRe
                         <>
                             <GeneralButton title="MY ACCOUNT" onPress={() => navigateWithWipe('/profile')} />
                             {isSM ? (
-                                <GeneralButton title="DASHBOARD" onPress={() => navigateWithWipe('/sm-dashboard')} />
+                                <>
+                                    <GeneralButton title="ORDERS" onPress={() => navigateWithWipe('/salesManager/orders')} />
+                                    <GeneralButton title="PRODUCTS" onPress={() => navigateWithWipe('/salesManager/products')} />
+                                    <GeneralButton title="STATISTICS" onPress={() => navigateWithWipe('/salesManager/statistics')} />
+                                </>
                             ) : (
                                 <>
                                     <GeneralButton title="ORDERS" onPress={() => navigateWithWipe('/orderHistory')} />
@@ -80,8 +84,8 @@ export default function Navbar({ navbarContainerStyle, navbarLinksStyle, loginRe
                     )
                 }
 
-                {pathname !== '/' && (
-                    <GeneralButton title="HOME" onPress={() => navigateWithWipe('/')} />
+                {pathname !== (isSM ? '/salesManager/home' : '/') && (
+                    <GeneralButton title="HOME" onPress={() => navigateWithWipe(isSM ? '/salesManager/home' : '/')} />
                 )}
 
                 {pathname !== '/login' && pathname !== '/register' && !isSM && (
