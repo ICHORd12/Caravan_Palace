@@ -107,6 +107,33 @@ function formatStatus(status: RefundStatus): string
     return status.charAt(0).toUpperCase() + status.slice(1);
 }
 
+function formatDateFilterInput(text: string): string
+{
+    const digitsOnly = text.replace(/[^0-9]/g, "").slice(0, 8);
+
+    if (digitsOnly.length <= 4) return digitsOnly;
+    if (digitsOnly.length <= 6) return `${digitsOnly.slice(0, 4)}-${digitsOnly.slice(4)}`;
+
+    return `${digitsOnly.slice(0, 4)}-${digitsOnly.slice(4, 6)}-${digitsOnly.slice(6)}`;
+}
+
+function isValidStrictDate(date: string): boolean
+{
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return false;
+
+    const [yearString, monthString, dayString] = date.split("-");
+    const year = Number(yearString);
+    const month = Number(monthString);
+    const day = Number(dayString);
+    const parsedDate = new Date(Date.UTC(year, month - 1, day));
+
+    return (
+        parsedDate.getUTCFullYear() === year &&
+        parsedDate.getUTCMonth() === month - 1 &&
+        parsedDate.getUTCDate() === day
+    );
+}
+
 function normalizeRefundStatus(status: string): RefundStatus
 {
     const normalizedStatus = status.toLowerCase();
@@ -159,6 +186,38 @@ function getRefundGroupStatusSummary(refunds: SalesManagerRefund[]): string
 function getLatestDate(firstDate: string, secondDate: string): string
 {
     return new Date(firstDate).getTime() >= new Date(secondDate).getTime() ? firstDate : secondDate;
+}
+
+function isDateFilterReady(date: string): boolean
+{
+    return date.length === 10 && isValidStrictDate(date);
+}
+
+function shouldApplyDateFilter(date: string): boolean
+{
+    return date.trim().length === 0 || isDateFilterReady(date);
+}
+
+function shouldApplyDateRangeFilter(startDate: string, endDate: string): boolean
+{
+    return shouldApplyDateFilter(startDate) && shouldApplyDateFilter(endDate);
+}
+
+function isRefundInDateRange(requestDate: string, startDate: string, endDate: string): boolean
+{
+    if (!shouldApplyDateRangeFilter(startDate, endDate)) return false;
+    if (!startDate && !endDate) return true;
+    if (!startDate) return requestDate <= endDate;
+    if (!endDate) return requestDate >= startDate;
+
+    return requestDate >= startDate && requestDate <= endDate;
+}
+
+function getDateFilterError(date: string): string
+{
+    if (date.trim().length === 0 || isDateFilterReady(date)) return "";
+
+    return "Use YYYY-MM-DD";
 }
 
 async function readResponseJson<T>(response: Response): Promise<T | null>
@@ -328,6 +387,8 @@ export default function SalesManagerRefunds()
     const [hasHandledAccess, setHasHandledAccess] = useState(false);
     const [updatingRefunds, setUpdatingRefunds] = useState<Record<string, boolean>>({});
 
+    const [beginningDateFilter, setBeginningDateFilter] = useState("");
+    const [endingDateFilter, setEndingDateFilter] = useState("");
     const [searchFilter, setSearchFilter] = useState("");
     const [statusFilter, setStatusFilter] = useState<RefundStatusFilter>("all");
     const [statusSort, setStatusSort] = useState<RefundStatusSort>("pending");
@@ -336,6 +397,8 @@ export default function SalesManagerRefunds()
     const activeUser = user ?? authUser;
     const userRole = activeUser?.role ?? "guest";
     const isSalesManager = userRole === "sales_manager";
+    const beginningDateFilterError = getDateFilterError(beginningDateFilter);
+    const endingDateFilterError = getDateFilterError(endingDateFilter);
 
     //#region API FUNCTIONS
     const fetchRefunds = useCallback(async (status: RefundStatusFilter = statusFilter): Promise<void> =>
@@ -417,6 +480,8 @@ export default function SalesManagerRefunds()
     //#region BUTTON FUNCTIONS
     function clearFiltersButtonFunction(): void
     {
+        setBeginningDateFilter("");
+        setEndingDateFilter("");
         setSearchFilter("");
         setStatusFilter("all");
         setStatusSort("pending");
@@ -435,15 +500,30 @@ export default function SalesManagerRefunds()
         setStatusFilter(nextStatus);
         fetchRefunds(nextStatus);
     }
+
+    function beginningDateFilterInputChange(text: string): void
+    {
+        setBeginningDateFilter(formatDateFilterInput(text));
+    }
+
+    function endingDateFilterInputChange(text: string): void
+    {
+        setEndingDateFilter(formatDateFilterInput(text));
+    }
     //#endregion
 
     //#region FILTER AND SORT
     const filteredRefunds = useMemo(() => {
+        const normalizedBeginningDateFilter = beginningDateFilter.trim().toLowerCase();
+        const normalizedEndingDateFilter = endingDateFilter.trim().toLowerCase();
         const normalizedSearchFilter = searchFilter.trim().toLowerCase();
 
         return refunds
             .filter(refund => {
+                const requestDate = formatDate(refund.requestDate).toLowerCase();
+
                 return (
+                    isRefundInDateRange(requestDate, normalizedBeginningDateFilter, normalizedEndingDateFilter) &&
                     (!normalizedSearchFilter || getRefundSearchText(refund).includes(normalizedSearchFilter)) &&
                     (statusFilter === "all" || refund.status === statusFilter)
                 );
@@ -455,7 +535,7 @@ export default function SalesManagerRefunds()
 
                 return new Date(secondRefund.requestDate).getTime() - new Date(firstRefund.requestDate).getTime();
             });
-    }, [refunds, searchFilter, statusFilter, statusSort]);
+    }, [refunds, beginningDateFilter, endingDateFilter, searchFilter, statusFilter, statusSort]);
 
     const groupedRefunds = useMemo(() => {
         const groupMap = new Map<string, RefundGroup>();
@@ -530,6 +610,38 @@ export default function SalesManagerRefunds()
                 <Text style={styles.pageTitle}>Sales Manager Refunds</Text>
 
                 <View style={styles.filterContainer}>
+                    <View style={[styles.filterInputContainer, styles.dateFilterInputContainer]}>
+                        <Text style={styles.filterLabel}>Beginning Date</Text>
+                        <TextInput
+                            style={[styles.filterInput, beginningDateFilterError.length > 0 && styles.invalidFilterInput]}
+                            value={beginningDateFilter}
+                            onChangeText={beginningDateFilterInputChange}
+                            placeholder="YYYY-MM-DD"
+                            placeholderTextColor="#a09a80"
+                            keyboardType="number-pad"
+                            maxLength={10}
+                        />
+                        {beginningDateFilterError.length > 0 && (
+                            <Text style={styles.filterErrorText}>{beginningDateFilterError}</Text>
+                        )}
+                    </View>
+
+                    <View style={[styles.filterInputContainer, styles.dateFilterInputContainer]}>
+                        <Text style={styles.filterLabel}>Ending Date</Text>
+                        <TextInput
+                            style={[styles.filterInput, endingDateFilterError.length > 0 && styles.invalidFilterInput]}
+                            value={endingDateFilter}
+                            onChangeText={endingDateFilterInputChange}
+                            placeholder="YYYY-MM-DD"
+                            placeholderTextColor="#a09a80"
+                            keyboardType="number-pad"
+                            maxLength={10}
+                        />
+                        {endingDateFilterError.length > 0 && (
+                            <Text style={styles.filterErrorText}>{endingDateFilterError}</Text>
+                        )}
+                    </View>
+
                     <View style={styles.searchInputContainer}>
                         <Text style={styles.filterLabel}>Search</Text>
                         <TextInput
@@ -658,6 +770,14 @@ const styles = StyleSheet.create({
         padding: 14,
         marginBottom: 18,
     },
+    filterInputContainer: {
+        flex: 1,
+        minWidth: 190,
+    },
+    dateFilterInputContainer: {
+        flexGrow: 0,
+        flexBasis: 180,
+    },
     searchInputContainer: {
         flexGrow: 1,
         flexBasis: 360,
@@ -679,6 +799,15 @@ const styles = StyleSheet.create({
         fontFamily: Fonts.regular,
         fontSize: 14,
         color: Colors.light.mainTextColor,
+    },
+    invalidFilterInput: {
+        borderColor: Colors.light.errorText,
+    },
+    filterErrorText: {
+        marginTop: 4,
+        fontFamily: Fonts.semibold,
+        fontSize: 12,
+        color: Colors.light.errorText,
     },
     sortContainer: {
         flex: 1,

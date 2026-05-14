@@ -22,7 +22,7 @@ const updateOrderStatusApi = (orderId: string) => `/api/v3/orders/${orderId}/sta
 
 
 //#region TYPES
-type OrderStatus = "processing" | "pending" | "in-transit" | "delivered" | "cancelled";
+type OrderStatus = "processing" | "pending" | "in-transit" | "delivered" | "cancelled" | "returned";
 
 interface SalesManagerOrderCustomer {
     userId: string;
@@ -70,13 +70,15 @@ interface SalesManagerOrderCardProps {
 
 //#region LOCAL CONSTANTS
 const ORDER_STATUSES: OrderStatus[] = ["processing", "in-transit", "delivered"];
-const DISPLAY_ORDER_STATUSES: OrderStatus[] = ["processing", "in-transit", "delivered", "cancelled"];
+const DISPLAY_ORDER_STATUSES: OrderStatus[] = ["processing", "in-transit", "delivered", "cancelled", "returned"];
+const TERMINAL_DISPLAY_STATUSES: OrderStatus[] = ["cancelled", "returned"];
 
 const statusSortOptions = [
     { label: "Status: Processing First", value: "processing" },
     { label: "Status: In-transit First", value: "in-transit" },
     { label: "Status: Delivered First", value: "delivered" },
     { label: "Status: Cancelled First", value: "cancelled" },
+    { label: "Status: Returned First", value: "returned" },
 ];
 //#endregion
 
@@ -148,6 +150,7 @@ function normalizeOrderStatus(status: string): OrderStatus
     if (normalizedStatus === "in-transit") return "in-transit";
     if (normalizedStatus === "delivered") return "delivered";
     if (normalizedStatus === "cancelled") return "cancelled";
+    if (normalizedStatus === "returned") return "returned";
 
     return "processing";
 }
@@ -245,6 +248,7 @@ async function readResponseJson<T>(response: Response): Promise<T | null>
 function SalesManagerOrderCard({ order, isUpdating, onStatusChange }: SalesManagerOrderCardProps) 
 {
     const activeStatusIndex = DISPLAY_ORDER_STATUSES.indexOf(order.status);
+    const isTerminalDisplayStatus = TERMINAL_DISPLAY_STATUSES.includes(order.status);
 
     return (
         <View style={styles.orderCard}>
@@ -314,7 +318,7 @@ function SalesManagerOrderCard({ order, isUpdating, onStatusChange }: SalesManag
             <View style={styles.statusTimelineContainer}>
                 {DISPLAY_ORDER_STATUSES.map((status, index) => {
                     const isActive = order.status === status;
-                    const isCompleted = activeStatusIndex >= index && order.status !== "cancelled";
+                    const isCompleted = activeStatusIndex >= index && !isTerminalDisplayStatus;
                     return (
                         <View key={status} style={styles.statusStepContainer}>
                             <View
@@ -323,6 +327,7 @@ function SalesManagerOrderCard({ order, isUpdating, onStatusChange }: SalesManag
                                     isCompleted && styles.completedStatusCircle,
                                     isActive && styles.activeStatusCircle,
                                     status === "cancelled" && isActive && styles.cancelledStatusCircle,
+                                    status === "returned" && isActive && styles.returnedStatusCircle,
                                     isUpdating && styles.disabledStatusCircle,
                                 ]}
                             >
@@ -336,7 +341,7 @@ function SalesManagerOrderCard({ order, isUpdating, onStatusChange }: SalesManag
                             </Text>
 
                             {index < DISPLAY_ORDER_STATUSES.length - 1 && (
-                                <View style={[styles.statusConnector, activeStatusIndex > index && order.status !== "cancelled" && styles.completedStatusConnector]} />
+                                <View style={[styles.statusConnector, activeStatusIndex > index && !isTerminalDisplayStatus && styles.completedStatusConnector]} />
                             )}
                         </View>
                     );
@@ -914,6 +919,10 @@ const styles = StyleSheet.create({
     cancelledStatusCircle: {
         backgroundColor: Colors.light.deleteButtonBackground,
         borderColor: Colors.light.deleteButtonBackground,
+    },
+    returnedStatusCircle: {
+        backgroundColor: "#a94c0f",
+        borderColor: "#a94c0f",
     },
     disabledStatusCircle: {
         opacity: 0.6,
