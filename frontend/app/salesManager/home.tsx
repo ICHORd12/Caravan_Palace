@@ -59,6 +59,11 @@ export default function SalesManagerHome() {
         navigateWithWipe('/salesManager/orders');
     }
 
+    function onRefundsPress()
+    {
+        navigateWithWipe('/salesManager/refunds');
+    }
+
     const isPageReady: boolean = !isLoading && !isLoadingUser && hasHandledAccess && isSalesManager;
 
     return (
@@ -73,6 +78,7 @@ export default function SalesManagerHome() {
                             <GeneralButton title="Statistics" onPress={onStatisticsPress} />
                             <GeneralButton title="Products" onPress={onProductsPress} />
                             <GeneralButton title="Orders" onPress={onOrdersPress} />
+                            <GeneralButton title="Refunds" onPress={onRefundsPress} />
                         </View>
                     </View>
                 ) : (

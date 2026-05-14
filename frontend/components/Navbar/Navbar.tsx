@@ -52,6 +52,7 @@ export default function Navbar({ navbarContainerStyle, navbarLinksStyle, loginRe
                                     <GeneralButton title="ORDERS" onPress={() => navigateWithWipe('/salesManager/orders')} />
                                     <GeneralButton title="PRODUCTS" onPress={() => navigateWithWipe('/salesManager/products')} />
                                     <GeneralButton title="STATISTICS" onPress={() => navigateWithWipe('/salesManager/statistics')} />
+                                    <GeneralButton title="REFUNDS" onPress={() => navigateWithWipe('/salesManager/refunds')} />
                                 </>
                             ) : (
                                 <>
