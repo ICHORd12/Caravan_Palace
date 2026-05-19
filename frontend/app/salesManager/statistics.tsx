@@ -34,7 +34,6 @@ interface FinancialSummary {
     refundCount: number;
     potentialRevenue: number;
     grossRevenue: number;
-    discountLoss: number;
     refundLoss: number;
     totalLoss: number;
     netRevenue: number;
@@ -382,7 +381,6 @@ export default function SalesManagerStatistics()
             summary.netRevenue,
             summary.profit,
             summary.totalLoss,
-            summary.discountLoss,
             summary.refundLoss,
         );
     }, [summary]);
@@ -636,16 +634,10 @@ export default function SalesManagerStatistics()
 
                         <View style={styles.sectionContainer}>
                             <Text style={styles.sectionTitle}>Loss Breakdown</Text>
-                            <SummaryBar label="Discount Loss" value={summary.discountLoss} maxValue={maxBarValue} color="#bc6c25" />
                             <SummaryBar label="Refund Loss" value={summary.refundLoss} maxValue={maxBarValue} color="#7d2323" />
                             <SummaryBar label="Total Loss" value={summary.totalLoss} maxValue={maxBarValue} color="#5d0c2b" />
 
                             <View style={styles.ratioGrid}>
-                                <View style={styles.ratioCard}>
-                                    <Text style={styles.ratioLabel}>Discount Loss / Potential</Text>
-                                    <Text style={styles.ratioValue}>{getPercentage(summary.discountLoss, summary.potentialRevenue)}</Text>
-                                </View>
-
                                 <View style={styles.ratioCard}>
                                     <Text style={styles.ratioLabel}>Refund Loss / Gross</Text>
                                     <Text style={styles.ratioValue}>{getPercentage(summary.refundLoss, summary.grossRevenue)}</Text>

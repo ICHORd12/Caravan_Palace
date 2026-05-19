@@ -116,6 +116,87 @@ describe("productService.updateProductDiscount", () => {
   });
 });
 
+describe("productService.updateProductBasePrice", () => {
+  let client;
+
+  beforeEach(() => {
+    client = buildClient();
+    jest.spyOn(pool, "connect").mockResolvedValue(client);
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  test("updates base price for sales managers", async () => {
+    const getForUpdateSpy = jest
+      .spyOn(productModel, "getProductDiscountForUpdate")
+      .mockResolvedValue({
+        productId: "prod-10",
+        name: "Trail Runner",
+        basePrice: 1000,
+        currentPrice: 900,
+        discountRate: 10,
+      });
+
+    const updateSpy = jest
+      .spyOn(productModel, "updateProductBasePrice")
+      .mockResolvedValue({
+        productId: "prod-10",
+        name: "Trail Runner",
+        basePrice: 1200,
+        currentPrice: 1080,
+        discountRate: 10,
+      });
+
+    const result = await productService.updateProductBasePrice({
+      productId: "prod-10",
+      basePrice: 1200,
+      userRole: "sales_manager",
+    });
+
+    expect(result.message).toBe("Product base price updated successfully");
+    expect(result.product.basePrice).toBe(1200);
+    expect(result.product.currentPrice).toBe(1080);
+    expect(getForUpdateSpy).toHaveBeenCalledWith("prod-10", client);
+    expect(updateSpy).toHaveBeenCalledWith({ productId: "prod-10", basePrice: 1200 }, client);
+  });
+
+  test("rejects non sales managers", async () => {
+    await expect(
+      productService.updateProductBasePrice({
+        productId: "prod-11",
+        basePrice: 1200,
+        userRole: "customer",
+      })
+    ).rejects.toThrow(/sales managers/i);
+  });
+
+  test("rejects invalid base prices", async () => {
+    await expect(
+      productService.updateProductBasePrice({
+        productId: "prod-12",
+        basePrice: 0,
+        userRole: "sales_manager",
+      })
+    ).rejects.toThrow(/greater than 0/i);
+  });
+
+  test("rejects when product is not found", async () => {
+    jest
+      .spyOn(productModel, "getProductDiscountForUpdate")
+      .mockResolvedValue(null);
+
+    await expect(
+      productService.updateProductBasePrice({
+        productId: "prod-13",
+        basePrice: 1500,
+        userRole: "sales_manager",
+      })
+    ).rejects.toThrow(/Product not found/i);
+  });
+});
+
 describe("emailService.sendWishlistDiscountEmail", () => {
   afterEach(() => {
     emailService._resetTransporter();
@@ -159,11 +240,10 @@ describe("financialReportService.getFinancialSummary", () => {
         refundCount: 1,
         potentialRevenue: 1200,
         grossRevenue: 1000,
-        discountLoss: 200,
         refundLoss: 150,
-        totalLoss: 350,
+        totalLoss: 150,
         netRevenue: 850,
-        profit: 850,
+        profit: 425,
       });
 
     const result = await financialReportService.getFinancialSummary({
@@ -173,7 +253,7 @@ describe("financialReportService.getFinancialSummary", () => {
     });
 
     expect(result.message).toBe("Financial summary fetched successfully");
-    expect(result.summary.profit).toBe(850);
+  expect(result.summary.profit).toBe(425);
     expect(modelSpy).toHaveBeenCalledWith({
       startAt: "2026-01-01T00:00:00.000Z",
       endAt: "2026-01-04T00:00:00.000Z",
@@ -213,7 +293,6 @@ describe("financialReportModel.getFinancialSummaryByOrderDateRange", () => {
           refund_count: 1,
           potential_revenue: "1200.00",
           gross_revenue: "1000.00",
-          discount_loss: "200.00",
           refund_loss: "150.00",
         },
       ],
@@ -226,8 +305,8 @@ describe("financialReportModel.getFinancialSummaryByOrderDateRange", () => {
       });
 
     expect(result.grossRevenue).toBe(1000);
-    expect(result.totalLoss).toBe(350);
-    expect(result.profit).toBe(850);
+    expect(result.totalLoss).toBe(150);
+    expect(result.profit).toBe(425);
   });
 });
 
@@ -262,5 +341,54 @@ describe("historical order invoice download route", () => {
       userId: "user-1",
       orderId: "order-1",
     });
+  });
+});
+
+describe("sales manager invoice download route", () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  test("downloads a PDF invoice for any order", async () => {
+    const pdfBuffer = Buffer.from("%PDF-1.4\ninvoice\n%%EOF");
+    jest.spyOn(invoiceService, "generateInvoiceForManager").mockResolvedValue({
+      pdfBuffer,
+      order: { orderId: "order-1" },
+      user: { userId: "user-2" },
+    });
+
+    const token = jwt.sign(
+      { userId: "manager-1", role: "sales_manager" },
+      process.env.JWT_SECRET
+    );
+
+    const response = await request(app)
+      .get("/api/v3/orders/order-1/invoice.pdf")
+      .set("Authorization", `Bearer ${token}`)
+      .expect(200);
+
+    expect(response.headers["content-type"]).toMatch(/application\/pdf/);
+    expect(response.headers["content-disposition"]).toContain(
+      "invoice-order-order-1.pdf"
+    );
+    expect(invoiceService.generateInvoiceForManager).toHaveBeenCalledWith({
+      orderId: "order-1",
+    });
+  });
+
+  test("rejects non sales managers", async () => {
+    const generateSpy = jest.spyOn(invoiceService, "generateInvoiceForManager");
+
+    const token = jwt.sign(
+      { userId: "user-1", role: "customer" },
+      process.env.JWT_SECRET
+    );
+
+    await request(app)
+      .get("/api/v3/orders/order-1/invoice.pdf")
+      .set("Authorization", `Bearer ${token}`)
+      .expect(403);
+
+    expect(generateSpy).not.toHaveBeenCalled();
   });
 });

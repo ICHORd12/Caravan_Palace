@@ -1121,6 +1121,59 @@ Status: `200 OK`
 
 ---
 
+### `PATCH /api/v3/products/:productId/base-price`
+
+Updates a product's base price. The backend recalculates `current_price` using the existing discount rate.
+
+#### Auth
+
+- Required (sales manager only)
+
+#### Path Params
+
+- `productId`: target product id
+
+#### Request Body
+
+```json
+{
+  "basePrice": 550000
+}
+```
+
+#### Notes
+
+- `basePrice` must be a number greater than `0`.
+- The backend recalculates `current_price` using the existing `discount_rate`.
+- The existing `discount_rate` remains unchanged.
+
+#### Success Response
+
+Status: `200 OK`
+
+```json
+{
+  "message": "Product base price updated successfully",
+  "product": {
+    "productId": "8924ed90-3acb-4e39-a9a5-5c47a84255e9",
+    "name": "Eco Camper Van",
+    "basePrice": "550000.00",
+    "currentPrice": "467500.00",
+    "discountRate": 15
+  }
+}
+```
+
+#### Common Errors
+
+- `400` if `basePrice` is missing, not numeric, or not greater than `0`
+- `401` if token is missing
+- `401` if token is invalid
+- `403` if user is not a sales manager
+- `404` if product is not found
+
+---
+
 
 ## Review Endpoints
 
@@ -1981,9 +2034,10 @@ GET /api/v3/orders/reports/financial-summary?startDate=2026-05-01&endDate=2026-0
 - `startDate` and `endDate` are inclusive calendar dates.
 - Cancelled orders are excluded.
 - `grossRevenue` is based on purchased order item prices.
-- `discountLoss` is the difference between product base price and purchased price for sold items.
 - `refundLoss` includes approved/completed refunds for sold items in the selected order-date range.
-- `netRevenue` and `profit` are currently calculated as `grossRevenue - refundLoss`.
+- `totalLoss` is equal to `refundLoss`.
+- `netRevenue` is calculated as `grossRevenue - refundLoss`.
+- `profit` is calculated as `netRevenue * 0.5`.
 
 #### Success Response
 
@@ -2004,11 +2058,10 @@ Status: `200 OK`
     "refundCount": 1,
     "potentialRevenue": 6200000,
     "grossRevenue": 5890000,
-    "discountLoss": 310000,
     "refundLoss": 150000,
-    "totalLoss": 460000,
+    "totalLoss": 150000,
     "netRevenue": 5740000,
-    "profit": 5740000
+    "profit": 2870000
   }
 }
 ```
@@ -2021,6 +2074,44 @@ Status: `200 OK`
 - `401` if token is missing
 - `401` if token is invalid
 - `403` if user is not a sales manager
+
+---
+
+### `GET /api/v3/orders/:orderId/invoice.pdf`
+
+Generates the invoice PDF for any order and streams it back as a file download. This endpoint is intended for sales managers.
+
+#### Auth
+
+- Required (sales manager only)
+
+#### Path Params
+
+- `orderId`: target order id
+
+#### Request Body
+
+No request body.
+
+#### Success Response
+
+Status: `200 OK`
+
+Response is a binary PDF stream (not JSON):
+
+```http
+Content-Type: application/pdf
+Content-Disposition: attachment; filename="invoice-order-<orderId>.pdf"
+Content-Length: <bytes>
+```
+
+#### Common Errors
+
+- `400` if `orderId` is missing
+- `401` if token is missing
+- `401` if token is invalid
+- `403` if user is not a sales manager
+- `404` if the order is not found
 
 ---
 
@@ -2448,6 +2539,7 @@ These must be set on the backend for invoice emails and wishlist discount notifi
 - `POST /api/v3/users/me/orders/:orderId/refund-requests`
 - `POST /api/v3/users/me/orders/:orderId/items/:orderItemId/refund-requests`
 - `PATCH /api/v3/products/:productId/discount`
+- `PATCH /api/v3/products/:productId/base-price`
 - `GET /api/v3/cart/`
 - `POST /api/v3/cart/items`
 - `PATCH /api/v3/cart/items/:productId`
@@ -2465,6 +2557,7 @@ These must be set on the backend for invoice emails and wishlist discount notifi
 - `POST /api/v3/payments/`
 - `GET /api/v3/orders`
 - `GET /api/v3/orders/reports/financial-summary`
+- `GET /api/v3/orders/:orderId/invoice.pdf`
 - `PATCH /api/v3/orders/:orderId/status`
 - `GET /api/v3/refunds/`
 - `PATCH /api/v3/refunds/:refundId`
@@ -2498,3 +2591,4 @@ These must be set on the backend for invoice emails and wishlist discount notifi
 21. `PATCH /products/:productId/discount` is restricted to `sales_manager` users and automatically emails wishlist users when the discount increases.
 22. `GET /orders/reports/financial-summary` is restricted to `sales_manager` users and requires `startDate` and `endDate` query params in `YYYY-MM-DD` format.
 23. `GET /orders` is restricted to `sales_manager` users and supports optional `status` and `startDate`/`endDate` filters.
+24. `GET /orders/:orderId/invoice.pdf` is restricted to `sales_manager` users and returns a binary PDF stream for any order.

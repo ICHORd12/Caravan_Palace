@@ -21,6 +21,7 @@ import { useUser } from "@/context/UserContext";
 
 //#region API NAMES
 const updateProductDiscountApi = (productId: string) => `/api/v3/products/${productId}/discount`;
+const updateProductBasePriceApi = (productId: string) => `/api/v3/products/${productId}/base-price`;
 //#endregion
 
 
@@ -73,12 +74,27 @@ interface UpdateDiscountResponse {
     previousDiscountRate: number;
 }
 
+interface UpdateBasePriceResponse {
+    message: string;
+    product: {
+        productId: string;
+        name: string;
+        basePrice: string | number;
+        currentPrice: string | number;
+        discountRate: number;
+    };
+}
+
 interface SalesManagerProductCardProps {
     product: SalesManagerProduct;
     discountInput: string;
+    basePriceInput: string;
     isUpdating: boolean;
+    isUpdatingBasePrice: boolean;
     onDiscountInputChange: (productId: string, value: string) => void;
+    onBasePriceInputChange: (productId: string, value: string) => void;
     onUpdateDiscount: (productId: string) => void;
+    onUpdateBasePrice: (productId: string) => void;
 }
 //#endregion
 
@@ -120,12 +136,31 @@ function formatDiscountInput(text: string): string
     return `${limitedIntegerPart}.${decimalPart.slice(0, 2)}`;
 }
 
+function formatBasePriceInput(text: string): string
+{
+    const numericText = text.replace(/[^0-9.]/g, "");
+    const [integerPart, decimalPart] = numericText.split(".");
+    const limitedIntegerPart = integerPart.slice(0, 9);
+
+    if (decimalPart === undefined) return limitedIntegerPart;
+
+    return `${limitedIntegerPart}.${decimalPart.slice(0, 2)}`;
+}
+
 function isValidDiscount(discountInput: string): boolean
 {
     if (discountInput.trim().length === 0) return false;
 
     const discount = Number(discountInput);
     return Number.isFinite(discount) && discount >= 0 && discount <= 100;
+}
+
+function isValidBasePrice(basePriceInput: string): boolean
+{
+    if (basePriceInput.trim().length === 0) return false;
+
+    const basePrice = Number(basePriceInput);
+    return Number.isFinite(basePrice) && basePrice > 0;
 }
 
 function getSearchText(product: SalesManagerProduct): string
@@ -191,7 +226,17 @@ async function readResponseJson<T>(response: Response): Promise<T | null>
 
 
 //#region PRODUCT CARD COMPONENT
-function SalesManagerProductCard({ product, discountInput, isUpdating, onDiscountInputChange, onUpdateDiscount }: SalesManagerProductCardProps)
+function SalesManagerProductCard({
+    product,
+    discountInput,
+    basePriceInput,
+    isUpdating,
+    isUpdatingBasePrice,
+    onDiscountInputChange,
+    onBasePriceInputChange,
+    onUpdateDiscount,
+    onUpdateBasePrice,
+}: SalesManagerProductCardProps)
 {
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
@@ -349,6 +394,29 @@ function SalesManagerProductCard({ product, discountInput, isUpdating, onDiscoun
                 )}
             </View>
 
+            <View style={styles.basePriceUpdateContainer}>
+                <View style={styles.basePriceInputContainer}>
+                    <Text style={styles.filterLabel}>New Base Price</Text>
+                    <TextInput
+                        style={[styles.filterInput, !isValidBasePrice(basePriceInput) && basePriceInput.length > 0 && styles.invalidFilterInput]}
+                        value={basePriceInput}
+                        onChangeText={(value) => onBasePriceInputChange(product.productId, value)}
+                        placeholder="Greater than 0"
+                        placeholderTextColor="#a09a80"
+                        keyboardType="decimal-pad"
+                        maxLength={12}
+                    />
+                </View>
+
+                <WrappedGeneralButton
+                    title="Update Base Price"
+                    disabled={isUpdatingBasePrice || !isValidBasePrice(basePriceInput)}
+                    wrapperStyles={styles.discountButtonWrapper}
+                    textStyles={styles.discountButtonText}
+                    onPress={() => onUpdateBasePrice(product.productId)}
+                />
+            </View>
+
             <View style={styles.discountUpdateContainer}>
                 <View style={styles.discountInputContainer}>
                     <Text style={styles.filterLabel}>New Discount Rate</Text>
@@ -388,7 +456,9 @@ export default function SalesManagerProducts()
     const [isLoadingProducts, setIsLoadingProducts] = useState(false);
     const [hasHandledAccess, setHasHandledAccess] = useState(false);
     const [updatingProducts, setUpdatingProducts] = useState<Record<string, boolean>>({});
+    const [updatingBasePrices, setUpdatingBasePrices] = useState<Record<string, boolean>>({});
     const [discountInputs, setDiscountInputs] = useState<Record<string, string>>({});
+    const [basePriceInputs, setBasePriceInputs] = useState<Record<string, string>>({});
 
     const [searchQuery, setSearchQuery] = useState("");
     const [selectedModels, setSelectedModels] = useState<string[]>([]);
@@ -429,10 +499,13 @@ export default function SalesManagerProducts()
                 setProducts(fetchedProducts);
 
                 const initialDiscountInputs: Record<string, string> = {};
+                const initialBasePriceInputs: Record<string, string> = {};
                 fetchedProducts.forEach(product => {
                     initialDiscountInputs[product.productId] = product.discountRate.toString();
+                    initialBasePriceInputs[product.productId] = product.basePrice.toString();
                 });
                 setDiscountInputs(initialDiscountInputs);
+                setBasePriceInputs(initialBasePriceInputs);
             }
             else {
                 showToast(responseData?.message || "Products could not be fetched", "error");
@@ -499,6 +572,62 @@ export default function SalesManagerProducts()
             setUpdatingProducts(prev => ({ ...prev, [productId]: false }));
         }
     }
+
+    async function updateProductBasePrice(productId: string): Promise<void>
+    {
+        if (!token) return;
+
+        const basePriceInput = basePriceInputs[productId] || "";
+        if (!isValidBasePrice(basePriceInput)) {
+            showToast("Base price must be greater than 0", "error");
+            return;
+        }
+
+        setUpdatingBasePrices(prev => ({ ...prev, [productId]: true }));
+
+        try {
+            const response = await fetch(`${API_BASE_URL}${updateProductBasePriceApi(productId)}`, {
+                method: "PATCH",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`,
+                },
+                body: JSON.stringify({ basePrice: Number(basePriceInput) }),
+            });
+
+            const responseData = await readResponseJson<UpdateBasePriceResponse>(response);
+
+            if (response.ok && responseData?.product) {
+                setProducts(prevProducts =>
+                    prevProducts.map(product =>
+                        product.productId === productId
+                            ? {
+                                ...product,
+                                basePrice: responseData.product.basePrice,
+                                currentPrice: responseData.product.currentPrice,
+                                discountRate: responseData.product.discountRate,
+                            }
+                            : product
+                    )
+                );
+
+                setBasePriceInputs(prev => ({
+                    ...prev,
+                    [productId]: responseData.product.basePrice.toString(),
+                }));
+
+                showToast(responseData.message || "Product base price updated", "success");
+            }
+            else {
+                showToast(responseData?.message || "Product base price could not be updated", "error");
+            }
+        } catch (error) {
+            showToast("Something went wrong while updating product base price", "error");
+            console.error("LOG::ERROR::updateProductBasePrice", error);
+        } finally {
+            setUpdatingBasePrices(prev => ({ ...prev, [productId]: false }));
+        }
+    }
     //#endregion
 
     //#region BUTTON FUNCTIONS
@@ -530,6 +659,14 @@ export default function SalesManagerProducts()
         setDiscountInputs(prev => ({
             ...prev,
             [productId]: formatDiscountInput(value),
+        }));
+    }
+
+    function basePriceInputChange(productId: string, value: string): void
+    {
+        setBasePriceInputs(prev => ({
+            ...prev,
+            [productId]: formatBasePriceInput(value),
         }));
     }
 
@@ -737,9 +874,13 @@ export default function SalesManagerProducts()
                             <SalesManagerProductCard
                                 product={item}
                                 discountInput={discountInputs[item.productId] || ""}
+                                basePriceInput={basePriceInputs[item.productId] || ""}
                                 isUpdating={!!updatingProducts[item.productId]}
+                                isUpdatingBasePrice={!!updatingBasePrices[item.productId]}
                                 onDiscountInputChange={discountInputChange}
+                                onBasePriceInputChange={basePriceInputChange}
                                 onUpdateDiscount={updateProductDiscount}
+                                onUpdateBasePrice={updateProductBasePrice}
                             />
                         )}
                         contentContainerStyle={styles.listContainer}
@@ -1005,6 +1146,18 @@ const styles = StyleSheet.create({
         fontFamily: Fonts.regular,
         fontSize: 14,
         color: Colors.light.basePriceDiscountedTextColor,
+    },
+
+    /* BASE PRICE UPDATE */
+    basePriceUpdateContainer: {
+        flexDirection: "row",
+        flexWrap: "wrap",
+        gap: 12,
+        alignItems: "flex-end",
+        marginTop: 12,
+    },
+    basePriceInputContainer: {
+        minWidth: 180,
     },
 
     /* DISCOUNT UPDATE */

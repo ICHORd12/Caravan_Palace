@@ -41,13 +41,6 @@ exports.getFinancialSummaryByOrderDateRange = async ({ startAt, endAt }) => {
         SELECT COALESCE(SUM(quantity * purchased_price), 0)::numeric
         FROM sold_items
       ) AS gross_revenue,
-      (
-        SELECT COALESCE(
-          SUM(GREATEST((base_price - purchased_price) * quantity, 0)),
-          0
-        )::numeric
-        FROM sold_items
-      ) AS discount_loss,
       (SELECT refund_loss FROM approved_refunds) AS refund_loss,
       (SELECT refund_count FROM approved_refunds) AS refund_count
     `,
@@ -56,10 +49,10 @@ exports.getFinancialSummaryByOrderDateRange = async ({ startAt, endAt }) => {
 
   const row = result.rows[0] || {};
   const grossRevenue = toNumber(row.gross_revenue);
-  const discountLoss = toNumber(row.discount_loss);
   const refundLoss = toNumber(row.refund_loss);
-  const totalLoss = discountLoss + refundLoss;
+  const totalLoss = refundLoss;
   const netRevenue = grossRevenue - refundLoss;
+  const profit = netRevenue * 0.5;
 
   return {
     orderCount: Number(row.order_count || 0),
@@ -67,10 +60,9 @@ exports.getFinancialSummaryByOrderDateRange = async ({ startAt, endAt }) => {
     refundCount: Number(row.refund_count || 0),
     potentialRevenue: toNumber(row.potential_revenue),
     grossRevenue,
-    discountLoss,
     refundLoss,
     totalLoss,
     netRevenue,
-    profit: netRevenue,
+    profit,
   };
 };

@@ -165,6 +165,24 @@ exports.updateProductDiscount = async ({ productId, discountRate }, client) => {
   return mapProduct(result.rows[0] || null);
 };
 
+exports.updateProductBasePrice = async ({ productId, basePrice }, client) => {
+  const executor = client || pool;
+
+  const result = await executor.query(
+    `
+    UPDATE products
+    SET base_price = $1,
+        current_price = ROUND(($1 * (1 - (COALESCE(discount_rate, 0)::numeric / 100)))::numeric, 2),
+        updated_at = NOW()
+    WHERE product_id = $2
+    RETURNING *
+    `,
+    [basePrice, productId]
+  );
+
+  return mapProduct(result.rows[0] || null);
+};
+
 
 exports.searchProductsByNameOrDescription = async (searchTerm, sort) => {
   const likePattern = "%" + searchTerm + "%";

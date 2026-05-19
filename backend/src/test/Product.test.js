@@ -132,4 +132,42 @@ describe('productModel', () => {
     const secondCallParams = querySpy.mock.calls[1][1];
     expect(secondCallParams).toEqual([3, 5]);
   });
+
+  // ------------------------------------------------------------------
+  // Test 6: updateProductBasePrice updates base and current prices
+  // ------------------------------------------------------------------
+  test('updateProductBasePrice updates base_price and recalculates current_price', async () => {
+    querySpy.mockResolvedValue({
+      rows: [
+        {
+          product_id: 9,
+          name: 'Road Trekker',
+          base_price: '2500.50',
+          current_price: '2250.45',
+          discount_rate: 10,
+        },
+      ],
+      rowCount: 1,
+    });
+
+    const product = await productModel.updateProductBasePrice({
+      productId: 9,
+      basePrice: 2500.5,
+    });
+
+    expect(querySpy).toHaveBeenCalledTimes(1);
+    const [sql, params] = querySpy.mock.calls[0];
+    expect(sql).toMatch(/UPDATE products/i);
+    expect(sql).toMatch(/SET base_price = \$1/i);
+    expect(sql).toMatch(/current_price/i);
+    expect(params).toEqual([2500.5, 9]);
+
+    expect(product).toMatchObject({
+      productId: 9,
+      name: 'Road Trekker',
+      basePrice: '2500.50',
+      currentPrice: '2250.45',
+      discountRate: 10,
+    });
+  });
 });

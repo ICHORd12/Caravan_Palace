@@ -1,14 +1,9 @@
 const ApiError = require("../utils/ApiError");
 const pdfService = require("./pdfService");
 const emailService = require("./emailService");
-const { loadOrderForUser } = require("../utils/orderLoader");
+const { loadOrderForManager, loadOrderForUser } = require("../utils/orderLoader");
 
-/**
- * Generate an invoice PDF (Buffer) for a given order, scoped to its owner.
- */
-exports.generateInvoice = async ({ userId, orderId }) => {
-  const { order, items, user } = await loadOrderForUser({ userId, orderId });
-
+const buildInvoicePayload = async ({ order, items, user }) => {
   const pdfBuffer = await pdfService.generateInvoicePdf({
     order,
     items,
@@ -20,6 +15,24 @@ exports.generateInvoice = async ({ userId, orderId }) => {
     order,
     user,
   };
+};
+
+/**
+ * Generate an invoice PDF (Buffer) for a given order, scoped to its owner.
+ */
+exports.generateInvoice = async ({ userId, orderId }) => {
+  const { order, items, user } = await loadOrderForUser({ userId, orderId });
+
+  return buildInvoicePayload({ order, items, user });
+};
+
+/**
+ * Generate an invoice PDF (Buffer) for a given order, scoped for managers.
+ */
+exports.generateInvoiceForManager = async ({ orderId }) => {
+  const { order, items, user } = await loadOrderForManager({ orderId });
+
+  return buildInvoicePayload({ order, items, user });
 };
 
 /**
