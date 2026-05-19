@@ -159,11 +159,10 @@ describe("financialReportService.getFinancialSummary", () => {
         refundCount: 1,
         potentialRevenue: 1200,
         grossRevenue: 1000,
-        discountLoss: 200,
         refundLoss: 150,
-        totalLoss: 350,
+        totalLoss: 150,
         netRevenue: 850,
-        profit: 850,
+        profit: 425,
       });
 
     const result = await financialReportService.getFinancialSummary({
@@ -173,7 +172,7 @@ describe("financialReportService.getFinancialSummary", () => {
     });
 
     expect(result.message).toBe("Financial summary fetched successfully");
-    expect(result.summary.profit).toBe(850);
+  expect(result.summary.profit).toBe(425);
     expect(modelSpy).toHaveBeenCalledWith({
       startAt: "2026-01-01T00:00:00.000Z",
       endAt: "2026-01-04T00:00:00.000Z",
@@ -213,7 +212,6 @@ describe("financialReportModel.getFinancialSummaryByOrderDateRange", () => {
           refund_count: 1,
           potential_revenue: "1200.00",
           gross_revenue: "1000.00",
-          discount_loss: "200.00",
           refund_loss: "150.00",
         },
       ],
@@ -226,8 +224,8 @@ describe("financialReportModel.getFinancialSummaryByOrderDateRange", () => {
       });
 
     expect(result.grossRevenue).toBe(1000);
-    expect(result.totalLoss).toBe(350);
-    expect(result.profit).toBe(850);
+    expect(result.totalLoss).toBe(150);
+    expect(result.profit).toBe(425);
   });
 });
 

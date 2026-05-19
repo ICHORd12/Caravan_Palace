@@ -1981,9 +1981,10 @@ GET /api/v3/orders/reports/financial-summary?startDate=2026-05-01&endDate=2026-0
 - `startDate` and `endDate` are inclusive calendar dates.
 - Cancelled orders are excluded.
 - `grossRevenue` is based on purchased order item prices.
-- `discountLoss` is the difference between product base price and purchased price for sold items.
 - `refundLoss` includes approved/completed refunds for sold items in the selected order-date range.
-- `netRevenue` and `profit` are currently calculated as `grossRevenue - refundLoss`.
+- `totalLoss` is equal to `refundLoss`.
+- `netRevenue` is calculated as `grossRevenue - refundLoss`.
+- `profit` is calculated as `netRevenue * 0.5`.
 
 #### Success Response
 
@@ -2004,11 +2005,10 @@ Status: `200 OK`
     "refundCount": 1,
     "potentialRevenue": 6200000,
     "grossRevenue": 5890000,
-    "discountLoss": 310000,
     "refundLoss": 150000,
-    "totalLoss": 460000,
+    "totalLoss": 150000,
     "netRevenue": 5740000,
-    "profit": 5740000
+    "profit": 2870000
   }
 }
 ```
