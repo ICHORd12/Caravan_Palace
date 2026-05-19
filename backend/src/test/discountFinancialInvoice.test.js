@@ -116,6 +116,87 @@ describe("productService.updateProductDiscount", () => {
   });
 });
 
+describe("productService.updateProductBasePrice", () => {
+  let client;
+
+  beforeEach(() => {
+    client = buildClient();
+    jest.spyOn(pool, "connect").mockResolvedValue(client);
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  test("updates base price for sales managers", async () => {
+    const getForUpdateSpy = jest
+      .spyOn(productModel, "getProductDiscountForUpdate")
+      .mockResolvedValue({
+        productId: "prod-10",
+        name: "Trail Runner",
+        basePrice: 1000,
+        currentPrice: 900,
+        discountRate: 10,
+      });
+
+    const updateSpy = jest
+      .spyOn(productModel, "updateProductBasePrice")
+      .mockResolvedValue({
+        productId: "prod-10",
+        name: "Trail Runner",
+        basePrice: 1200,
+        currentPrice: 1080,
+        discountRate: 10,
+      });
+
+    const result = await productService.updateProductBasePrice({
+      productId: "prod-10",
+      basePrice: 1200,
+      userRole: "sales_manager",
+    });
+
+    expect(result.message).toBe("Product base price updated successfully");
+    expect(result.product.basePrice).toBe(1200);
+    expect(result.product.currentPrice).toBe(1080);
+    expect(getForUpdateSpy).toHaveBeenCalledWith("prod-10", client);
+    expect(updateSpy).toHaveBeenCalledWith({ productId: "prod-10", basePrice: 1200 }, client);
+  });
+
+  test("rejects non sales managers", async () => {
+    await expect(
+      productService.updateProductBasePrice({
+        productId: "prod-11",
+        basePrice: 1200,
+        userRole: "customer",
+      })
+    ).rejects.toThrow(/sales managers/i);
+  });
+
+  test("rejects invalid base prices", async () => {
+    await expect(
+      productService.updateProductBasePrice({
+        productId: "prod-12",
+        basePrice: 0,
+        userRole: "sales_manager",
+      })
+    ).rejects.toThrow(/greater than 0/i);
+  });
+
+  test("rejects when product is not found", async () => {
+    jest
+      .spyOn(productModel, "getProductDiscountForUpdate")
+      .mockResolvedValue(null);
+
+    await expect(
+      productService.updateProductBasePrice({
+        productId: "prod-13",
+        basePrice: 1500,
+        userRole: "sales_manager",
+      })
+    ).rejects.toThrow(/Product not found/i);
+  });
+});
+
 describe("emailService.sendWishlistDiscountEmail", () => {
   afterEach(() => {
     emailService._resetTransporter();
