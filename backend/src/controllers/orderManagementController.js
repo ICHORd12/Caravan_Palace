@@ -1,5 +1,13 @@
+const ApiError = require("../utils/ApiError");
 const orderService = require("../services/orderService");
 const financialReportService = require("../services/financialReportService");
+const invoiceService = require("../services/invoiceService");
+
+const assertSalesManager = (userRole) => {
+  if (userRole !== "sales_manager") {
+    throw new ApiError(403, "Only sales managers can download invoices");
+  }
+};
 
 exports.getAllOrders = async (req, res, next) => {
   try {
@@ -49,6 +57,30 @@ exports.updateOrderStatus = async (req, res, next) => {
     });
 
     res.status(200).json(result);
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.downloadOrderInvoice = async (req, res, next) => {
+  try {
+    const { orderId } = req.params;
+    const userRole = req.user.role;
+
+    assertSalesManager(userRole);
+
+    const { pdfBuffer, order } = await invoiceService.generateInvoiceForManager({
+      orderId,
+    });
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="invoice-order-${order.orderId}.pdf"`
+    );
+    res.setHeader("Content-Length", pdfBuffer.length);
+
+    return res.status(200).end(pdfBuffer);
   } catch (err) {
     next(err);
   }

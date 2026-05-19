@@ -1,7 +1,7 @@
 //#region IMPORTS
 import { useFocusEffect } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
-import { ActivityIndicator, FlatList, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, FlatList, Platform, StyleSheet, Text, TextInput, View } from "react-native";
 
 import Navbar from "@/components/Navbar/Navbar";
 import SortDropdown from "@/components/DropDowns/SortDropdown/SortDropdown";
@@ -18,6 +18,7 @@ import { useUser } from "@/context/UserContext";
 
 //#region API NAMES
 const updateOrderStatusApi = (orderId: string) => `/api/v3/orders/${orderId}/status`;
+const downloadOrderInvoiceApi = (orderId: string) => `/api/v3/orders/${orderId}/invoice.pdf`;
 //#endregion
 
 
@@ -63,7 +64,9 @@ interface GetOrdersResponse {
 interface SalesManagerOrderCardProps {
     order: SalesManagerOrder;
     isUpdating: boolean;
+    isDownloadingInvoice: boolean;
     onStatusChange: (orderId: string, status: OrderStatus) => void;
+    onDownloadInvoice: (orderId: string) => void;
 }
 //#endregion
 
@@ -245,7 +248,13 @@ async function readResponseJson<T>(response: Response): Promise<T | null>
 
 
 //#region ORDER CARD COMPONENT
-function SalesManagerOrderCard({ order, isUpdating, onStatusChange }: SalesManagerOrderCardProps) 
+function SalesManagerOrderCard({
+    order,
+    isUpdating,
+    isDownloadingInvoice,
+    onStatusChange,
+    onDownloadInvoice,
+}: SalesManagerOrderCardProps) 
 {
     const activeStatusIndex = DISPLAY_ORDER_STATUSES.indexOf(order.status);
     const isTerminalDisplayStatus = TERMINAL_DISPLAY_STATUSES.includes(order.status);
@@ -381,6 +390,16 @@ function SalesManagerOrderCard({ order, isUpdating, onStatusChange }: SalesManag
                     />
                 ))}
             </View>
+
+            <View style={styles.invoiceButtonContainer}>
+                <WrappedGeneralButton
+                    title={isDownloadingInvoice ? "Downloading..." : "Download Invoice"}
+                    disabled={isUpdating || isDownloadingInvoice}
+                    wrapperStyles={styles.invoiceButtonWrapper}
+                    textStyles={styles.invoiceButtonText}
+                    onPress={() => onDownloadInvoice(order.orderId)}
+                />
+            </View>
         </View>
     );
 }
@@ -397,6 +416,7 @@ export default function SalesManagerOrders() {
     const [isLoadingOrders, setIsLoadingOrders] = useState(false);
     const [hasHandledAccess, setHasHandledAccess] = useState(false);
     const [updatingOrders, setUpdatingOrders] = useState<Record<string, boolean>>({});
+    const [downloadingInvoices, setDownloadingInvoices] = useState<Record<string, boolean>>({});
 
     const [beginningDateFilter, setBeginningDateFilter] = useState("");
     const [endingDateFilter, setEndingDateFilter] = useState("");
@@ -490,6 +510,48 @@ export default function SalesManagerOrders() {
             console.error("LOG::ERROR::updateOrderStatus", error);
         } finally {
             setUpdatingOrders(prev => ({ ...prev, [orderId]: false }));
+        }
+    }
+
+    async function downloadInvoice(orderId: string): Promise<void> {
+        if (!token) return;
+
+        if (Platform.OS !== "web") {
+            showToast("PDF downloads on mobile require Expo FileSystem. Try this on web!", "info");
+            return;
+        }
+
+        setDownloadingInvoices(prev => ({ ...prev, [orderId]: true }));
+
+        try {
+            const response = await fetch(`${API_BASE_URL}${downloadOrderInvoiceApi(orderId)}`, {
+                method: "GET",
+                headers: {
+                    "Authorization": `Bearer ${token}`,
+                },
+            });
+
+            if (!response.ok) {
+                const responseData = await readResponseJson<{ message?: string }>(response);
+                throw new Error(responseData?.message || "Invoice could not be downloaded");
+            }
+
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const anchor = document.createElement("a");
+            anchor.href = url;
+            anchor.download = `invoice-order-${orderId}.pdf`;
+            document.body.appendChild(anchor);
+            anchor.click();
+            anchor.remove();
+            window.URL.revokeObjectURL(url);
+
+            showToast("Invoice downloaded", "success");
+        } catch (error) {
+            showToast(error instanceof Error ? error.message : "Failed to download invoice", "error");
+            console.error("LOG::ERROR::downloadInvoice", error);
+        } finally {
+            setDownloadingInvoices(prev => ({ ...prev, [orderId]: false }));
         }
     }
     //#endregion
@@ -680,7 +742,9 @@ export default function SalesManagerOrders() {
                             <SalesManagerOrderCard
                                 order={item}
                                 isUpdating={!!updatingOrders[item.orderId]}
+                                isDownloadingInvoice={!!downloadingInvoices[item.orderId]}
                                 onStatusChange={updateOrderStatus}
+                                onDownloadInvoice={downloadInvoice}
                             />
                         )}
                         contentContainerStyle={styles.listContainer}
@@ -1005,6 +1069,9 @@ const styles = StyleSheet.create({
         gap: 10,
         marginTop: 8,
     },
+    invoiceButtonContainer: {
+        marginTop: 10,
+    },
     statusButtonWrapper: {
         minWidth: 120,
         alignItems: "center",
@@ -1017,6 +1084,19 @@ const styles = StyleSheet.create({
         backgroundColor: "#a94c0f",
     },
     statusButtonText: {
+        fontFamily: Fonts.semibold,
+        fontSize: 13,
+        color: Colors.light.greenButtonTextColor,
+    },
+    invoiceButtonWrapper: {
+        minWidth: 170,
+        alignItems: "center",
+        backgroundColor: "#1f3d2b",
+        borderRadius: 8,
+        paddingVertical: 10,
+        paddingHorizontal: 12,
+    },
+    invoiceButtonText: {
         fontFamily: Fonts.semibold,
         fontSize: 13,
         color: Colors.light.greenButtonTextColor,

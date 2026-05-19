@@ -2024,6 +2024,44 @@ Status: `200 OK`
 
 ---
 
+### `GET /api/v3/orders/:orderId/invoice.pdf`
+
+Generates the invoice PDF for any order and streams it back as a file download. This endpoint is intended for sales managers.
+
+#### Auth
+
+- Required (sales manager only)
+
+#### Path Params
+
+- `orderId`: target order id
+
+#### Request Body
+
+No request body.
+
+#### Success Response
+
+Status: `200 OK`
+
+Response is a binary PDF stream (not JSON):
+
+```http
+Content-Type: application/pdf
+Content-Disposition: attachment; filename="invoice-order-<orderId>.pdf"
+Content-Length: <bytes>
+```
+
+#### Common Errors
+
+- `400` if `orderId` is missing
+- `401` if token is missing
+- `401` if token is invalid
+- `403` if user is not a sales manager
+- `404` if the order is not found
+
+---
+
 
 ### `GET /api/v3/orders`
 
@@ -2465,6 +2503,7 @@ These must be set on the backend for invoice emails and wishlist discount notifi
 - `POST /api/v3/payments/`
 - `GET /api/v3/orders`
 - `GET /api/v3/orders/reports/financial-summary`
+- `GET /api/v3/orders/:orderId/invoice.pdf`
 - `PATCH /api/v3/orders/:orderId/status`
 - `GET /api/v3/refunds/`
 - `PATCH /api/v3/refunds/:refundId`
@@ -2498,3 +2537,4 @@ These must be set on the backend for invoice emails and wishlist discount notifi
 21. `PATCH /products/:productId/discount` is restricted to `sales_manager` users and automatically emails wishlist users when the discount increases.
 22. `GET /orders/reports/financial-summary` is restricted to `sales_manager` users and requires `startDate` and `endDate` query params in `YYYY-MM-DD` format.
 23. `GET /orders` is restricted to `sales_manager` users and supports optional `status` and `startDate`/`endDate` filters.
+24. `GET /orders/:orderId/invoice.pdf` is restricted to `sales_manager` users and returns a binary PDF stream for any order.

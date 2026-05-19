@@ -262,3 +262,52 @@ describe("historical order invoice download route", () => {
     });
   });
 });
+
+describe("sales manager invoice download route", () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  test("downloads a PDF invoice for any order", async () => {
+    const pdfBuffer = Buffer.from("%PDF-1.4\ninvoice\n%%EOF");
+    jest.spyOn(invoiceService, "generateInvoiceForManager").mockResolvedValue({
+      pdfBuffer,
+      order: { orderId: "order-1" },
+      user: { userId: "user-2" },
+    });
+
+    const token = jwt.sign(
+      { userId: "manager-1", role: "sales_manager" },
+      process.env.JWT_SECRET
+    );
+
+    const response = await request(app)
+      .get("/api/v3/orders/order-1/invoice.pdf")
+      .set("Authorization", `Bearer ${token}`)
+      .expect(200);
+
+    expect(response.headers["content-type"]).toMatch(/application\/pdf/);
+    expect(response.headers["content-disposition"]).toContain(
+      "invoice-order-order-1.pdf"
+    );
+    expect(invoiceService.generateInvoiceForManager).toHaveBeenCalledWith({
+      orderId: "order-1",
+    });
+  });
+
+  test("rejects non sales managers", async () => {
+    const generateSpy = jest.spyOn(invoiceService, "generateInvoiceForManager");
+
+    const token = jwt.sign(
+      { userId: "user-1", role: "customer" },
+      process.env.JWT_SECRET
+    );
+
+    await request(app)
+      .get("/api/v3/orders/order-1/invoice.pdf")
+      .set("Authorization", `Bearer ${token}`)
+      .expect(403);
+
+    expect(generateSpy).not.toHaveBeenCalled();
+  });
+});
