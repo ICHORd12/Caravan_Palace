@@ -1121,6 +1121,59 @@ Status: `200 OK`
 
 ---
 
+### `PATCH /api/v3/products/:productId/base-price`
+
+Updates a product's base price. The backend recalculates `current_price` using the existing discount rate.
+
+#### Auth
+
+- Required (sales manager only)
+
+#### Path Params
+
+- `productId`: target product id
+
+#### Request Body
+
+```json
+{
+  "basePrice": 550000
+}
+```
+
+#### Notes
+
+- `basePrice` must be a number greater than `0`.
+- The backend recalculates `current_price` using the existing `discount_rate`.
+- The existing `discount_rate` remains unchanged.
+
+#### Success Response
+
+Status: `200 OK`
+
+```json
+{
+  "message": "Product base price updated successfully",
+  "product": {
+    "productId": "8924ed90-3acb-4e39-a9a5-5c47a84255e9",
+    "name": "Eco Camper Van",
+    "basePrice": "550000.00",
+    "currentPrice": "467500.00",
+    "discountRate": 15
+  }
+}
+```
+
+#### Common Errors
+
+- `400` if `basePrice` is missing, not numeric, or not greater than `0`
+- `401` if token is missing
+- `401` if token is invalid
+- `403` if user is not a sales manager
+- `404` if product is not found
+
+---
+
 
 ## Review Endpoints
 
@@ -2486,6 +2539,7 @@ These must be set on the backend for invoice emails and wishlist discount notifi
 - `POST /api/v3/users/me/orders/:orderId/refund-requests`
 - `POST /api/v3/users/me/orders/:orderId/items/:orderItemId/refund-requests`
 - `PATCH /api/v3/products/:productId/discount`
+- `PATCH /api/v3/products/:productId/base-price`
 - `GET /api/v3/cart/`
 - `POST /api/v3/cart/items`
 - `PATCH /api/v3/cart/items/:productId`

@@ -72,3 +72,20 @@ exports.updateProductDiscount = async (req, res, next) => {
     next(err);
   }
 };
+
+exports.updateProductBasePrice = async (req, res, next) => {
+  try {
+    const { productId } = req.params;
+    const userRole = req.user.role;
+
+    const result = await productService.updateProductBasePrice({
+      productId,
+      basePrice: req.body.basePrice ?? req.body.base_price,
+      userRole,
+    });
+
+    res.status(200).json(result);
+  } catch (err) {
+    next(err);
+  }
+};

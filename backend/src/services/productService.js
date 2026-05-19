@@ -5,9 +5,9 @@ const ApiError = require("../utils/ApiError");
 const { normalizeSort } = require("../utils/sorter");
 const discountNotificationService = require("./discountNotificationService");
 
-const assertSalesManager = (userRole) => {
+const assertSalesManager = (userRole, action = "update discounts") => {
   if (userRole !== "sales_manager") {
-    throw new ApiError(403, "Only sales managers can update discounts");
+    throw new ApiError(403, `Only sales managers can ${action}`);
   }
 };
 
@@ -23,6 +23,20 @@ const normalizeDiscountRate = (discountRate) => {
   }
 
   return Number(parsedRate.toFixed(2));
+};
+
+const normalizeBasePrice = (basePrice) => {
+  const parsedPrice = Number(basePrice);
+
+  if (!Number.isFinite(parsedPrice)) {
+    throw new ApiError(400, "basePrice must be a number");
+  }
+
+  if (parsedPrice <= 0) {
+    throw new ApiError(400, "basePrice must be greater than 0");
+  }
+
+  return Number(parsedPrice.toFixed(2));
 };
 
 exports.getAllProducts = async({sort}) => {
@@ -161,7 +175,7 @@ exports.searchProductsByNameOrDescription = async ({q, sort}) => {
 };
 
 exports.updateProductDiscount = async ({ productId, discountRate, userRole }) => {
-  assertSalesManager(userRole);
+  assertSalesManager(userRole, "update discounts");
 
   if (!productId) {
     throw new ApiError(400, "Product ID is required");
@@ -238,5 +252,51 @@ exports.updateProductDiscount = async ({ productId, discountRate, userRole }) =>
     product: updatedProduct,
     previousDiscountRate,
     notificationSummary,
+  };
+};
+
+exports.updateProductBasePrice = async ({ productId, basePrice, userRole }) => {
+  assertSalesManager(userRole, "update base prices");
+
+  if (!productId) {
+    throw new ApiError(400, "Product ID is required");
+  }
+
+  const normalizedBasePrice = normalizeBasePrice(basePrice);
+  const client = await pool.connect();
+
+  let updatedProduct = null;
+
+  try {
+    await client.query("BEGIN");
+
+    const existingProduct = await productModel.getProductDiscountForUpdate(
+      productId,
+      client
+    );
+
+    if (!existingProduct) {
+      throw new ApiError(404, "Product not found");
+    }
+
+    updatedProduct = await productModel.updateProductBasePrice(
+      {
+        productId,
+        basePrice: normalizedBasePrice,
+      },
+      client
+    );
+
+    await client.query("COMMIT");
+  } catch (err) {
+    await client.query("ROLLBACK");
+    throw err;
+  } finally {
+    client.release();
+  }
+
+  return {
+    message: "Product base price updated successfully",
+    product: updatedProduct,
   };
 };
