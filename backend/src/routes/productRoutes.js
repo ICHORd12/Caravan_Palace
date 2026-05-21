@@ -11,6 +11,7 @@ router.get("/search", productController.searchProductsByNameOrDescription);
 router.post("/", authMiddleware, productController.createProduct);
 router.post("/by-ids", productController.getProductsByIds);
 router.patch("/:productId/discount", authMiddleware, productController.updateProductDiscount);
+router.patch("/:productId/stock", authMiddleware, productController.updateProductStock);
 router.get("/:productId/details", optionalAuthMiddleware, productController.getProductDetails);
 
 module.exports = router;

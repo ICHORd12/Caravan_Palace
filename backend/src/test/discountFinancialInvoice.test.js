@@ -212,6 +212,81 @@ describe("productService.createProduct", () => {
   });
 });
 
+describe("productService.updateProductStock", () => {
+  let client;
+
+  beforeEach(() => {
+    client = buildClient();
+    jest.spyOn(pool, "connect").mockResolvedValue(client);
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  test("sets stock for product managers", async () => {
+    jest.spyOn(productModel, "getProductByIdForUpdate").mockResolvedValue({
+      productId: "prod-stock",
+      name: "Stock Caravan",
+      quantityInStocks: 3,
+    });
+    jest.spyOn(productModel, "updateProductStock").mockResolvedValue({
+      product_id: "prod-stock",
+      quantity_in_stocks: 12,
+    });
+    jest.spyOn(productModel, "getProductDetailsById").mockResolvedValue({
+      productId: "prod-stock",
+      name: "Stock Caravan",
+      quantityInStocks: 12,
+    });
+
+    const result = await productService.updateProductStock({
+      productId: "prod-stock",
+      quantityInStocks: 12,
+      userRole: "product_manager",
+    });
+
+    expect(result.message).toBe("Product stock updated successfully");
+    expect(result.previousQuantityInStocks).toBe(3);
+    expect(result.product.quantityInStocks).toBe(12);
+    expect(productModel.updateProductStock).toHaveBeenCalledWith(
+      {
+        productId: "prod-stock",
+        quantityInStocks: 12,
+      },
+      client
+    );
+  });
+
+  test("rejects non product managers", async () => {
+    await expect(
+      productService.updateProductStock({
+        productId: "prod-stock",
+        quantityInStocks: 12,
+        userRole: "customer",
+      })
+    ).rejects.toThrow(/product managers/i);
+  });
+
+  test("validates stock as a non-negative integer", async () => {
+    await expect(
+      productService.updateProductStock({
+        productId: "prod-stock",
+        quantityInStocks: -1,
+        userRole: "product_manager",
+      })
+    ).rejects.toThrow(/quantityInStocks must be at least 0/i);
+
+    await expect(
+      productService.updateProductStock({
+        productId: "prod-stock",
+        quantityInStocks: 1.5,
+        userRole: "product_manager",
+      })
+    ).rejects.toThrow(/quantityInStocks must be an integer/i);
+  });
+});
+
 describe("emailService.sendWishlistDiscountEmail", () => {
   afterEach(() => {
     emailService._resetTransporter();

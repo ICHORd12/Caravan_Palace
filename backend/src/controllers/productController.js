@@ -86,3 +86,20 @@ exports.updateProductDiscount = async (req, res, next) => {
     next(err);
   }
 };
+
+exports.updateProductStock = async (req, res, next) => {
+  try {
+    const { productId } = req.params;
+    const userRole = req.user.role;
+
+    const result = await productService.updateProductStock({
+      productId,
+      quantityInStocks: req.body.quantityInStocks,
+      userRole,
+    });
+
+    res.status(200).json(result);
+  } catch (err) {
+    next(err);
+  }
+};

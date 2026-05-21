@@ -765,6 +765,75 @@ Status: `201 Created`
 
 ---
 
+### `PATCH /api/v3/products/:productId/stock`
+
+Updates a product's stock quantity. This endpoint sets the absolute stock count for product-manager inventory management.
+
+#### Auth
+
+- Required
+- Restricted to users with role `product_manager`
+
+#### Path Params
+
+- `productId`: target product id
+
+#### Request Body
+
+```json
+{
+  "quantityInStocks": 12
+}
+```
+
+#### Request Fields
+
+- `quantityInStocks`: required integer, minimum `0`
+
+#### Success Response
+
+Status: `200 OK`
+
+```json
+{
+  "message": "Product stock updated successfully",
+  "product": {
+    "productId": "8c322b6b-db04-44cb-83f1-c84324e1b857",
+    "categoryId": "ff28bce6-284e-4c65-8557-0416f4274679",
+    "name": "Caravan X",
+    "model": "2026",
+    "serialNumber": "SN-2026-001",
+    "description": "Product description",
+    "quantityInStocks": 12,
+    "basePrice": 100000,
+    "currentPrice": 95000,
+    "warrantyStatus": "3 Years",
+    "distributorInfo": "Distributor name",
+    "berthCount": 4,
+    "fuelType": "Diesel",
+    "weightKg": 2500,
+    "hasKitchen": true,
+    "discountRate": 5,
+    "averageRating": 0,
+    "reviewCount": 0,
+    "createdAt": "2026-04-09T00:00:00.000Z",
+    "updatedAt": "2026-04-09T00:00:00.000Z",
+    "images": []
+  },
+  "previousQuantityInStocks": 8
+}
+```
+
+#### Common Errors
+
+- `400` if `quantityInStocks` is missing, negative, or not an integer
+- `401` if token is missing
+- `401` if token is invalid
+- `403` if authenticated user is not a `product_manager`
+- `404` if product is not found
+
+---
+
 ### `GET /api/v3/products/all`
 
 Fetches all products.
@@ -2310,6 +2379,7 @@ These must be set on the backend for `POST /api/v3/invoices/:orderId/email` to w
 
 - `GET /api/v3/users/me`
 - `POST /api/v3/products`
+- `PATCH /api/v3/products/:productId/stock`
 - `GET /api/v3/users/me/orders`
 - `GET /api/v3/users/me/orders/:orderId`
 - `POST /api/v3/users/me/orders/:orderId/cancel`
@@ -2361,3 +2431,4 @@ These must be set on the backend for `POST /api/v3/invoices/:orderId/email` to w
 19. `POST /users/me/orders/:orderId/items/:orderItemId/refund-requests` allows item-level refunds under the same delivery and window rules.
 20. `GET /refunds/` and `PATCH /refunds/:refundId` are restricted to `sales_manager` users.
 21. `POST /products` is restricted to `product_manager` users and creates products with optional image rows in one transaction.
+22. `PATCH /products/:productId/stock` is restricted to `product_manager` users and sets the product stock to an absolute non-negative integer.

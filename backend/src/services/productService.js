@@ -409,3 +409,62 @@ exports.updateProductDiscount = async ({ productId, discountRate, userRole }) =>
     notificationSummary,
   };
 };
+
+exports.updateProductStock = async ({ productId, quantityInStocks, userRole }) => {
+  assertProductManager(userRole, "update stock");
+
+  if (!productId) {
+    throw new ApiError(400, "Product ID is required");
+  }
+
+  const normalizedQuantity = validateNumber(
+    quantityInStocks,
+    "quantityInStocks",
+    {
+      min: 0,
+      integer: true,
+    }
+  );
+
+  const client = await pool.connect();
+  let previousQuantityInStocks = 0;
+  let updatedProduct = null;
+
+  try {
+    await client.query("BEGIN");
+
+    const existingProduct = await productModel.getProductByIdForUpdate(
+      productId,
+      client
+    );
+
+    if (!existingProduct) {
+      throw new ApiError(404, "Product not found");
+    }
+
+    previousQuantityInStocks = Number(existingProduct.quantityInStocks || 0);
+
+    await productModel.updateProductStock(
+      {
+        productId,
+        quantityInStocks: normalizedQuantity,
+      },
+      client
+    );
+
+    updatedProduct = await productModel.getProductDetailsById(productId, client);
+
+    await client.query("COMMIT");
+  } catch (err) {
+    await client.query("ROLLBACK");
+    throw err;
+  } finally {
+    client.release();
+  }
+
+  return {
+    message: "Product stock updated successfully",
+    product: updatedProduct,
+    previousQuantityInStocks,
+  };
+};

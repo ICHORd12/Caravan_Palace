@@ -16,6 +16,7 @@ export const registerEndPoint = `${base}/auth/register`;
 export const TOKEN_VALIDATE = `${base}/users/me`
 export const PRODUCTS_BASE_ENDPOINT = `${base}/products`;
 export const CREATE_PRODUCT_END_POINT = `${base}/products`;
+export const UPDATE_PRODUCT_STOCK_END_POINT = `${base}/products`;
 export const PRODUCTS_END_POINT = `${base}/products/all`;
 export const FETCH_PRODUCTS_DETAILS_END_POINT = `${base}/products/by-ids`;
 export const MERGE_BACKEND_CART_END_POINT = `${base}/cart/merge`;
