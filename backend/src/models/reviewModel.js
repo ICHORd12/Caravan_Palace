@@ -155,6 +155,61 @@ exports.getApprovedReviewsByProductId = async (productId) => {
 };
 
 
+exports.getPendingReviews = async () => {
+  const result = await pool.query(
+    `
+    SELECT
+      r.review_id,
+      r.product_id,
+      r.user_id,
+      u.name AS user_name,
+      r.rating,
+      r.comment_text,
+      r.is_approved,
+      r.created_at,
+      r.updated_at
+    FROM reviews r
+    INNER JOIN users u ON r.user_id = u.user_id
+    WHERE r.is_approved = false
+      AND COALESCE(TRIM(r.comment_text), '') <> ''
+    ORDER BY r.created_at ASC
+    `
+  );
+
+  return result.rows.map(mapReviewWithUser);
+};
+
+
+exports.approveReview = async (reviewId) => {
+  const result = await pool.query(
+    `
+    UPDATE reviews
+    SET is_approved = true,
+        updated_at = NOW()
+    WHERE review_id = $1
+    RETURNING *
+    `,
+    [reviewId]
+  );
+
+  return mapReview(result.rows[0]);
+};
+
+
+exports.rejectReview = async (reviewId) => {
+  const result = await pool.query(
+    `
+    DELETE FROM reviews
+    WHERE review_id = $1
+    RETURNING *
+    `,
+    [reviewId]
+  );
+
+  return mapReview(result.rows[0]);
+};
+
+
 exports.createReview = async ({ userId, productId, rating, commentText }) => {
   const normalizedComment =
     typeof commentText === "string" ? commentText.trim() : "";

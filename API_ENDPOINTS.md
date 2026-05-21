@@ -1265,6 +1265,142 @@ Public review responses include `userName`:
 }
 ```
 
+### `GET /api/v3/reviews/pending`
+
+Fetches reviews with comments that are waiting for product-manager approval.
+
+#### Auth
+
+- Required
+- Restricted to users with role `product_manager`
+
+#### Success Response
+
+Status: `200 OK`
+
+```json
+{
+  "message": "Pending reviews fetched successfully",
+  "reviews": [
+    {
+      "reviewId": "3a2fd384-e018-4f7d-81c5-9e0b9a57a2bf",
+      "productId": "8924ed90-3acb-4e39-a9a5-5c47a84255e9",
+      "userId": "b3c3f74e-4aba-4e46-8e5c-53c344f2d259",
+      "userName": "John Doe",
+      "rating": 5,
+      "commentText": "Excellent caravan.",
+      "isApproved": false,
+      "createdAt": "2026-04-20T14:30:00.000Z",
+      "updatedAt": "2026-04-20T14:30:00.000Z"
+    }
+  ]
+}
+```
+
+#### Common Errors
+
+- `401` if token is missing
+- `401` if token is invalid
+- `403` if authenticated user is not a `product_manager`
+
+---
+
+### `PATCH /api/v3/reviews/:reviewId/approve`
+
+Approves a pending review comment so it appears in public product review lists and product rating summaries.
+
+#### Auth
+
+- Required
+- Restricted to users with role `product_manager`
+
+#### Path Params
+
+- `reviewId`: target review id
+
+#### Success Response
+
+Status: `200 OK`
+
+```json
+{
+  "message": "Review approved successfully",
+  "review": {
+    "reviewId": "3a2fd384-e018-4f7d-81c5-9e0b9a57a2bf",
+    "productId": "8924ed90-3acb-4e39-a9a5-5c47a84255e9",
+    "userId": "b3c3f74e-4aba-4e46-8e5c-53c344f2d259",
+    "rating": 5,
+    "commentText": "Excellent caravan.",
+    "isApproved": true,
+    "createdAt": "2026-04-20T14:30:00.000Z",
+    "updatedAt": "2026-04-20T14:35:00.000Z"
+  }
+}
+```
+
+If the review is already approved, the endpoint returns `200 OK` with:
+
+```json
+{
+  "message": "Review is already approved",
+  "review": {
+    "reviewId": "3a2fd384-e018-4f7d-81c5-9e0b9a57a2bf",
+    "isApproved": true
+  }
+}
+```
+
+#### Common Errors
+
+- `401` if token is missing
+- `401` if token is invalid
+- `403` if authenticated user is not a `product_manager`
+- `404` if review is not found
+
+---
+
+### `PATCH /api/v3/reviews/:reviewId/reject`
+
+Rejects a review comment. The current backend represents rejection by deleting the review row.
+
+#### Auth
+
+- Required
+- Restricted to users with role `product_manager`
+
+#### Path Params
+
+- `reviewId`: target review id
+
+#### Success Response
+
+Status: `200 OK`
+
+```json
+{
+  "message": "Review rejected successfully",
+  "review": {
+    "reviewId": "3a2fd384-e018-4f7d-81c5-9e0b9a57a2bf",
+    "productId": "8924ed90-3acb-4e39-a9a5-5c47a84255e9",
+    "userId": "b3c3f74e-4aba-4e46-8e5c-53c344f2d259",
+    "rating": 5,
+    "commentText": "Excellent caravan.",
+    "isApproved": false,
+    "createdAt": "2026-04-20T14:30:00.000Z",
+    "updatedAt": "2026-04-20T14:30:00.000Z"
+  }
+}
+```
+
+#### Common Errors
+
+- `401` if token is missing
+- `401` if token is invalid
+- `403` if authenticated user is not a `product_manager`
+- `404` if review is not found
+
+---
+
 ### `GET /api/v3/reviews/:productId/reviews`
 
 Fetches approved reviews for a product.
@@ -2394,6 +2530,9 @@ These must be set on the backend for `POST /api/v3/invoices/:orderId/email` to w
 - `GET /api/v3/wishlist/`
 - `POST /api/v3/wishlist/:productId`
 - `DELETE /api/v3/wishlist/:productId`
+- `GET /api/v3/reviews/pending`
+- `PATCH /api/v3/reviews/:reviewId/approve`
+- `PATCH /api/v3/reviews/:reviewId/reject`
 - `GET /api/v3/reviews/:productId/review-eligibility`
 - `POST /api/v3/reviews/:productId/reviews`
 - `DELETE /api/v3/reviews/:reviewId`
@@ -2432,3 +2571,4 @@ These must be set on the backend for `POST /api/v3/invoices/:orderId/email` to w
 20. `GET /refunds/` and `PATCH /refunds/:refundId` are restricted to `sales_manager` users.
 21. `POST /products` is restricted to `product_manager` users and creates products with optional image rows in one transaction.
 22. `PATCH /products/:productId/stock` is restricted to `product_manager` users and sets the product stock to an absolute non-negative integer.
+23. `GET /reviews/pending`, `PATCH /reviews/:reviewId/approve`, and `PATCH /reviews/:reviewId/reject` are restricted to `product_manager` users. Rejection deletes the review row because the current schema stores approval as a boolean.

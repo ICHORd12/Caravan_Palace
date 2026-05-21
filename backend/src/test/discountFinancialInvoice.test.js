@@ -7,6 +7,8 @@ const pool = require("../config/db");
 const app = require("../app");
 const productService = require("../services/productService");
 const productModel = require("../models/productModel");
+const reviewService = require("../services/reviewService");
+const reviewModel = require("../models/reviewModel");
 const discountNotificationService = require("../services/discountNotificationService");
 const emailService = require("../services/emailService");
 const financialReportService = require("../services/financialReportService");
@@ -284,6 +286,80 @@ describe("productService.updateProductStock", () => {
         userRole: "product_manager",
       })
     ).rejects.toThrow(/quantityInStocks must be an integer/i);
+  });
+});
+
+describe("reviewService product-manager moderation", () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  test("fetches pending reviews for product managers", async () => {
+    jest.spyOn(reviewModel, "getPendingReviews").mockResolvedValue([
+      {
+        reviewId: "review-1",
+        productId: "prod-1",
+        userId: "user-1",
+        rating: 5,
+        commentText: "Needs approval",
+        isApproved: false,
+      },
+    ]);
+
+    const result = await reviewService.getPendingReviews({
+      userRole: "product_manager",
+    });
+
+    expect(result.message).toBe("Pending reviews fetched successfully");
+    expect(result.reviews).toHaveLength(1);
+  });
+
+  test("approves pending reviews for product managers", async () => {
+    jest.spyOn(reviewModel, "getReviewById").mockResolvedValue({
+      reviewId: "review-1",
+      isApproved: false,
+    });
+    jest.spyOn(reviewModel, "approveReview").mockResolvedValue({
+      reviewId: "review-1",
+      isApproved: true,
+    });
+
+    const result = await reviewService.approveReview({
+      reviewId: "review-1",
+      userRole: "product_manager",
+    });
+
+    expect(result.message).toBe("Review approved successfully");
+    expect(result.review.isApproved).toBe(true);
+    expect(reviewModel.approveReview).toHaveBeenCalledWith("review-1");
+  });
+
+  test("rejects reviews by deleting them for product managers", async () => {
+    jest.spyOn(reviewModel, "getReviewById").mockResolvedValue({
+      reviewId: "review-1",
+      isApproved: false,
+    });
+    jest.spyOn(reviewModel, "rejectReview").mockResolvedValue({
+      reviewId: "review-1",
+      isApproved: false,
+    });
+
+    const result = await reviewService.rejectReview({
+      reviewId: "review-1",
+      userRole: "product_manager",
+    });
+
+    expect(result.message).toBe("Review rejected successfully");
+    expect(reviewModel.rejectReview).toHaveBeenCalledWith("review-1");
+  });
+
+  test("rejects non product managers", async () => {
+    await expect(
+      reviewService.approveReview({
+        reviewId: "review-1",
+        userRole: "customer",
+      })
+    ).rejects.toThrow(/product managers/i);
   });
 });
 

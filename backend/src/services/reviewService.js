@@ -1,5 +1,11 @@
-    const reviewModel = require("../models/reviewModel");
+const reviewModel = require("../models/reviewModel");
 const ApiError = require("../utils/ApiError");
+
+const assertProductManager = (userRole) => {
+  if (userRole !== "product_manager") {
+    throw new ApiError(403, "Only product managers can moderate reviews");
+  }
+};
 
 exports.getReviewsByProductId = async (productId) => {
   const reviews = await reviewModel.getReviewsByProductId(productId);
@@ -103,6 +109,61 @@ exports.deleteReview = async ({ reviewId, userId, userRole }) => {
 
   return {
     message: "Review deleted successfully",
+  };
+};
+
+
+exports.getPendingReviews = async ({ userRole }) => {
+  assertProductManager(userRole);
+
+  const reviews = await reviewModel.getPendingReviews();
+
+  return {
+    message: "Pending reviews fetched successfully",
+    reviews,
+  };
+};
+
+
+exports.approveReview = async ({ reviewId, userRole }) => {
+  assertProductManager(userRole);
+
+  const review = await reviewModel.getReviewById(reviewId);
+
+  if (!review) {
+    throw new ApiError(404, "Review not found");
+  }
+
+  if (review.isApproved) {
+    return {
+      message: "Review is already approved",
+      review,
+    };
+  }
+
+  const approvedReview = await reviewModel.approveReview(reviewId);
+
+  return {
+    message: "Review approved successfully",
+    review: approvedReview,
+  };
+};
+
+
+exports.rejectReview = async ({ reviewId, userRole }) => {
+  assertProductManager(userRole);
+
+  const review = await reviewModel.getReviewById(reviewId);
+
+  if (!review) {
+    throw new ApiError(404, "Review not found");
+  }
+
+  const rejectedReview = await reviewModel.rejectReview(reviewId);
+
+  return {
+    message: "Review rejected successfully",
+    review: rejectedReview,
   };
 };
 

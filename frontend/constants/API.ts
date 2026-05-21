@@ -31,5 +31,7 @@ export const GET_ORDERS_END_POINT = `${base}/users/me/orders`;
 export const GET_ORDER_DETAILS_END_POINT = `${base}/users/me/orders`;
 export const INVOICE_API_END_POINT = `${base}/invoices`;
 export const REVIEWS_ENDPOINT = `${base}/reviews`
+export const PENDING_REVIEWS_END_POINT = `${base}/reviews/pending`;
+export const REVIEW_MODERATION_END_POINT = `${base}/reviews`;
 
 
