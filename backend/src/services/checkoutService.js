@@ -16,7 +16,7 @@ exports.validateCheckout = async ({ userId }) => {
   const stockIssues = [];
 
   for (const item of cartItems) {
-    const product = await productModel.getProductById(item.productId);
+    const product = await productModel.getActiveProductById(item.productId);
 
     if (!product) {
       stockIssues.push({

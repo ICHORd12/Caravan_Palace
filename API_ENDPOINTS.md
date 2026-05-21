@@ -650,6 +650,11 @@ Product objects returned by the product endpoints below include an `images` arra
 }
 ```
 
+#### Active-Only Behavior
+
+- Product list, search, and details endpoints only return products where `is_active = true`.
+- Requests for inactive products return `404`.
+
 ### `GET /api/v3/products/all`
 
 Fetches all products.
@@ -1059,6 +1064,50 @@ Status: `200 OK`
 
 ---
 
+### `PATCH /api/v3/products/:productId/activation`
+
+Activates or deactivates a product.
+
+#### Auth
+
+- Required (product manager only)
+
+#### Path Params
+
+- `productId`: target product id
+
+#### Request Body
+
+```json
+{
+  "isActive": true
+}
+```
+
+#### Success Response
+
+Status: `200 OK`
+
+```json
+{
+  "message": "Product activated successfully",
+  "product": {
+    "productId": "8924ed90-3acb-4e39-a9a5-5c47a84255e9",
+    "isActive": true
+  }
+}
+```
+
+#### Common Errors
+
+- `400` if `isActive` is missing or not a boolean
+- `401` if token is missing
+- `401` if token is invalid
+- `403` if user is not a product manager
+- `404` if product is not found
+
+---
+
 ### `PATCH /api/v3/products/:productId/discount`
 
 Updates a product's discount rate. If the new discount is greater than the previous discount, the backend emails users who have that product in their wishlist.
@@ -1171,6 +1220,88 @@ Status: `200 OK`
 - `401` if token is invalid
 - `403` if user is not a sales manager
 - `404` if product is not found
+
+---
+
+
+## Category Endpoints
+
+### `GET /api/v3/categories`
+
+Fetches all categories.
+
+#### Auth
+
+- Not required
+
+#### Active-Only Behavior
+
+- This endpoint only returns categories where `is_active = true`.
+
+#### Success Response
+
+Status: `200 OK`
+
+```json
+{
+  "message": "Categories fetched successfully",
+  "categories": [
+    {
+      "categoryId": "ff28bce6-284e-4c65-8557-0416f4274679",
+      "categoryName": "Camper Vans"
+    }
+  ]
+}
+```
+
+#### Common Errors
+
+- None
+
+---
+
+### `PATCH /api/v3/categories/:categoryId/activation`
+
+Activates or deactivates a category.
+
+#### Auth
+
+- Required (product manager only)
+
+#### Path Params
+
+- `categoryId`: target category id
+
+#### Request Body
+
+```json
+{
+  "isActive": false
+}
+```
+
+#### Success Response
+
+Status: `200 OK`
+
+```json
+{
+  "message": "Category deactivated successfully",
+  "category": {
+    "categoryId": "ff28bce6-284e-4c65-8557-0416f4274679",
+    "categoryName": "Camper Vans",
+    "isActive": false
+  }
+}
+```
+
+#### Common Errors
+
+- `400` if `isActive` is missing or not a boolean
+- `401` if token is missing
+- `401` if token is invalid
+- `403` if user is not a product manager
+- `404` if category is not found
 
 ---
 
@@ -2008,7 +2139,7 @@ Status: `200 OK`
 
 ## Order Management Endpoints
 
-All order management endpoints require authentication and are restricted to `sales_manager` users.
+All order management endpoints require authentication. All endpoints are restricted to `sales_manager` users except `PATCH /api/v3/orders/:orderId/status`, which requires `product_manager`.
 
 ### `GET /api/v3/orders/reports/financial-summary`
 
@@ -2016,7 +2147,7 @@ Returns revenue, loss, refund loss, net revenue, and profit for orders placed in
 
 #### Auth
 
-- Required (sales manager only)
+- Required (product manager only)
 
 #### Query Params
 
@@ -2231,7 +2362,7 @@ Status: `200 OK`
 - `400` if `status` is missing or invalid
 - `401` if token is missing
 - `401` if token is invalid
-- `403` if user is not a sales manager
+- `403` if user is not a product manager
 - `404` if order is not found
 - `409` if the status transition is not allowed
 
@@ -2538,6 +2669,7 @@ These must be set on the backend for invoice emails and wishlist discount notifi
 - `POST /api/v3/users/me/orders/:orderId/cancel`
 - `POST /api/v3/users/me/orders/:orderId/refund-requests`
 - `POST /api/v3/users/me/orders/:orderId/items/:orderItemId/refund-requests`
+- `PATCH /api/v3/products/:productId/activation`
 - `PATCH /api/v3/products/:productId/discount`
 - `PATCH /api/v3/products/:productId/base-price`
 - `GET /api/v3/cart/`
@@ -2563,6 +2695,7 @@ These must be set on the backend for invoice emails and wishlist discount notifi
 - `PATCH /api/v3/refunds/:refundId`
 - `GET /api/v3/invoices/:orderId/pdf`
 - `POST /api/v3/invoices/:orderId/email`
+- `PATCH /api/v3/categories/:categoryId/activation`
 
 ## Important Implementation Notes For Frontend
 
@@ -2583,7 +2716,7 @@ These must be set on the backend for invoice emails and wishlist discount notifi
 13. `GET /users/me/orders/:orderId/invoice.pdf` and `GET /invoices/:orderId/pdf` return a binary PDF (not JSON). The frontend should treat the response as a `Blob`/`ArrayBuffer` (e.g. `fetch(...).then(r => r.blob())` or axios `responseType: 'blob'`) and trigger a download. The `Content-Disposition` header carries the filename.
 14. `POST /invoices/:orderId/email` always emails the PDF to the authenticated user's email on file — no recipient field is accepted from the client. The endpoint can be called multiple times for the same order. SMTP credentials must be configured in backend env vars (see **Environment Variables** in the Invoice section).
 15. Wishlist endpoints use `productId` as a path parameter. `GET /wishlist/` returns product summary data and the primary image URL; `POST /wishlist/:productId` only returns the created wishlist row, so refetch the wishlist if the UI needs full product details.
-16. `PATCH /orders/:orderId/status` is restricted to `sales_manager` users and handles `processing -> in-transit -> delivered` transitions while populating deliveries.
+16. `PATCH /orders/:orderId/status` is restricted to `product_manager` users and handles `processing -> in-transit -> delivered` transitions while populating deliveries.
 17. `POST /users/me/orders/:orderId/cancel` only works when order status is `processing` and will restock items.
 18. `POST /users/me/orders/:orderId/refund-requests` only works when order status is `delivered` and within 30 days of the latest completed delivery; it creates one refund per order item.
 19. `POST /users/me/orders/:orderId/items/:orderItemId/refund-requests` allows item-level refunds under the same delivery and window rules.
@@ -2592,3 +2725,5 @@ These must be set on the backend for invoice emails and wishlist discount notifi
 22. `GET /orders/reports/financial-summary` is restricted to `sales_manager` users and requires `startDate` and `endDate` query params in `YYYY-MM-DD` format.
 23. `GET /orders` is restricted to `sales_manager` users and supports optional `status` and `startDate`/`endDate` filters.
 24. `GET /orders/:orderId/invoice.pdf` is restricted to `sales_manager` users and returns a binary PDF stream for any order.
+25. Product and category list/search/details endpoints return only active records (`is_active = true`).
+26. `PATCH /products/:productId/activation` and `PATCH /categories/:categoryId/activation` are restricted to `product_manager` users and accept `isActive` in the request body.

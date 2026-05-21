@@ -69,6 +69,39 @@ describe('productModel', () => {
   });
 
   // ------------------------------------------------------------------
+  // Test 2b: getActiveProductById filters by is_active
+  // ------------------------------------------------------------------
+  test('getActiveProductById applies the is_active filter', async () => {
+    querySpy.mockResolvedValue({
+      rows: [
+        {
+          product_id: 7,
+          name: 'Active Product',
+          current_price: '19.99',
+          quantity_in_stocks: 2,
+        },
+      ],
+      rowCount: 1,
+    });
+
+    const product = await productModel.getActiveProductById(7);
+
+    expect(querySpy).toHaveBeenCalledTimes(1);
+    const [sql, params] = querySpy.mock.calls[0];
+    expect(sql).toMatch(/FROM products/i);
+    expect(sql).toMatch(/WHERE product_id = \$1/i);
+    expect(sql).toMatch(/is_active = TRUE/i);
+    expect(params).toEqual([7]);
+
+    expect(product).toMatchObject({
+      productId: 7,
+      name: 'Active Product',
+      currentPrice: '19.99',
+      quantityInStocks: 2,
+    });
+  });
+
+  // ------------------------------------------------------------------
   // Test 3: getAllProducts maps multiple rows and respects the sort param
   // ------------------------------------------------------------------
   test('getAllProducts maps every row and applies the sort ORDER BY', async () => {
@@ -85,6 +118,7 @@ describe('productModel', () => {
     expect(querySpy).toHaveBeenCalledTimes(1);
     const sql = querySpy.mock.calls[0][0];
     expect(sql).toMatch(/FROM products/i);
+    expect(sql).toMatch(/is_active = TRUE/i);
     expect(sql).toMatch(/ORDER BY current_price ASC/);
 
     expect(products).toHaveLength(2);
@@ -103,6 +137,7 @@ describe('productModel', () => {
     expect(querySpy).toHaveBeenCalledTimes(1);
     const [sql, params] = querySpy.mock.calls[0];
     expect(sql).toMatch(/ILIKE/i);
+    expect(sql).toMatch(/is_active = TRUE/i);
     // Implementation does "%" + searchTerm + "%"
     expect(params).toEqual(['%lamp%']);
   });
@@ -169,5 +204,29 @@ describe('productModel', () => {
       currentPrice: '2250.45',
       discountRate: 10,
     });
+  });
+
+  // ------------------------------------------------------------------
+  // Test 7: updateProductIsActive updates is_active
+  // ------------------------------------------------------------------
+  test('updateProductIsActive updates the is_active flag', async () => {
+    querySpy.mockResolvedValue({
+      rows: [{ product_id: 4, is_active: false }],
+      rowCount: 1,
+    });
+
+    const product = await productModel.updateProductIsActive({
+      productId: 4,
+      isActive: false,
+    });
+
+    expect(querySpy).toHaveBeenCalledTimes(1);
+    const [sql, params] = querySpy.mock.calls[0];
+    expect(sql).toMatch(/UPDATE products/i);
+    expect(sql).toMatch(/SET is_active = \$1/i);
+    expect(sql).toMatch(/updated_at/i);
+    expect(params).toEqual([false, 4]);
+
+    expect(product).toEqual({ productId: 4, isActive: false });
   });
 });

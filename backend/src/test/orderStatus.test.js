@@ -1,5 +1,5 @@
 /**
- * Unit tests for sales-manager order status transitions.
+ * Unit tests for product-manager order status transitions.
  */
 
 const { describe, test, expect, beforeEach, afterEach } = require("@jest/globals");
@@ -26,14 +26,14 @@ describe("orderService.updateOrderStatusForManager", () => {
     jest.restoreAllMocks();
   });
 
-  test("rejects non sales managers", async () => {
+  test("rejects non product managers", async () => {
     await expect(
       orderService.updateOrderStatusForManager({
         orderId: "order-1",
         status: "in-transit",
-        userRole: "customer",
+        userRole: "sales_manager",
       })
-    ).rejects.toThrow(/sales managers/i);
+    ).rejects.toThrow(/product managers/i);
   });
 
   test("rejects invalid status", async () => {
@@ -41,7 +41,7 @@ describe("orderService.updateOrderStatusForManager", () => {
       orderService.updateOrderStatusForManager({
         orderId: "order-1",
         status: "processing",
-        userRole: "sales_manager",
+        userRole: "product_manager",
       })
     ).rejects.toThrow(/in-transit or delivered/i);
   });
@@ -68,7 +68,7 @@ describe("orderService.updateOrderStatusForManager", () => {
     const result = await orderService.updateOrderStatusForManager({
       orderId: "order-2",
       status: "in-transit",
-      userRole: "sales_manager",
+      userRole: "product_manager",
     });
 
     expect(result.message).toBe("Order status updated successfully");
@@ -102,7 +102,7 @@ describe("orderService.updateOrderStatusForManager", () => {
     const result = await orderService.updateOrderStatusForManager({
       orderId: "order-3",
       status: "delivered",
-      userRole: "sales_manager",
+      userRole: "product_manager",
     });
 
     expect(result.message).toBe("Order status updated successfully");
