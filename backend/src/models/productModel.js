@@ -62,8 +62,10 @@ exports.getProductById = async (productId) => {
 };
 
 
-exports.getProductDetailsById = async (productId) => {
-  const result = await pool.query(
+exports.getProductDetailsById = async (productId, client) => {
+  const executor = client || pool;
+
+  const result = await executor.query(
     `
     SELECT 
       p.*,
@@ -79,6 +81,111 @@ exports.getProductDetailsById = async (productId) => {
   );
 
   return mapProduct(result.rows[0]);
+};
+
+
+exports.categoryExists = async (categoryId) => {
+  const result = await pool.query(
+    `
+    SELECT 1
+    FROM categories
+    WHERE category_id = $1
+    `,
+    [categoryId]
+  );
+
+  return result.rowCount > 0;
+};
+
+
+exports.createProduct = async (product, client) => {
+  const executor = client || pool;
+
+  const result = await executor.query(
+    `
+    INSERT INTO products (
+      category_id,
+      name,
+      model,
+      serial_number,
+      description,
+      quantity_in_stocks,
+      base_price,
+      current_price,
+      warranty_status,
+      distributor_info,
+      berth_count,
+      fuel_type,
+      weight_kg,
+      has_kitchen,
+      discount_rate
+    )
+    VALUES (
+      $1, $2, $3, $4, $5,
+      $6, $7, $8, $9, $10,
+      $11, $12, $13, $14, $15
+    )
+    RETURNING *
+    `,
+    [
+      product.categoryId,
+      product.name,
+      product.model,
+      product.serialNumber,
+      product.description,
+      product.quantityInStocks,
+      product.basePrice,
+      product.currentPrice,
+      product.warrantyStatus,
+      product.distributorInfo,
+      product.berthCount,
+      product.fuelType,
+      product.weightKg,
+      product.hasKitchen,
+      product.discountRate,
+    ]
+  );
+
+  return mapProduct(result.rows[0] || null);
+};
+
+
+exports.createProductImages = async ({ productId, images }, client) => {
+  const executor = client || pool;
+
+  if (!Array.isArray(images) || images.length === 0) {
+    return [];
+  }
+
+  const result = await executor.query(
+    `
+    INSERT INTO product_images (
+      product_id,
+      url,
+      is_primary
+    )
+    SELECT
+      $1,
+      image.url,
+      image.is_primary
+    FROM json_to_recordset($2::json) AS image(
+      url text,
+      is_primary boolean
+    )
+    RETURNING image_id, product_id, url, is_primary, created_at
+    `,
+    [
+      productId,
+      JSON.stringify(
+        images.map((image) => ({
+          url: image.url,
+          is_primary: image.isPrimary,
+        }))
+      ),
+    ]
+  );
+
+  return result.rows;
 };
 
 

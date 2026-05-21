@@ -655,6 +655,116 @@ Product objects returned by the product endpoints below include an `images` arra
 }
 ```
 
+### `POST /api/v3/products`
+
+Creates a new product. This endpoint is for product-manager inventory work.
+
+#### Auth
+
+- Required
+- Restricted to users with role `product_manager`
+
+#### Request Body
+
+```json
+{
+  "categoryId": "ff28bce6-284e-4c65-8557-0416f4274679",
+  "name": "Caravan X",
+  "model": "2026",
+  "serialNumber": "SN-2026-001",
+  "description": "Product description",
+  "quantityInStocks": 10,
+  "basePrice": 100000,
+  "warrantyStatus": "3 Years",
+  "distributorInfo": "Distributor name",
+  "berthCount": 4,
+  "fuelType": "Diesel",
+  "weightKg": 2500,
+  "hasKitchen": true,
+  "discountRate": 5,
+  "images": [
+    {
+      "url": "https://example.com/images/caravan-x-front.jpg",
+      "isPrimary": true
+    },
+    {
+      "url": "https://example.com/images/caravan-x-interior.jpg"
+    }
+  ]
+}
+```
+
+#### Request Fields
+
+- `categoryId`: required category UUID
+- `name`: required non-empty string
+- `model`: required non-empty string
+- `serialNumber`: required non-empty string
+- `description`: required non-empty string
+- `quantityInStocks`: required integer, minimum `0`
+- `basePrice`: required number, greater than `0`
+- `warrantyStatus`: required non-empty string
+- `distributorInfo`: optional non-empty string or `null`
+- `berthCount`: required integer, minimum `0`
+- `fuelType`: required non-empty string
+- `weightKg`: required number, greater than `0`
+- `hasKitchen`: required boolean
+- `discountRate`: optional number from `0` to `100`; defaults to `0`
+- `images`: optional array. Each item can be a URL string or an object with `url` and optional `isPrimary`.
+
+The backend calculates `currentPrice` from `basePrice` and `discountRate`. If images are provided and no image is marked primary, the first image is saved as primary.
+
+#### Success Response
+
+Status: `201 Created`
+
+```json
+{
+  "message": "Product created successfully",
+  "product": {
+    "productId": "8c322b6b-db04-44cb-83f1-c84324e1b857",
+    "categoryId": "ff28bce6-284e-4c65-8557-0416f4274679",
+    "name": "Caravan X",
+    "model": "2026",
+    "serialNumber": "SN-2026-001",
+    "description": "Product description",
+    "quantityInStocks": 10,
+    "basePrice": 100000,
+    "currentPrice": 95000,
+    "warrantyStatus": "3 Years",
+    "distributorInfo": "Distributor name",
+    "berthCount": 4,
+    "fuelType": "Diesel",
+    "weightKg": 2500,
+    "hasKitchen": true,
+    "discountRate": 5,
+    "averageRating": 0,
+    "reviewCount": 0,
+    "createdAt": "2026-04-09T00:00:00.000Z",
+    "updatedAt": "2026-04-09T00:00:00.000Z",
+    "images": [
+      {
+        "imageId": "3b67fbdd-d08b-47f7-b493-b3c27ec1a8c4",
+        "url": "https://example.com/images/caravan-x-front.jpg",
+        "isPrimary": true,
+        "createdAt": "2026-04-09T00:00:00.000Z"
+      }
+    ]
+  }
+}
+```
+
+#### Common Errors
+
+- `400` if the request body or product fields are invalid
+- `401` if token is missing
+- `401` if token is invalid
+- `403` if authenticated user is not a `product_manager`
+- `404` if category is not found
+- `409` if product serial number already exists
+
+---
+
 ### `GET /api/v3/products/all`
 
 Fetches all products.
@@ -2199,6 +2309,7 @@ These must be set on the backend for `POST /api/v3/invoices/:orderId/email` to w
 ### Protected Endpoints
 
 - `GET /api/v3/users/me`
+- `POST /api/v3/products`
 - `GET /api/v3/users/me/orders`
 - `GET /api/v3/users/me/orders/:orderId`
 - `POST /api/v3/users/me/orders/:orderId/cancel`
@@ -2249,3 +2360,4 @@ These must be set on the backend for `POST /api/v3/invoices/:orderId/email` to w
 18. `POST /users/me/orders/:orderId/refund-requests` only works when order status is `delivered` and within 30 days of the latest completed delivery; it creates one refund per order item.
 19. `POST /users/me/orders/:orderId/items/:orderItemId/refund-requests` allows item-level refunds under the same delivery and window rules.
 20. `GET /refunds/` and `PATCH /refunds/:refundId` are restricted to `sales_manager` users.
+21. `POST /products` is restricted to `product_manager` users and creates products with optional image rows in one transaction.

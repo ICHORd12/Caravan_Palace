@@ -47,6 +47,20 @@ exports.getProductDetails = async (req, res, next) => {
 };
 
 
+exports.createProduct = async (req, res, next) => {
+  try {
+    const result = await productService.createProduct({
+      payload: req.body,
+      userRole: req.user.role,
+    });
+
+    res.status(201).json(result);
+  } catch (err) {
+    next(err);
+  }
+};
+
+
 exports.searchProductsByNameOrDescription = async (req, res, next) => {
     try {
         const result = await productService.searchProductsByNameOrDescription(req.query);

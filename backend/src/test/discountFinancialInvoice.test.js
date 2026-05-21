@@ -116,6 +116,102 @@ describe("productService.updateProductDiscount", () => {
   });
 });
 
+describe("productService.createProduct", () => {
+  let client;
+
+  beforeEach(() => {
+    client = buildClient();
+    jest.spyOn(pool, "connect").mockResolvedValue(client);
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  const validPayload = {
+    categoryId: "cat-1",
+    name: "Adventure Caravan",
+    model: "ADV-2026",
+    serialNumber: "SN-ADD-001",
+    description: "A new product manager-created caravan.",
+    quantityInStocks: 4,
+    basePrice: 100000,
+    warrantyStatus: "3 Years",
+    distributorInfo: "Caravan Palace",
+    berthCount: 4,
+    fuelType: "Diesel",
+    weightKg: 2400,
+    hasKitchen: true,
+    discountRate: 10,
+    images: [
+      { url: "https://example.com/front.jpg", isPrimary: true },
+      { url: "https://example.com/inside.jpg" },
+    ],
+  };
+
+  test("creates a product and its images for product managers", async () => {
+    jest.spyOn(productModel, "categoryExists").mockResolvedValue(true);
+    jest.spyOn(productModel, "createProduct").mockResolvedValue({
+      productId: "prod-new",
+      ...validPayload,
+      currentPrice: 90000,
+      images: [],
+    });
+    jest.spyOn(productModel, "createProductImages").mockResolvedValue([]);
+    jest.spyOn(productModel, "getProductDetailsById").mockResolvedValue({
+      productId: "prod-new",
+      currentPrice: 90000,
+      discountRate: 10,
+      images: [
+        { url: "https://example.com/front.jpg", isPrimary: true },
+        { url: "https://example.com/inside.jpg", isPrimary: false },
+      ],
+    });
+
+    const result = await productService.createProduct({
+      payload: validPayload,
+      userRole: "product_manager",
+    });
+
+    expect(result.message).toBe("Product created successfully");
+    expect(productModel.createProduct).toHaveBeenCalledWith(
+      expect.objectContaining({
+        currentPrice: 90000,
+        discountRate: 10,
+      }),
+      client
+    );
+    expect(productModel.createProductImages).toHaveBeenCalledWith(
+      {
+        productId: "prod-new",
+        images: [
+          { url: "https://example.com/front.jpg", isPrimary: true },
+          { url: "https://example.com/inside.jpg", isPrimary: false },
+        ],
+      },
+      client
+    );
+  });
+
+  test("rejects non product managers", async () => {
+    await expect(
+      productService.createProduct({
+        payload: validPayload,
+        userRole: "customer",
+      })
+    ).rejects.toThrow(/product managers/i);
+  });
+
+  test("validates required product fields", async () => {
+    await expect(
+      productService.createProduct({
+        payload: { ...validPayload, name: " " },
+        userRole: "product_manager",
+      })
+    ).rejects.toThrow(/name cannot be empty/i);
+  });
+});
+
 describe("emailService.sendWishlistDiscountEmail", () => {
   afterEach(() => {
     emailService._resetTransporter();

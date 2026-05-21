@@ -5,9 +5,9 @@ const ApiError = require("../utils/ApiError");
 const { normalizeSort } = require("../utils/sorter");
 const discountNotificationService = require("./discountNotificationService");
 
-const assertProductManager = (userRole) => {
+const assertProductManager = (userRole, action = "manage products") => {
   if (userRole !== "product_manager") {
-    throw new ApiError(403, "Only product managers can update discounts");
+    throw new ApiError(403, `Only product managers can ${action}`);
   }
 };
 
@@ -23,6 +23,118 @@ const normalizeDiscountRate = (discountRate) => {
   }
 
   return Number(parsedRate.toFixed(2));
+};
+
+const validateString = (value, fieldName) => {
+  if (typeof value !== "string") {
+    throw new ApiError(400, `${fieldName} is required`);
+  }
+
+  const trimmedValue = value.trim();
+
+  if (!trimmedValue) {
+    throw new ApiError(400, `${fieldName} cannot be empty`);
+  }
+
+  return trimmedValue;
+};
+
+const validateOptionalString = (value, fieldName) => {
+  if (value === undefined || value === null) {
+    return null;
+  }
+
+  return validateString(value, fieldName);
+};
+
+const validateNumber = (value, fieldName, { min, integer = false } = {}) => {
+  const parsedValue = Number(value);
+
+  if (!Number.isFinite(parsedValue)) {
+    throw new ApiError(400, `${fieldName} must be a number`);
+  }
+
+  if (integer && !Number.isInteger(parsedValue)) {
+    throw new ApiError(400, `${fieldName} must be an integer`);
+  }
+
+  if (min !== undefined && parsedValue < min) {
+    throw new ApiError(400, `${fieldName} must be at least ${min}`);
+  }
+
+  return parsedValue;
+};
+
+const normalizeProductImages = (images) => {
+  if (images === undefined) {
+    return [];
+  }
+
+  if (!Array.isArray(images)) {
+    throw new ApiError(400, "images must be an array");
+  }
+
+  let primaryAlreadySet = false;
+
+  return images.map((image, index) => {
+    const imagePayload =
+      typeof image === "string" ? { url: image } : image;
+
+    if (!imagePayload || typeof imagePayload !== "object" || Array.isArray(imagePayload)) {
+      throw new ApiError(400, "Each image must be a URL string or an image object");
+    }
+
+    const isPrimaryRequested = imagePayload.isPrimary === true;
+    const isPrimary =
+      isPrimaryRequested && !primaryAlreadySet
+        ? true
+        : images.length > 0 && index === 0 && !images.some((item) => item?.isPrimary === true);
+
+    if (isPrimary) {
+      primaryAlreadySet = true;
+    }
+
+    return {
+      url: validateString(imagePayload.url, "image.url"),
+      isPrimary,
+    };
+  });
+};
+
+const normalizeProductPayload = (payload) => {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    throw new ApiError(400, "Request body must be a JSON object");
+  }
+
+  const basePrice = validateNumber(payload.basePrice, "basePrice", { min: 0.01 });
+  const discountRate = payload.discountRate === undefined
+    ? 0
+    : normalizeDiscountRate(payload.discountRate);
+
+  return {
+    categoryId: validateString(payload.categoryId, "categoryId"),
+    name: validateString(payload.name, "name"),
+    model: validateString(payload.model, "model"),
+    serialNumber: validateString(payload.serialNumber, "serialNumber"),
+    description: validateString(payload.description, "description"),
+    quantityInStocks: validateNumber(payload.quantityInStocks, "quantityInStocks", {
+      min: 0,
+      integer: true,
+    }),
+    basePrice,
+    currentPrice: Number((basePrice * (1 - discountRate / 100)).toFixed(2)),
+    warrantyStatus: validateString(payload.warrantyStatus, "warrantyStatus"),
+    distributorInfo: validateOptionalString(payload.distributorInfo, "distributorInfo"),
+    berthCount: validateNumber(payload.berthCount, "berthCount", {
+      min: 0,
+      integer: true,
+    }),
+    fuelType: validateString(payload.fuelType, "fuelType"),
+    weightKg: validateNumber(payload.weightKg, "weightKg", { min: 0.01 }),
+    hasKitchen: payload.hasKitchen,
+    discountRate,
+    images: normalizeProductImages(payload.images),
+  };
 };
 
 exports.getAllProducts = async({sort}) => {
@@ -143,6 +255,63 @@ exports.getProductDetails = async ({ productId, userId }) => {
   };
 };
 
+exports.createProduct = async ({ payload, userRole }) => {
+  assertProductManager(userRole, "add products");
+
+  const productPayload = normalizeProductPayload(payload);
+
+  if (typeof productPayload.hasKitchen !== "boolean") {
+    throw new ApiError(400, "hasKitchen must be a boolean");
+  }
+
+  const categoryExists = await productModel.categoryExists(productPayload.categoryId);
+
+  if (!categoryExists) {
+    throw new ApiError(404, "Category not found");
+  }
+
+  const client = await pool.connect();
+  let product;
+
+  try {
+    await client.query("BEGIN");
+
+    const createdProduct = await productModel.createProduct(productPayload, client);
+
+    if (productPayload.images.length > 0) {
+      await productModel.createProductImages(
+        {
+          productId: createdProduct.productId,
+          images: productPayload.images,
+        },
+        client
+      );
+    }
+
+    product = await productModel.getProductDetailsById(
+      createdProduct.productId,
+      client
+    );
+
+    await client.query("COMMIT");
+  } catch (err) {
+    await client.query("ROLLBACK");
+
+    if (err.code === "23505") {
+      throw new ApiError(409, "Product serial number already exists");
+    }
+
+    throw err;
+  } finally {
+    client.release();
+  }
+
+  return {
+    message: "Product created successfully",
+    product,
+  };
+};
+
 
 exports.searchProductsByNameOrDescription = async ({q, sort}) => {
     const normalizedSort = normalizeSort(sort);
@@ -161,7 +330,7 @@ exports.searchProductsByNameOrDescription = async ({q, sort}) => {
 };
 
 exports.updateProductDiscount = async ({ productId, discountRate, userRole }) => {
-  assertProductManager(userRole);
+  assertProductManager(userRole, "update discounts");
 
   if (!productId) {
     throw new ApiError(400, "Product ID is required");
