@@ -54,6 +54,16 @@ exports.mapProduct = (row) => {
     images: Array.isArray(row.images) ? row.images : [],
   };
 };
+
+exports.mapCategory = (row) => {
+  if (!row) return null;
+
+  return {
+    categoryId: row.category_id,
+    categoryName: row.category_name,
+  };
+};
+
 exports.mapUser = (row) => {
   if (!row) return null;
 

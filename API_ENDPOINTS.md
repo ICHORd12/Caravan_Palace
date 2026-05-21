@@ -1175,6 +1175,43 @@ Status: `200 OK`
 ---
 
 
+## Category Endpoints
+
+### `GET /api/v3/categories`
+
+Fetches all categories.
+
+#### Auth
+
+- Not required
+
+#### Query Params
+
+- `includeInactive`: optional boolean. When `true`, includes inactive categories. Defaults to `false` (active only).
+
+#### Success Response
+
+Status: `200 OK`
+
+```json
+{
+  "message": "Categories fetched successfully",
+  "categories": [
+    {
+      "categoryId": "ff28bce6-284e-4c65-8557-0416f4274679",
+      "categoryName": "Camper Vans"
+    }
+  ]
+}
+```
+
+#### Common Errors
+
+- None
+
+---
+
+
 ## Review Endpoints
 
 Review routes are mounted under `/api/v3/reviews`.
