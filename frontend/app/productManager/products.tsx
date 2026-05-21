@@ -57,6 +57,8 @@ export default function ProductManagerProducts() {
                     ...p, isActive: p.isActive !== undefined ? p.isActive : true 
                 }));
                 setProducts(mappedProducts);
+            } else {
+                showToast(data.message || "Failed to fetch products", "error");
             }
         } catch (error) {
             showToast("Failed to fetch products", "error");

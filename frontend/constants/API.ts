@@ -32,7 +32,6 @@ export const REVIEWS_ENDPOINT = `${base}/reviews`
 
 export const SALES_MANAGER_ORDERS_ENDPOINT = `${base}/orders`;
 
-
 // --- PRODUCT MANAGER (PM) ENDPOINTS ---
 export const CATEGORIES_ENDPOINT = `${base}/categories`;
 // The PM uses these base routes with specific path params appended (e.g., /:id/activation)
