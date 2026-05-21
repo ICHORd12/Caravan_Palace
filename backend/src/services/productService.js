@@ -11,6 +11,12 @@ const assertSalesManager = (userRole, action = "update discounts") => {
   }
 };
 
+const assertProductManager = (userRole, action = "update products") => {
+  if (userRole !== "product_manager") {
+    throw new ApiError(403, `Only product managers can ${action}`);
+  }
+};
+
 const normalizeDiscountRate = (discountRate) => {
   const parsedRate = Number(discountRate);
 
@@ -37,6 +43,28 @@ const normalizeBasePrice = (basePrice) => {
   }
 
   return Number(parsedPrice.toFixed(2));
+};
+
+const normalizeIsActive = (value) => {
+  if (value === undefined || value === null) {
+    throw new ApiError(400, "isActive is required");
+  }
+
+  if (typeof value === "boolean") return value;
+
+  if (typeof value === "number") {
+    if (value === 1) return true;
+    if (value === 0) return false;
+  }
+
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+
+    if (["true", "1", "yes", "y"].includes(normalized)) return true;
+    if (["false", "0", "no", "n"].includes(normalized)) return false;
+  }
+
+  throw new ApiError(400, "isActive must be a boolean");
 };
 
 exports.getAllProducts = async({sort}) => {
@@ -172,6 +200,31 @@ exports.searchProductsByNameOrDescription = async ({q, sort}) => {
         message: "Products fetched successfully",
         products,
     };
+};
+
+exports.updateProductActivation = async ({ productId, isActive, userRole }) => {
+  assertProductManager(userRole, "activate or deactivate products");
+
+  if (!productId) {
+    throw new ApiError(400, "Product ID is required");
+  }
+
+  const normalizedIsActive = normalizeIsActive(isActive);
+  const updatedProduct = await productModel.updateProductIsActive({
+    productId,
+    isActive: normalizedIsActive,
+  });
+
+  if (!updatedProduct) {
+    throw new ApiError(404, "Product not found");
+  }
+
+  return {
+    message: normalizedIsActive
+      ? "Product activated successfully"
+      : "Product deactivated successfully",
+    product: updatedProduct,
+  };
 };
 
 exports.updateProductDiscount = async ({ productId, discountRate, userRole }) => {

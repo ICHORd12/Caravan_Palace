@@ -650,6 +650,11 @@ Product objects returned by the product endpoints below include an `images` arra
 }
 ```
 
+#### Active-Only Behavior
+
+- Product list, search, and details endpoints only return products where `is_active = true`.
+- Requests for inactive products return `404`.
+
 ### `GET /api/v3/products/all`
 
 Fetches all products.
@@ -1059,6 +1064,50 @@ Status: `200 OK`
 
 ---
 
+### `PATCH /api/v3/products/:productId/activation`
+
+Activates or deactivates a product.
+
+#### Auth
+
+- Required (product manager only)
+
+#### Path Params
+
+- `productId`: target product id
+
+#### Request Body
+
+```json
+{
+  "isActive": true
+}
+```
+
+#### Success Response
+
+Status: `200 OK`
+
+```json
+{
+  "message": "Product activated successfully",
+  "product": {
+    "productId": "8924ed90-3acb-4e39-a9a5-5c47a84255e9",
+    "isActive": true
+  }
+}
+```
+
+#### Common Errors
+
+- `400` if `isActive` is missing or not a boolean
+- `401` if token is missing
+- `401` if token is invalid
+- `403` if user is not a product manager
+- `404` if product is not found
+
+---
+
 ### `PATCH /api/v3/products/:productId/discount`
 
 Updates a product's discount rate. If the new discount is greater than the previous discount, the backend emails users who have that product in their wishlist.
@@ -1185,9 +1234,9 @@ Fetches all categories.
 
 - Not required
 
-#### Query Params
+#### Active-Only Behavior
 
-- `includeInactive`: optional boolean. When `true`, includes inactive categories. Defaults to `false` (active only).
+- This endpoint only returns categories where `is_active = true`.
 
 #### Success Response
 
@@ -1208,6 +1257,51 @@ Status: `200 OK`
 #### Common Errors
 
 - None
+
+---
+
+### `PATCH /api/v3/categories/:categoryId/activation`
+
+Activates or deactivates a category.
+
+#### Auth
+
+- Required (product manager only)
+
+#### Path Params
+
+- `categoryId`: target category id
+
+#### Request Body
+
+```json
+{
+  "isActive": false
+}
+```
+
+#### Success Response
+
+Status: `200 OK`
+
+```json
+{
+  "message": "Category deactivated successfully",
+  "category": {
+    "categoryId": "ff28bce6-284e-4c65-8557-0416f4274679",
+    "categoryName": "Camper Vans",
+    "isActive": false
+  }
+}
+```
+
+#### Common Errors
+
+- `400` if `isActive` is missing or not a boolean
+- `401` if token is missing
+- `401` if token is invalid
+- `403` if user is not a product manager
+- `404` if category is not found
 
 ---
 
@@ -2575,6 +2669,7 @@ These must be set on the backend for invoice emails and wishlist discount notifi
 - `POST /api/v3/users/me/orders/:orderId/cancel`
 - `POST /api/v3/users/me/orders/:orderId/refund-requests`
 - `POST /api/v3/users/me/orders/:orderId/items/:orderItemId/refund-requests`
+- `PATCH /api/v3/products/:productId/activation`
 - `PATCH /api/v3/products/:productId/discount`
 - `PATCH /api/v3/products/:productId/base-price`
 - `GET /api/v3/cart/`
@@ -2600,6 +2695,7 @@ These must be set on the backend for invoice emails and wishlist discount notifi
 - `PATCH /api/v3/refunds/:refundId`
 - `GET /api/v3/invoices/:orderId/pdf`
 - `POST /api/v3/invoices/:orderId/email`
+- `PATCH /api/v3/categories/:categoryId/activation`
 
 ## Important Implementation Notes For Frontend
 
@@ -2629,3 +2725,5 @@ These must be set on the backend for invoice emails and wishlist discount notifi
 22. `GET /orders/reports/financial-summary` is restricted to `sales_manager` users and requires `startDate` and `endDate` query params in `YYYY-MM-DD` format.
 23. `GET /orders` is restricted to `sales_manager` users and supports optional `status` and `startDate`/`endDate` filters.
 24. `GET /orders/:orderId/invoice.pdf` is restricted to `sales_manager` users and returns a binary PDF stream for any order.
+25. Product and category list/search/details endpoints return only active records (`is_active = true`).
+26. `PATCH /products/:productId/activation` and `PATCH /categories/:categoryId/activation` are restricted to `product_manager` users and accept `isActive` in the request body.

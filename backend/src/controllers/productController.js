@@ -56,6 +56,24 @@ exports.searchProductsByNameOrDescription = async (req, res, next) => {
     }
 };
 
+exports.updateProductActivation = async (req, res, next) => {
+  try {
+    const { productId } = req.params;
+    const userRole = req.user.role;
+    const isActive = req.body.isActive ?? req.body.is_active;
+
+    const result = await productService.updateProductActivation({
+      productId,
+      isActive,
+      userRole,
+    });
+
+    res.status(200).json(result);
+  } catch (err) {
+    next(err);
+  }
+};
+
 exports.updateProductDiscount = async (req, res, next) => {
   try {
     const { productId } = req.params;

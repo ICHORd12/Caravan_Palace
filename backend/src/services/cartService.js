@@ -50,7 +50,7 @@ exports.setCartItemQuantity = async ({ userId, productId, quantity }) => {
     }
   }
 
-  const product = await productModel.getProductById(productId);
+  const product = await productModel.getActiveProductById(productId);
 
   if (!product) {
     throw new ApiError(404, "Product not found");
@@ -98,7 +98,7 @@ exports.updateCartItemQuantity = async ({ userId, productId, quantity }) => {
     throw new ApiError(400, "Quantity must be a positive integer");
   }
 
-  const product = await productModel.getProductById(productId);
+  const product = await productModel.getActiveProductById(productId);
 
   if (!product) {
     throw new ApiError(404, "Product not found");
@@ -198,7 +198,7 @@ exports.mergeCart = async ({ userId, items }) => {
       continue;
     }
 
-    const product = await productModel.getProductById(productId);
+    const product = await productModel.getActiveProductById(productId);
 
     if (!product) {
       adjustments.push({

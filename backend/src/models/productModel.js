@@ -13,6 +13,7 @@ exports.getAllProducts = async (sort) => {
     FROM products p
     LEFT JOIN product_images pi ON p.product_id = pi.product_id
     ${productRatingJoin}
+    WHERE p.is_active = TRUE
     GROUP BY p.product_id, pr.average_rating, pr.review_count
     ${getOrderByClause(sort)}
     `
@@ -34,6 +35,8 @@ exports.getProductsByCategoryName = async (category_name, sort) => {
     LEFT JOIN product_images pi ON p.product_id = pi.product_id
     ${productRatingJoin}
     WHERE c.category_name = $1
+      AND p.is_active = TRUE
+      AND c.is_active = TRUE
     GROUP BY p.product_id, pr.average_rating, pr.review_count
     ${getOrderByClause(sort)}
     `,
@@ -62,6 +65,25 @@ exports.getProductById = async (productId) => {
 };
 
 
+exports.getActiveProductById = async (productId) => {
+  const result = await pool.query(
+    `
+    SELECT 
+      product_id,
+      name,
+      current_price,
+      quantity_in_stocks
+    FROM products
+    WHERE product_id = $1
+      AND is_active = TRUE
+    `,
+    [productId]
+  );
+
+  return mapProduct(result.rows[0] || null);
+};
+
+
 exports.getProductDetailsById = async (productId) => {
   const result = await pool.query(
     `
@@ -73,6 +95,7 @@ exports.getProductDetailsById = async (productId) => {
     LEFT JOIN product_images pi ON p.product_id = pi.product_id
     ${productRatingJoin}
     WHERE p.product_id = $1
+      AND p.is_active = TRUE
     GROUP BY p.product_id, pr.average_rating, pr.review_count
     `,
     [productId]
@@ -93,6 +116,7 @@ exports.getProductsByIds = async (productIds, sort) => {
     LEFT JOIN product_images pi ON p.product_id = pi.product_id
     ${productRatingJoin}
     WHERE p.product_id = ANY($1::uuid[])
+      AND p.is_active = TRUE
     GROUP BY p.product_id, pr.average_rating, pr.review_count
     ${getOrderByClause(sort)}
     `,
@@ -184,6 +208,31 @@ exports.updateProductBasePrice = async ({ productId, basePrice }, client) => {
 };
 
 
+exports.updateProductIsActive = async ({ productId, isActive }, client) => {
+  const executor = client || pool;
+
+  const result = await executor.query(
+    `
+    UPDATE products
+    SET is_active = $1,
+        updated_at = NOW()
+    WHERE product_id = $2
+    RETURNING product_id, is_active
+    `,
+    [isActive, productId]
+  );
+
+  const row = result.rows[0];
+
+  if (!row) return null;
+
+  return {
+    productId: row.product_id,
+    isActive: row.is_active,
+  };
+};
+
+
 exports.searchProductsByNameOrDescription = async (searchTerm, sort) => {
   const likePattern = "%" + searchTerm + "%";
 
@@ -196,7 +245,8 @@ exports.searchProductsByNameOrDescription = async (searchTerm, sort) => {
     FROM products p
     LEFT JOIN product_images pi ON p.product_id = pi.product_id
     ${productRatingJoin}
-    WHERE p.name ILIKE $1 OR p.description ILIKE $1
+    WHERE (p.name ILIKE $1 OR p.description ILIKE $1)
+      AND p.is_active = TRUE
     GROUP BY p.product_id, pr.average_rating, pr.review_count
     ${getOrderByClause(sort)}
     `,

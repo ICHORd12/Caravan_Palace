@@ -12,7 +12,7 @@ exports.getWishlist = async (userId) => {
 };
 
 exports.addToWishlist = async (userId, productId) => {
-    const product = await productModel.getProductById(productId);
+    const product = await productModel.getActiveProductById(productId);
 
     if (!product) {
         throw new ApiError(404, "Product not found");
