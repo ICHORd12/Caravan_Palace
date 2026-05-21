@@ -27,6 +27,7 @@ export default function Navbar({ navbarContainerStyle, navbarLinksStyle, loginRe
     const { setWipe, navigateWithWipe, revealWipe } = useTransition();
 
     const isSM = user?.role === 'sales_manager';
+    const isPM = user?.role === 'product_manager'; // <-- NEW: Check for PM role
 
     const isAuthScreen = pathname === '/login' || pathname === '/register';
 
@@ -54,7 +55,16 @@ export default function Navbar({ navbarContainerStyle, navbarLinksStyle, loginRe
                                     <GeneralButton title="STATISTICS" onPress={() => navigateWithWipe('/salesManager/statistics')} />
                                     <GeneralButton title="REFUNDS" onPress={() => navigateWithWipe('/salesManager/refunds')} />
                                 </>
+                            ) : isPM ? (
+                                // --- NEW: PRODUCT MANAGER LINKS ---
+                                <>
+                                    <GeneralButton title="ORDERS" onPress={() => navigateWithWipe('/productManager/orders')} />
+                                    <GeneralButton title="PRODUCTS" onPress={() => navigateWithWipe('/productManager/products')} />
+                                    <GeneralButton title="CATEGORIES" onPress={() => navigateWithWipe('/productManager/categories')} />
+                                    <GeneralButton title="STOCK" onPress={() => navigateWithWipe('/productManager/stock')} />
+                                </>
                             ) : (
+                                // STANDARD CUSTOMER LINKS
                                 <>
                                     <GeneralButton title="ORDERS" onPress={() => navigateWithWipe('/orderHistory')} />
                                     <GeneralButton title="WISHLIST" onPress={() => navigateWithWipe('/shopping/wishlist')} />
@@ -85,11 +95,13 @@ export default function Navbar({ navbarContainerStyle, navbarLinksStyle, loginRe
                     )
                 }
 
-                {pathname !== (isSM ? '/salesManager/home' : '/') && (
-                    <GeneralButton title="HOME" onPress={() => navigateWithWipe(isSM ? '/salesManager/home' : '/')} />
+                {/* --- UPDATED: Dynamic Home Button --- */}
+                {pathname !== (isSM ? '/salesManager/home' : isPM ? '/productManager/home' : '/') && (
+                    <GeneralButton title="HOME" onPress={() => navigateWithWipe(isSM ? '/salesManager/home' : isPM ? '/productManager/home' : '/')} />
                 )}
 
-                {pathname !== '/login' && pathname !== '/register' && !isSM && (
+                {/* --- UPDATED: Hide Shop Links for both SM and PM --- */}
+                {pathname !== '/login' && pathname !== '/register' && !isSM && !isPM && (
                     <>
                         <GeneralButton textStyle={styles.caravansTextStyle} title="CARAVANS" onPress={() => navigateWithWipe('/shopping/caravans')} />
                         <GeneralButton textStyle={styles.shopTextStyle} title="SHOP" onPress={() => navigateWithWipe('/shopping/shoppingCart')} />

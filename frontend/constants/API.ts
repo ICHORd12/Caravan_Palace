@@ -33,3 +33,14 @@ export const REVIEWS_ENDPOINT = `${base}/reviews`
 export const SALES_MANAGER_ORDERS_ENDPOINT = `${base}/orders`;
 
 
+// --- PRODUCT MANAGER (PM) ENDPOINTS ---
+export const CATEGORIES_ENDPOINT = `${base}/categories`;
+// The PM uses these base routes with specific path params appended (e.g., /:id/activation)
+export const PM_PRODUCTS_ENDPOINT = `${base}/products`; 
+export const PM_ORDERS_ENDPOINT = `${base}/orders`; 
+export const PM_REVIEWS_ENDPOINT = `${base}/reviews`;
+
+// Dynamic endpoint for activation
+export const PRODUCT_ACTIVATION_ENDPOINT = (productId: string) => `${base}/products/${productId}/activation`;
+// Placeholder for the creation endpoint your backend team needs to build
+export const CREATE_PRODUCT_ENDPOINT = `${base}/products`;
