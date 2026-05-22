@@ -82,3 +82,37 @@ exports.updateReview = async (req, res, next) => {
         next(err);
     }
 };
+
+exports.getPendingReviews = async (req, res, next) => {
+  try {
+    const userRole = req.user.role;
+    const result = await reviewService.getPendingReviews(userRole);
+    res.status(200).json(result);
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.approveReview = async (req, res, next) => {
+  try {
+    const userRole = req.user.role;
+    const { reviewId } = req.params;
+    const { moderationComment } = req.body;
+    const result = await reviewService.approveReview(reviewId, userRole, moderationComment);
+    res.status(200).json(result);
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.rejectReview = async (req, res, next) => {
+  try {
+    const userRole = req.user.role;
+    const { reviewId } = req.params;
+    const { moderationComment } = req.body;
+    const result = await reviewService.rejectReview(reviewId, userRole, moderationComment);
+    res.status(200).json(result);
+  } catch (err) {
+    next(err);
+  }
+};

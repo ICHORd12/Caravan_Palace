@@ -22,12 +22,12 @@ exports.productRatingSelect = `
 
 exports.productRatingJoin = `
   LEFT JOIN (
-    SELECT 
+    SELECT
       product_id,
       ROUND(AVG(rating)::numeric, 1) AS average_rating,
       COUNT(*)::int AS review_count
     FROM reviews
-    WHERE is_approved = 'TRUE'
+    WHERE status = 'approved'
     GROUP BY product_id
   ) pr ON p.product_id = pr.product_id
 `;

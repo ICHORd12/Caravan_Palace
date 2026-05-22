@@ -118,18 +118,76 @@ exports.updateReview = async (userId, reviewId, { comment, rating }) => {
         throw new ApiError(404, "Review not found");
     }
 
-    if (existingReview.user_id !== userId) {
+    if (existingReview.userId !== userId) {
         throw new ApiError(403, "You can only update your own review");
     }
 
     const updatedReview = await reviewModel.updateReview(reviewId, {
         comment,
-        rating,
-        approvalStatus: "pending"
+        rating
     });
 
     return {
         message: "Review updated successfully and is pending approval",
         review: updatedReview
     };
+};
+
+exports.getPendingReviews = async (userRole) => {
+  if (userRole !== "product_manager") {
+    throw new ApiError(403, "Access denied. Product managers only.");
+  }
+
+  const reviews = await reviewModel.getPendingReviews();
+
+  return {
+    message: "Pending reviews fetched successfully",
+    reviews,
+  };
+};
+
+exports.approveReview = async (reviewId, userRole, moderationComment = null) => {
+  if (userRole !== "product_manager") {
+    throw new ApiError(403, "Access denied. Product managers only.");
+  }
+
+  const review = await reviewModel.getReviewById(reviewId);
+
+  if (!review) {
+    throw new ApiError(404, "Review not found");
+  }
+
+  if (review.status === "approved") {
+    throw new ApiError(400, "Review is already approved");
+  }
+
+  const approvedReview = await reviewModel.approveReview(reviewId, moderationComment);
+
+  return {
+    message: "Review approved successfully",
+    review: approvedReview,
+  };
+};
+
+exports.rejectReview = async (reviewId, userRole, moderationComment = null) => {
+  if (userRole !== "product_manager") {
+    throw new ApiError(403, "Access denied. Product managers only.");
+  }
+
+  const review = await reviewModel.getReviewById(reviewId);
+
+  if (!review) {
+    throw new ApiError(404, "Review not found");
+  }
+
+  if (review.status === "rejected") {
+    throw new ApiError(400, "Review is already rejected");
+  }
+
+  const rejectedReview = await reviewModel.rejectReview(reviewId, moderationComment);
+
+  return {
+    message: "Review rejected successfully",
+    review: rejectedReview,
+  };
 };

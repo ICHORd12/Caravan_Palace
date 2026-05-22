@@ -312,7 +312,7 @@ function WriteReview({isEligible, userReview, onUserReviewChange, onUserReviewDe
     const [commentText, setCommentText] = useState("");
     const [rating, setRating] = useState(5);
     const [userName, setUserName] = useState("");
-    const [isApproved, setIsApproved] = useState(false);
+    const [status, setStatus] = useState("pending");
     const [createdAt, setCreatedAt] = useState("");
     const [updatedAt, setUpdatedAt] = useState("");
 
@@ -327,14 +327,14 @@ function WriteReview({isEligible, userReview, onUserReviewChange, onUserReviewDe
             const prevCommentText = userReview ? userReview.commentText : "";
             const prevUserRating = userReview ? userReview.rating : 0;
             const prevUserName = userReview ? userReview.userName : "";
-            const prevIsApproved = userReview ? userReview.isApproved : false;
+            const prevStatus = userReview ? userReview.status : "pending";
             const prevCreatedDate = userReview ? userReview.createdAt : "";
             const prevUpdatedDate = userReview ? userReview.updatedAt : "";
 
             setCommentText(prevCommentText);
             setRating(prevUserRating);
             setUserName(prevUserName);
-            setIsApproved(prevIsApproved);
+            setStatus(prevStatus);
             setCreatedAt(prevCreatedDate);
             setUpdatedAt(prevUpdatedDate);
         }
@@ -406,14 +406,14 @@ function WriteReview({isEligible, userReview, onUserReviewChange, onUserReviewDe
         const prevCommentText = userReview.commentText;
         const prevUserRating = userReview.rating;
         const prevUserName = userReview.userName;
-        const prevIsApproved = userReview.isApproved;
+        const prevStatus = userReview.status;
         const prevCreatedDate = userReview.createdAt;
         const prevUpdatedDate = userReview.updatedAt;
 
         setCommentText(prevCommentText);
         setRating(prevUserRating);
         setUserName(prevUserName);
-        setIsApproved(prevIsApproved);
+        setStatus(prevStatus);
         setCreatedAt(prevCreatedDate);
         setUpdatedAt(prevUpdatedDate);
 
@@ -458,7 +458,7 @@ function WriteReview({isEligible, userReview, onUserReviewChange, onUserReviewDe
                     </View>
 
                     <View style={writeReviewStyles.nameContainer}> 
-                        <Text style={writeReviewStyles.nameText}>{isApproved ? `${userName} (Review Approved)` : `${userName} (Review Pending)`}</Text>
+                        <Text style={writeReviewStyles.nameText}>{status === 'approved' ? `${userName} (Review Approved)` : `${userName} (Review Pending)`}</Text>
                         <Text style={writeReviewStyles.dateText}>Created At: {createdAt}</Text>
                         <Text style={writeReviewStyles.dateText}>Updated At: {updatedAt}</Text>
                     </View>

@@ -6,10 +6,13 @@ const authMiddleware = require("../middlewares/authMiddleware");
 const router = express.Router();
 
 
+router.get("/pending", authMiddleware, reviewController.getPendingReviews);
 router.get("/:productId/reviews", reviewController.getReviewsByProductId);
 router.get("/:productId/review-eligibility", authMiddleware, reviewController.checkReviewEligibility);
 router.post("/:productId/reviews", authMiddleware, reviewController.createReview);
 router.delete("/:reviewId", authMiddleware, reviewController.deleteReview);
 router.patch("/:reviewId", authMiddleware, reviewController.updateReview);
+router.patch("/:reviewId/approve", authMiddleware, reviewController.approveReview);
+router.patch("/:reviewId/reject", authMiddleware, reviewController.rejectReview);
 
 module.exports = router;

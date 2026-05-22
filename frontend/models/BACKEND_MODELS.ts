@@ -80,11 +80,19 @@ export type ReviewEligibility = {
 export type Review = {
     reviewId: string,
     productId: string,
+    productName?: string,
+    productModel?: string,
+    productDescription?: string,
+    productPrice?: string,
+    productStock?: number,
+    productSeller?: string,
+    productCategory?: string,
     userId: string,
     userName: string,
     rating: number,
     commentText: string,
-    isApproved: boolean,
+    status: string,
+    moderationComment?: string,
     createdAt: string,
     updatedAt: string
 }

@@ -27,6 +27,7 @@ export default function Navbar({ navbarContainerStyle, navbarLinksStyle, loginRe
     const { setWipe, navigateWithWipe, revealWipe } = useTransition();
 
     const isSM = user?.role === 'sales_manager';
+    const isPM = user?.role === 'product_manager';
 
     const isAuthScreen = pathname === '/login' || pathname === '/register';
 
@@ -53,6 +54,10 @@ export default function Navbar({ navbarContainerStyle, navbarLinksStyle, loginRe
                                     <GeneralButton title="PRODUCTS" onPress={() => navigateWithWipe('/salesManager/products')} />
                                     <GeneralButton title="STATISTICS" onPress={() => navigateWithWipe('/salesManager/statistics')} />
                                     <GeneralButton title="REFUNDS" onPress={() => navigateWithWipe('/salesManager/refunds')} />
+                                </>
+                            ) : isPM ? (
+                                <>
+                                    <GeneralButton title="DASHBOARD" onPress={() => navigateWithWipe('/productManager/dashboard')} />
                                 </>
                             ) : (
                                 <>
@@ -85,11 +90,11 @@ export default function Navbar({ navbarContainerStyle, navbarLinksStyle, loginRe
                     )
                 }
 
-                {pathname !== (isSM ? '/salesManager/home' : '/') && (
+                {pathname !== (isSM ? '/salesManager/home' : isPM ? '/productManager/dashboard' : '/') && !isPM && (
                     <GeneralButton title="HOME" onPress={() => navigateWithWipe(isSM ? '/salesManager/home' : '/')} />
                 )}
 
-                {pathname !== '/login' && pathname !== '/register' && !isSM && (
+                {pathname !== '/login' && pathname !== '/register' && !isSM && !isPM && (
                     <>
                         <GeneralButton textStyle={styles.caravansTextStyle} title="CARAVANS" onPress={() => navigateWithWipe('/shopping/caravans')} />
                         <GeneralButton textStyle={styles.shopTextStyle} title="SHOP" onPress={() => navigateWithWipe('/shopping/shoppingCart')} />

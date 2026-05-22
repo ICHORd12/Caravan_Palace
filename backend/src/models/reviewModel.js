@@ -11,13 +11,13 @@ exports.getReviewsByProductId = async (productId) => {
       u.name AS user_name,
       r.rating,
       r.comment_text,
-      r.is_approved,
+      r.status,
       r.created_at,
       r.updated_at
     FROM reviews r
     INNER JOIN users u ON r.user_id = u.user_id
     WHERE r.product_id = $1
-      AND r.is_approved = true
+      AND r.status = 'approved'
     ORDER BY r.created_at DESC
     `,
     [productId]
@@ -86,13 +86,13 @@ exports.getApprovedReviewsByProductIdExceptUser = async ({ productId, userId }) 
       u.name AS user_name,
       r.rating,
       r.comment_text,
-      r.is_approved,
+      r.status,
       r.created_at,
       r.updated_at
     FROM reviews r
     INNER JOIN users u ON r.user_id = u.user_id
     WHERE r.product_id = $1
-      AND r.is_approved = true
+      AND r.status = 'approved'
       AND r.user_id <> $2
     ORDER BY r.created_at DESC
     `,
@@ -113,7 +113,7 @@ exports.getReviewByUserAndProductWithUser = async ({ userId, productId }) => {
       u.name AS user_name,
       r.rating,
       r.comment_text,
-      r.is_approved,
+      r.status,
       r.created_at,
       r.updated_at
     FROM reviews r
@@ -139,13 +139,13 @@ exports.getApprovedReviewsByProductId = async (productId) => {
       u.name AS user_name,
       r.rating,
       r.comment_text,
-      r.is_approved,
+      r.status,
       r.created_at,
       r.updated_at
     FROM reviews r
     INNER JOIN users u ON r.user_id = u.user_id
     WHERE r.product_id = $1
-      AND r.is_approved = true
+      AND r.status = 'approved'
     ORDER BY r.created_at DESC
     `,
     [productId]
@@ -159,8 +159,8 @@ exports.createReview = async ({ userId, productId, rating, commentText }) => {
   const normalizedComment =
     typeof commentText === "string" ? commentText.trim() : "";
 
-  const isApproved = normalizedComment === "";
-  
+  const status = normalizedComment === "" ? "approved" : "pending";
+
   const result = await pool.query(
     `
     INSERT INTO reviews (
@@ -168,12 +168,12 @@ exports.createReview = async ({ userId, productId, rating, commentText }) => {
       user_id,
       rating,
       comment_text,
-      is_approved
+      status
     )
     VALUES ($1, $2, $3, $4, $5)
     RETURNING *
     `,
-    [productId, userId, rating, commentText, isApproved]
+    [productId, userId, rating, commentText, status]
   );
 
   return mapReview(result.rows[0]);
@@ -191,20 +191,86 @@ exports.deleteReview = async (reviewId) => {
 };
 
 
-exports.updateReview = async (reviewId, { comment, rating, approvalStatus }) => {
+exports.updateReview = async (reviewId, { comment, rating }) => {
     const result = await pool.query(
         `
         UPDATE reviews
         SET
-            comment = COALESCE($1, comment),
+            comment_text = COALESCE($1, comment_text),
             rating = COALESCE($2, rating),
-            approval_status = $3,
+            status = 'pending',
             updated_at = CURRENT_TIMESTAMP
-        WHERE review_id = $4
+        WHERE review_id = $3
         RETURNING *
         `,
-        [comment, rating, approvalStatus, reviewId]
+        [comment, rating, reviewId]
     );
 
     return result.rows[0];
+};
+
+exports.getPendingReviews = async () => {
+  const result = await pool.query(
+    `
+    SELECT
+      r.review_id,
+      r.product_id,
+      p.name AS product_name,
+      p.model AS product_model,
+      p.description AS product_description,
+      p.current_price AS product_price,
+      p.quantity_in_stocks AS product_stock,
+      p.distributor_info AS product_seller,
+      c.category_name,
+      r.user_id,
+      u.name AS user_name,
+      r.rating,
+      r.comment_text,
+      r.status,
+      r.created_at,
+      r.updated_at
+    FROM reviews r
+    INNER JOIN users u ON r.user_id = u.user_id
+    INNER JOIN products p ON r.product_id = p.product_id
+    LEFT JOIN categories c ON p.category_id = c.category_id
+    WHERE r.status = 'pending'
+    ORDER BY r.created_at ASC
+    `
+  );
+
+  return result.rows.map(mapReviewWithUser);
+};
+
+exports.approveReview = async (reviewId, moderationComment) => {
+  const result = await pool.query(
+    `
+    UPDATE reviews
+    SET
+      status = 'approved',
+      moderation_comment = $2,
+      updated_at = CURRENT_TIMESTAMP
+    WHERE review_id = $1
+    RETURNING *
+    `,
+    [reviewId, moderationComment]
+  );
+
+  return mapReview(result.rows[0]);
+};
+
+exports.rejectReview = async (reviewId, moderationComment) => {
+  const result = await pool.query(
+    `
+    UPDATE reviews
+    SET
+      status = 'rejected',
+      moderation_comment = $2,
+      updated_at = CURRENT_TIMESTAMP
+    WHERE review_id = $1
+    RETURNING *
+    `,
+    [reviewId, moderationComment]
+  );
+
+  return mapReview(result.rows[0]);
 };
