@@ -1474,6 +1474,8 @@ Public review responses include `userName`:
   "userName": "John Doe",
   "rating": 5,
   "commentText": "Excellent caravan.",
+  "status": "approved",
+  "moderationComment": null,
   "isApproved": true,
   "createdAt": "2026-04-20T14:30:00.000Z",
   "updatedAt": "2026-04-20T14:30:00.000Z"
@@ -1507,6 +1509,8 @@ Status: `200 OK`
       "userName": "John Doe",
       "rating": 5,
       "commentText": "Excellent caravan.",
+      "status": "approved",
+      "moderationComment": null,
       "isApproved": true,
       "createdAt": "2026-04-20T14:30:00.000Z",
       "updatedAt": "2026-04-20T14:30:00.000Z"
@@ -1599,13 +1603,15 @@ Status: `201 Created`
 
 ```json
 {
-  "message": "Review created successfully",
+  "message": "Review created successfully and is pending approval",
   "review": {
     "reviewId": "3a2fd384-e018-4f7d-81c5-9e0b9a57a2bf",
     "productId": "8924ed90-3acb-4e39-a9a5-5c47a84255e9",
     "userId": "b3c3f74e-4aba-4e46-8e5c-53c344f2d259",
     "rating": 5,
     "commentText": "Excellent caravan.",
+    "status": "pending",
+    "moderationComment": null,
     "isApproved": false,
     "createdAt": "2026-04-20T14:30:00.000Z",
     "updatedAt": "2026-04-20T14:30:00.000Z"
@@ -1697,6 +1703,8 @@ Status: `200 OK`
     "userId": "b3c3f74e-4aba-4e46-8e5c-53c344f2d259",
     "rating": 4,
     "commentText": "Still very happy with it after another trip.",
+    "status": "pending",
+    "moderationComment": null,
     "isApproved": false,
     "createdAt": "2026-04-20T14:30:00.000Z",
     "updatedAt": "2026-05-06T14:30:00.000Z"
@@ -1711,6 +1719,105 @@ Status: `200 OK`
 - `401` if token is invalid
 - `403` if the authenticated user does not own the review
 - `404` if review is not found
+
+---
+
+### `GET /api/v3/reviews/pending`
+
+Returns the product manager waiting list of pending reviews.
+
+#### Auth
+
+- Required
+- The authenticated user must have role `product_manager`.
+
+#### Success Response
+
+Status: `200 OK`
+
+```json
+{
+  "message": "Pending reviews fetched successfully",
+  "reviews": [
+    {
+      "reviewId": "3a2fd384-e018-4f7d-81c5-9e0b9a57a2bf",
+      "productId": "8924ed90-3acb-4e39-a9a5-5c47a84255e9",
+      "userId": "b3c3f74e-4aba-4e46-8e5c-53c344f2d259",
+      "userName": "John Doe",
+      "rating": 5,
+      "commentText": "Excellent caravan.",
+      "status": "pending",
+      "moderationComment": null,
+      "isApproved": false,
+      "createdAt": "2026-04-20T14:30:00.000Z",
+      "updatedAt": "2026-04-20T14:30:00.000Z"
+    }
+  ]
+}
+```
+
+#### Common Errors
+
+- `401` if token is missing
+- `401` if token is invalid
+- `403` if the user is not a product manager
+
+---
+
+### `PATCH /api/v3/reviews/:reviewId/moderate`
+
+Approves or rejects a pending review for moderation.
+
+#### Auth
+
+- Required
+- The authenticated user must have role `product_manager`.
+
+#### Request Body
+
+```json
+{
+  "status": "approved",
+  "moderationComment": "Looks good to publish."
+}
+```
+
+#### Request Fields
+
+- `status`: required, must be `approved` or `rejected`
+- `moderationComment`: optional for approval, required for rejection
+
+#### Success Response
+
+Status: `200 OK`
+
+```json
+{
+  "message": "Review approved successfully",
+  "review": {
+    "reviewId": "3a2fd384-e018-4f7d-81c5-9e0b9a57a2bf",
+    "productId": "8924ed90-3acb-4e39-a9a5-5c47a84255e9",
+    "userId": "b3c3f74e-4aba-4e46-8e5c-53c344f2d259",
+    "rating": 5,
+    "commentText": "Excellent caravan.",
+    "status": "approved",
+    "moderationComment": "Looks good to publish.",
+    "isApproved": true,
+    "createdAt": "2026-04-20T14:30:00.000Z",
+    "updatedAt": "2026-05-22T14:30:00.000Z"
+  }
+}
+```
+
+#### Common Errors
+
+- `400` if `status` is not `approved` or `rejected`
+- `400` if `moderationComment` is missing for a rejected review
+- `401` if token is missing
+- `401` if token is invalid
+- `403` if the user is not a product manager
+- `404` if review is not found
+- `409` if the review is not pending
 
 ---
 
