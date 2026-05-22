@@ -5,10 +5,18 @@ const optionalAuthMiddleware = require("../middlewares/optionalAuthMiddleware");
 
 const router = express.Router();
 
-router.get("/all", productController.getAllProducts);
-router.get("/category_name", productController.getProductsByCategoryName);
-router.get("/search", productController.searchProductsByNameOrDescription);
-router.post("/by-ids", productController.getProductsByIds);
+router.get("/all", optionalAuthMiddleware, productController.getAllProducts);
+router.get(
+	"/category_name",
+	optionalAuthMiddleware,
+	productController.getProductsByCategoryName
+);
+router.get(
+	"/search",
+	optionalAuthMiddleware,
+	productController.searchProductsByNameOrDescription
+);
+router.post("/by-ids", optionalAuthMiddleware, productController.getProductsByIds);
 router.post("/", authMiddleware, productController.createProduct);
 router.patch("/:productId/activation", authMiddleware, productController.updateProductActivation);
 router.patch("/:productId/stock", authMiddleware, productController.updateProductStock);

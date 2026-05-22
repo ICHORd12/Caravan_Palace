@@ -22,6 +22,24 @@ exports.getAllProducts = async (sort) => {
   return result.rows.map(mapProduct);
 };
 
+exports.getAllProductsForManager = async (sort) => {
+  const result = await pool.query(
+    `
+    SELECT 
+      p.*,
+      ${productImagesSelect},
+      ${productRatingSelect}
+    FROM products p
+    LEFT JOIN product_images pi ON p.product_id = pi.product_id
+    ${productRatingJoin}
+    GROUP BY p.product_id, pr.average_rating, pr.review_count
+    ${getOrderByClause(sort)}
+    `
+  );
+
+  return result.rows.map(mapProduct);
+};
+
 
 exports.getProductsByCategoryName = async (category_name, sort) => {
   const result = await pool.query(
@@ -36,6 +54,28 @@ exports.getProductsByCategoryName = async (category_name, sort) => {
     ${productRatingJoin}
     WHERE c.category_name = $1
       AND p.is_active = TRUE
+      AND c.is_active = TRUE
+    GROUP BY p.product_id, pr.average_rating, pr.review_count
+    ${getOrderByClause(sort)}
+    `,
+    [category_name]
+  );
+
+  return result.rows.map(mapProduct);
+};
+
+exports.getProductsByCategoryNameForManager = async (category_name, sort) => {
+  const result = await pool.query(
+    `
+    SELECT 
+      p.*,
+      ${productImagesSelect},
+      ${productRatingSelect}
+    FROM products p
+    INNER JOIN categories c ON p.category_id = c.category_id
+    LEFT JOIN product_images pi ON p.product_id = pi.product_id
+    ${productRatingJoin}
+    WHERE c.category_name = $1
       AND c.is_active = TRUE
     GROUP BY p.product_id, pr.average_rating, pr.review_count
     ${getOrderByClause(sort)}
@@ -117,6 +157,26 @@ exports.getProductsByIds = async (productIds, sort) => {
     ${productRatingJoin}
     WHERE p.product_id = ANY($1::uuid[])
       AND p.is_active = TRUE
+    GROUP BY p.product_id, pr.average_rating, pr.review_count
+    ${getOrderByClause(sort)}
+    `,
+    [productIds]
+  );
+
+  return result.rows.map(mapProduct);
+};
+
+exports.getProductsByIdsForManager = async (productIds, sort) => {
+  const result = await pool.query(
+    `
+    SELECT 
+      p.*,
+      ${productImagesSelect},
+      ${productRatingSelect}
+    FROM products p
+    LEFT JOIN product_images pi ON p.product_id = pi.product_id
+    ${productRatingJoin}
+    WHERE p.product_id = ANY($1::uuid[])
     GROUP BY p.product_id, pr.average_rating, pr.review_count
     ${getOrderByClause(sort)}
     `,
@@ -421,6 +481,28 @@ exports.searchProductsByNameOrDescription = async (searchTerm, sort) => {
     ${productRatingJoin}
     WHERE (p.name ILIKE $1 OR p.description ILIKE $1)
       AND p.is_active = TRUE
+    GROUP BY p.product_id, pr.average_rating, pr.review_count
+    ${getOrderByClause(sort)}
+    `,
+    [likePattern]
+  );
+
+  return result.rows.map(mapProduct);
+};
+
+exports.searchProductsByNameOrDescriptionForManager = async (searchTerm, sort) => {
+  const likePattern = "%" + searchTerm + "%";
+
+  const result = await pool.query(
+    `
+    SELECT 
+      p.*,
+      ${productImagesSelect},
+      ${productRatingSelect}
+    FROM products p
+    LEFT JOIN product_images pi ON p.product_id = pi.product_id
+    ${productRatingJoin}
+    WHERE (p.name ILIKE $1 OR p.description ILIKE $1)
     GROUP BY p.product_id, pr.average_rating, pr.review_count
     ${getOrderByClause(sort)}
     `,

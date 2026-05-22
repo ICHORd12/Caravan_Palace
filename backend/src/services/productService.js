@@ -175,9 +175,12 @@ const normalizeImagesPayload = (images) => {
   return normalizedImages;
 };
 
-exports.getAllProducts = async({sort}) => {
-    const normalizedSort = normalizeSort(sort);
-    const products = await productModel.getAllProducts(normalizedSort);
+exports.getAllProducts = async({sort, userRole}) => {
+  const normalizedSort = normalizeSort(sort);
+  const isManager = userRole === "product_manager" || userRole === "sales_manager";
+  const products = isManager
+    ? await productModel.getAllProductsForManager(normalizedSort)
+    : await productModel.getAllProducts(normalizedSort);
     if (!products) {
         throw new ApiError(404, "There is no product in database");
     }
@@ -188,9 +191,12 @@ exports.getAllProducts = async({sort}) => {
     };  
 };
 
-exports.getProductsByCategoryName = async ({category_name, sort}) => {
+exports.getProductsByCategoryName = async ({category_name, sort, userRole}) => {
     const normalizedSort = normalizeSort(sort);
-    const products = await productModel.getProductsByCategoryName(category_name, normalizedSort);
+    const isManager = userRole === "product_manager" || userRole === "sales_manager";
+    const products = isManager
+      ? await productModel.getProductsByCategoryNameForManager(category_name, normalizedSort)
+      : await productModel.getProductsByCategoryName(category_name, normalizedSort);
 
     if (products.length === 0) {
         throw new ApiError(404, "There is no product with given category name in database ");
@@ -203,7 +209,7 @@ exports.getProductsByCategoryName = async ({category_name, sort}) => {
 };
 
 
-exports.getProductsByIds = async ({productIds, sort}) => {
+exports.getProductsByIds = async ({productIds, sort, userRole}) => {
   if (!Array.isArray(productIds)) {
     throw new ApiError(400, "productIds must be an array");
   }
@@ -216,7 +222,10 @@ exports.getProductsByIds = async ({productIds, sort}) => {
   }
 
   const normalizedSort = normalizeSort(sort);
-  const products = await productModel.getProductsByIds(productIds, normalizedSort);
+  const isManager = userRole === "product_manager" || userRole === "sales_manager";
+  const products = isManager
+    ? await productModel.getProductsByIdsForManager(productIds, normalizedSort)
+    : await productModel.getProductsByIds(productIds, normalizedSort);
 
   return {
     message: "Products fetched successfully",
@@ -225,8 +234,11 @@ exports.getProductsByIds = async ({productIds, sort}) => {
 };
 
 
-exports.getProductDetails = async ({ productId, userId }) => {
-  const product = await productModel.getProductDetailsById(productId);
+exports.getProductDetails = async ({ productId, userId, userRole }) => {
+  const isManager = userRole === "product_manager" || userRole === "sales_manager";
+  const product = isManager
+    ? await productModel.getProductDetailsByIdForManager(productId)
+    : await productModel.getProductDetailsById(productId);
 
   if (!product) {
     throw new ApiError(404, "Product not found");
@@ -294,7 +306,7 @@ exports.getProductDetails = async ({ productId, userId }) => {
 };
 
 
-exports.searchProductsByNameOrDescription = async ({q, sort}) => {
+exports.searchProductsByNameOrDescription = async ({q, sort, userRole}) => {
     const normalizedSort = normalizeSort(sort);
     const searchTerm = typeof q === "string" ? q.trim() : "";
     
@@ -302,7 +314,10 @@ exports.searchProductsByNameOrDescription = async ({q, sort}) => {
         throw new ApiError(400, "Query parameter q is required");
     }
 
-    const products = await productModel.searchProductsByNameOrDescription(searchTerm, normalizedSort);
+    const isManager = userRole === "product_manager" || userRole === "sales_manager";
+    const products = isManager
+      ? await productModel.searchProductsByNameOrDescriptionForManager(searchTerm, normalizedSort)
+      : await productModel.searchProductsByNameOrDescription(searchTerm, normalizedSort);
 
     return {
         message: "Products fetched successfully",

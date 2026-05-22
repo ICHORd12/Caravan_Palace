@@ -652,8 +652,9 @@ Product objects returned by the product endpoints below include an `images` arra
 
 #### Active-Only Behavior
 
-- Product list, search, and details endpoints only return products where `is_active = true`.
-- Requests for inactive products return `404`.
+- Product list, search, and details endpoints only return products where `is_active = true` for public or non-manager users.
+- If a request is authenticated with a JWT whose `role` is `product_manager` or `sales_manager`, the same endpoints will include deactivated products (manager visibility).
+- Requests for inactive products from unauthenticated or non-manager users return `404`.
 
 ### `GET /api/v3/products/all`
 
@@ -980,6 +981,10 @@ Fetches one product's full detail payload, including product images, reviews, th
 - Optional
 - If a valid `Authorization: Bearer <token>` header is sent, the response includes user-specific review eligibility and the authenticated user's existing review if one exists.
 - If the token is missing or invalid, the endpoint still responds as a guest user.
+ - Optional
+ - If a valid `Authorization: Bearer <token>` header is sent, the response includes user-specific review eligibility and the authenticated user's existing review if one exists.
+ - If the token is missing or invalid, the endpoint still responds as a guest user.
+ - Manager visibility: authenticated users with `role` equal to `product_manager` or `sales_manager` will receive details for deactivated products; unauthenticated or non-manager users will receive `404` for inactive products.
 
 #### Path Params
 

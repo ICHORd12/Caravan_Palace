@@ -2,7 +2,8 @@ const productService = require("../services/productService")
 
 exports.getAllProducts = async (req, res, next) => {
     try {
-        const result = await productService.getAllProducts(req.query);
+    const userRole = req.user?.role || null;
+    const result = await productService.getAllProducts({ ...req.query, userRole });
         res.status(201).json(result);
     } catch (err) {
         next(err);
@@ -11,7 +12,8 @@ exports.getAllProducts = async (req, res, next) => {
 
 exports.getProductsByCategoryName = async (req, res, next) => {
     try {
-        const result = await productService.getProductsByCategoryName(req.body);
+    const userRole = req.user?.role || null;
+    const result = await productService.getProductsByCategoryName({ ...req.body, userRole });
         res.status(201).json(result);
     } catch (err) {
         next(err);
@@ -21,7 +23,8 @@ exports.getProductsByCategoryName = async (req, res, next) => {
 
 exports.getProductsByIds = async (req, res, next) => {
   try {
-    const result = await productService.getProductsByIds(req.body);
+    const userRole = req.user?.role || null;
+    const result = await productService.getProductsByIds({ ...req.body, userRole });
 
     res.status(200).json(result);
   } catch (err) {
@@ -34,10 +37,12 @@ exports.getProductDetails = async (req, res, next) => {
   try {
     const { productId } = req.params;
     const userId = req.user?.userId || null;
+    const userRole = req.user?.role || null;
 
     const result = await productService.getProductDetails({
       productId,
       userId,
+      userRole,
     });
 
     res.status(200).json(result);
@@ -49,7 +54,8 @@ exports.getProductDetails = async (req, res, next) => {
 
 exports.searchProductsByNameOrDescription = async (req, res, next) => {
     try {
-        const result = await productService.searchProductsByNameOrDescription(req.query);
+    const userRole = req.user?.role || null;
+    const result = await productService.searchProductsByNameOrDescription({ ...req.query, userRole });
         res.status(200).json(result);
     } catch (err) {
         next(err);
