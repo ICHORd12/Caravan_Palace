@@ -24,6 +24,9 @@ describe("activation services", () => {
   });
 
   test("product activation updates is_active", async () => {
+    jest
+      .spyOn(productModel, "getProductPricingById")
+      .mockResolvedValue({ productId: "prod-1", basePrice: 1500, isActive: false });
     const updateSpy = jest
       .spyOn(productModel, "updateProductIsActive")
       .mockResolvedValue({ productId: "prod-1", isActive: true });
@@ -42,6 +45,20 @@ describe("activation services", () => {
       message: "Product activated successfully",
       product: { productId: "prod-1", isActive: true },
     });
+  });
+
+  test("product activation rejects when base price is missing", async () => {
+    jest
+      .spyOn(productModel, "getProductPricingById")
+      .mockResolvedValue({ productId: "prod-1", basePrice: 0, isActive: false });
+
+    await expect(
+      productService.updateProductActivation({
+        productId: "prod-1",
+        isActive: true,
+        userRole: "product_manager",
+      })
+    ).rejects.toThrow(/base price/i);
   });
 
   test("category activation rejects non product managers", async () => {

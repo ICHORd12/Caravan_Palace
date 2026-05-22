@@ -229,4 +229,37 @@ describe('productModel', () => {
 
     expect(product).toEqual({ productId: 4, isActive: false });
   });
+
+  // ------------------------------------------------------------------
+  // Test 8: updateProductStock sets quantity_in_stocks
+  // ------------------------------------------------------------------
+  test('updateProductStock updates quantity_in_stocks and updated_at', async () => {
+    querySpy.mockResolvedValue({
+      rows: [
+        {
+          product_id: 3,
+          quantity_in_stocks: 12,
+        },
+      ],
+      rowCount: 1,
+    });
+
+    const product = await productModel.updateProductStock({
+      productId: 3,
+      quantityInStocks: 12,
+    });
+
+    expect(querySpy).toHaveBeenCalledTimes(1);
+    const [sql, params] = querySpy.mock.calls[0];
+    expect(sql).toMatch(/UPDATE products/i);
+    expect(sql).toMatch(/SET quantity_in_stocks = \$1/i);
+    expect(sql).toMatch(/updated_at/i);
+    expect(sql).toMatch(/WHERE product_id = \$2/i);
+    expect(params).toEqual([12, 3]);
+
+    expect(product).toMatchObject({
+      productId: 3,
+      quantityInStocks: 12,
+    });
+  });
 });
