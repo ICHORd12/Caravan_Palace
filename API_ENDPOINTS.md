@@ -652,8 +652,9 @@ Product objects returned by the product endpoints below include an `images` arra
 
 #### Active-Only Behavior
 
-- Product list, search, and details endpoints only return products where `is_active = true`.
-- Requests for inactive products return `404`.
+- Product list, search, and details endpoints only return products where `is_active = true` for public or non-manager users.
+- If a request is authenticated with a JWT whose `role` is `product_manager` or `sales_manager`, the same endpoints will include deactivated products (manager visibility).
+- Requests for inactive products from unauthenticated or non-manager users return `404`.
 
 ### `GET /api/v3/products/all`
 
@@ -980,6 +981,10 @@ Fetches one product's full detail payload, including product images, reviews, th
 - Optional
 - If a valid `Authorization: Bearer <token>` header is sent, the response includes user-specific review eligibility and the authenticated user's existing review if one exists.
 - If the token is missing or invalid, the endpoint still responds as a guest user.
+ - Optional
+ - If a valid `Authorization: Bearer <token>` header is sent, the response includes user-specific review eligibility and the authenticated user's existing review if one exists.
+ - If the token is missing or invalid, the endpoint still responds as a guest user.
+ - Manager visibility: authenticated users with `role` equal to `product_manager` or `sales_manager` will receive details for deactivated products; unauthenticated or non-manager users will receive `404` for inactive products.
 
 #### Path Params
 
@@ -1064,6 +1069,104 @@ Status: `200 OK`
 
 ---
 
+### `POST /api/v3/products`
+
+Creates a new product (product manager only). Prices are always set to `0` on creation. Products stay inactive and invisible to the public until a sales manager sets a base price.
+
+#### Auth
+
+- Required (product manager only)
+
+#### Request Body
+
+```json
+{
+  "categoryId": "11111111-1111-1111-1111-111111111111",
+  "name": "Eco Camper Van",
+  "model": "ECO-2025",
+  "serialNumber": "SN-000002",
+  "description": "Product description",
+  "quantityInStocks": 10,
+  "warrantyStatus": "4 Years",
+  "distributorInfo": "Distributor name",
+  "berthCount": 2,
+  "fuelType": "Diesel",
+  "weightKg": 1500,
+  "hasKitchen": false,
+  "images": [
+    {
+      "url": "https://example.com/images/caravan-x-front.jpg",
+      "isPrimary": true
+    },
+    {
+      "url": "https://example.com/images/caravan-x-interior.jpg"
+    }
+  ]
+}
+```
+
+#### Notes
+
+- Any `basePrice`, `currentPrice`, or `discountRate` sent in the request body is ignored and stored as `0`.
+- The product is created with `is_active = false` and does not appear in public product endpoints until a sales manager sets a base price.
+- `images` is optional; when provided, only one image can be marked as primary. If none are marked, the first image becomes primary.
+
+#### Success Response
+
+Status: `201 Created`
+
+```json
+{
+  "message": "Product created successfully",
+  "product": {
+    "productId": "8924ed90-3acb-4e39-a9a5-5c47a84255e9",
+    "categoryId": "11111111-1111-1111-1111-111111111111",
+    "name": "Eco Camper Van",
+    "model": "ECO-2025",
+    "serialNumber": "SN-000002",
+    "description": "Product description",
+    "quantityInStocks": 10,
+    "basePrice": 0,
+    "currentPrice": 0,
+    "warrantyStatus": "4 Years",
+    "distributorInfo": "Distributor name",
+    "berthCount": 2,
+    "fuelType": "Diesel",
+    "weightKg": 1500,
+    "hasKitchen": false,
+    "discountRate": 0,
+    "averageRating": 0,
+    "reviewCount": 0,
+    "createdAt": "2026-05-22T10:00:00.000Z",
+    "updatedAt": "2026-05-22T10:00:00.000Z",
+    "images": [
+      {
+        "imageId": "3b67fbdd-d08b-47f7-b493-b3c27ec1a8c4",
+        "url": "https://example.com/images/caravan-x-front.jpg",
+        "isPrimary": true,
+        "createdAt": "2026-05-22T10:00:00.000Z"
+      },
+      {
+        "imageId": "0dd97142-8d8c-46f3-8353-fd7490864b56",
+        "url": "https://example.com/images/caravan-x-interior.jpg",
+        "isPrimary": false,
+        "createdAt": "2026-05-22T10:00:00.000Z"
+      }
+    ]
+  }
+}
+```
+
+#### Common Errors
+
+- `400` if required fields are missing or invalid
+- `401` if token is missing
+- `401` if token is invalid
+- `403` if user is not a product manager
+- `404` if category is not found
+
+---
+
 ### `PATCH /api/v3/products/:productId/activation`
 
 Activates or deactivates a product.
@@ -1084,6 +1187,10 @@ Activates or deactivates a product.
 }
 ```
 
+#### Notes
+
+- Products cannot be activated until a base price has been set by a sales manager.
+
 #### Success Response
 
 Status: `200 OK`
@@ -1101,6 +1208,55 @@ Status: `200 OK`
 #### Common Errors
 
 - `400` if `isActive` is missing or not a boolean
+- `401` if token is missing
+- `401` if token is invalid
+- `403` if user is not a product manager
+- `409` if base price is not set
+- `404` if product is not found
+
+---
+
+### `PATCH /api/v3/products/:productId/stock`
+
+Sets a product's stock quantity.
+
+#### Auth
+
+- Required (product manager only)
+
+#### Path Params
+
+- `productId`: target product id
+
+#### Request Body
+
+```json
+{
+  "quantityInStocks": 25
+}
+```
+
+#### Notes
+
+- `quantityInStocks` must be a non-negative integer.
+
+#### Success Response
+
+Status: `200 OK`
+
+```json
+{
+  "message": "Product stock updated successfully",
+  "product": {
+    "productId": "8924ed90-3acb-4e39-a9a5-5c47a84255e9",
+    "quantityInStocks": 25
+  }
+}
+```
+
+#### Common Errors
+
+- `400` if `quantityInStocks` is missing or not an integer
 - `401` if token is missing
 - `401` if token is invalid
 - `403` if user is not a product manager
@@ -1195,6 +1351,7 @@ Updates a product's base price. The backend recalculates `current_price` using t
 - `basePrice` must be a number greater than `0`.
 - The backend recalculates `current_price` using the existing `discount_rate`.
 - The existing `discount_rate` remains unchanged.
+- If the product was created without a price, setting a base price activates it for public visibility.
 
 #### Success Response
 
@@ -1322,6 +1479,8 @@ Public review responses include `userName`:
   "userName": "John Doe",
   "rating": 5,
   "commentText": "Excellent caravan.",
+  "status": "approved",
+  "moderationComment": null,
   "isApproved": true,
   "createdAt": "2026-04-20T14:30:00.000Z",
   "updatedAt": "2026-04-20T14:30:00.000Z"
@@ -1355,6 +1514,8 @@ Status: `200 OK`
       "userName": "John Doe",
       "rating": 5,
       "commentText": "Excellent caravan.",
+      "status": "approved",
+      "moderationComment": null,
       "isApproved": true,
       "createdAt": "2026-04-20T14:30:00.000Z",
       "updatedAt": "2026-04-20T14:30:00.000Z"
@@ -1447,13 +1608,15 @@ Status: `201 Created`
 
 ```json
 {
-  "message": "Review created successfully",
+  "message": "Review created successfully and is pending approval",
   "review": {
     "reviewId": "3a2fd384-e018-4f7d-81c5-9e0b9a57a2bf",
     "productId": "8924ed90-3acb-4e39-a9a5-5c47a84255e9",
     "userId": "b3c3f74e-4aba-4e46-8e5c-53c344f2d259",
     "rating": 5,
     "commentText": "Excellent caravan.",
+    "status": "pending",
+    "moderationComment": null,
     "isApproved": false,
     "createdAt": "2026-04-20T14:30:00.000Z",
     "updatedAt": "2026-04-20T14:30:00.000Z"
@@ -1545,6 +1708,8 @@ Status: `200 OK`
     "userId": "b3c3f74e-4aba-4e46-8e5c-53c344f2d259",
     "rating": 4,
     "commentText": "Still very happy with it after another trip.",
+    "status": "pending",
+    "moderationComment": null,
     "isApproved": false,
     "createdAt": "2026-04-20T14:30:00.000Z",
     "updatedAt": "2026-05-06T14:30:00.000Z"
@@ -1559,6 +1724,105 @@ Status: `200 OK`
 - `401` if token is invalid
 - `403` if the authenticated user does not own the review
 - `404` if review is not found
+
+---
+
+### `GET /api/v3/reviews/pending`
+
+Returns the product manager waiting list of pending reviews.
+
+#### Auth
+
+- Required
+- The authenticated user must have role `product_manager`.
+
+#### Success Response
+
+Status: `200 OK`
+
+```json
+{
+  "message": "Pending reviews fetched successfully",
+  "reviews": [
+    {
+      "reviewId": "3a2fd384-e018-4f7d-81c5-9e0b9a57a2bf",
+      "productId": "8924ed90-3acb-4e39-a9a5-5c47a84255e9",
+      "userId": "b3c3f74e-4aba-4e46-8e5c-53c344f2d259",
+      "userName": "John Doe",
+      "rating": 5,
+      "commentText": "Excellent caravan.",
+      "status": "pending",
+      "moderationComment": null,
+      "isApproved": false,
+      "createdAt": "2026-04-20T14:30:00.000Z",
+      "updatedAt": "2026-04-20T14:30:00.000Z"
+    }
+  ]
+}
+```
+
+#### Common Errors
+
+- `401` if token is missing
+- `401` if token is invalid
+- `403` if the user is not a product manager
+
+---
+
+### `PATCH /api/v3/reviews/:reviewId/moderate`
+
+Approves or rejects a pending review for moderation.
+
+#### Auth
+
+- Required
+- The authenticated user must have role `product_manager`.
+
+#### Request Body
+
+```json
+{
+  "status": "approved",
+  "moderationComment": "Looks good to publish."
+}
+```
+
+#### Request Fields
+
+- `status`: required, must be `approved` or `rejected`
+- `moderationComment`: optional for approval, required for rejection
+
+#### Success Response
+
+Status: `200 OK`
+
+```json
+{
+  "message": "Review approved successfully",
+  "review": {
+    "reviewId": "3a2fd384-e018-4f7d-81c5-9e0b9a57a2bf",
+    "productId": "8924ed90-3acb-4e39-a9a5-5c47a84255e9",
+    "userId": "b3c3f74e-4aba-4e46-8e5c-53c344f2d259",
+    "rating": 5,
+    "commentText": "Excellent caravan.",
+    "status": "approved",
+    "moderationComment": "Looks good to publish.",
+    "isApproved": true,
+    "createdAt": "2026-04-20T14:30:00.000Z",
+    "updatedAt": "2026-05-22T14:30:00.000Z"
+  }
+}
+```
+
+#### Common Errors
+
+- `400` if `status` is not `approved` or `rejected`
+- `400` if `moderationComment` is missing for a rejected review
+- `401` if token is missing
+- `401` if token is invalid
+- `403` if the user is not a product manager
+- `404` if review is not found
+- `409` if the review is not pending
 
 ---
 
@@ -2669,7 +2933,9 @@ These must be set on the backend for invoice emails and wishlist discount notifi
 - `POST /api/v3/users/me/orders/:orderId/cancel`
 - `POST /api/v3/users/me/orders/:orderId/refund-requests`
 - `POST /api/v3/users/me/orders/:orderId/items/:orderItemId/refund-requests`
+- `POST /api/v3/products`
 - `PATCH /api/v3/products/:productId/activation`
+- `PATCH /api/v3/products/:productId/stock`
 - `PATCH /api/v3/products/:productId/discount`
 - `PATCH /api/v3/products/:productId/base-price`
 - `GET /api/v3/cart/`

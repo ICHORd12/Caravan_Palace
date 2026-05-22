@@ -69,16 +69,46 @@ exports.deleteReview = async (req, res, next) => {
 };
 
 
-exports.updateReview = async (req, res, next) => {
-    try {
-        const result = await reviewService.updateReview(
-            req.user.userId,
-            req.params.reviewId,
-            req.body
-        );
+exports.getPendingReviews = async (req, res, next) => {
+  try {
+    const result = await reviewService.getPendingReviews({
+      userRole: req.user.role,
+    });
 
-        res.status(200).json(result);
-    } catch (err) {
-        next(err);
-    }
+    res.status(200).json(result);
+  } catch (err) {
+    next(err);
+  }
+};
+
+
+exports.moderateReview = async (req, res, next) => {
+  try {
+    const moderationComment = req.body.moderationComment ?? req.body.moderation_comment;
+    const result = await reviewService.moderateReview({
+      reviewId: req.params.reviewId,
+      status: req.body.status,
+      moderationComment,
+      userRole: req.user.role,
+    });
+
+    res.status(200).json(result);
+  } catch (err) {
+    next(err);
+  }
+};
+
+
+exports.updateReview = async (req, res, next) => {
+  try {
+    const result = await reviewService.updateReview(
+      req.user.userId,
+      req.params.reviewId,
+      req.body
+    );
+
+    res.status(200).json(result);
+  } catch (err) {
+    next(err);
+  }
 };

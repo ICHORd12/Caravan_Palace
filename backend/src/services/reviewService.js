@@ -1,5 +1,7 @@
-    const reviewModel = require("../models/reviewModel");
+  const reviewModel = require("../models/reviewModel");
 const ApiError = require("../utils/ApiError");
+
+  const REVIEW_STATUSES = new Set(["pending", "approved", "rejected"]);
 
 exports.getReviewsByProductId = async (productId) => {
   const reviews = await reviewModel.getReviewsByProductId(productId);
@@ -79,7 +81,7 @@ exports.createReview = async ({ userId, productId, rating, commentText }) => {
   });
 
   return {
-    message: "Review created successfully",
+    message: "Review created successfully and is pending approval",
     review,
   };
 };
@@ -107,29 +109,88 @@ exports.deleteReview = async ({ reviewId, userId, userRole }) => {
 };
 
 
+exports.getPendingReviews = async ({ userRole }) => {
+  if (userRole !== "product_manager") {
+    throw new ApiError(403, "Only product managers can view pending reviews");
+  }
+
+  const reviews = await reviewModel.getPendingReviews();
+
+  return {
+    message: "Pending reviews fetched successfully",
+    reviews,
+  };
+};
+
+
+exports.moderateReview = async ({ reviewId, status, moderationComment, userRole }) => {
+  if (userRole !== "product_manager") {
+    throw new ApiError(403, "Only product managers can moderate reviews");
+  }
+
+  const normalizedStatus = typeof status === "string" ? status.trim().toLowerCase() : "";
+
+  if (!REVIEW_STATUSES.has(normalizedStatus) || normalizedStatus === "pending") {
+    throw new ApiError(400, "Status must be approved or rejected");
+  }
+
+  const normalizedComment =
+    typeof moderationComment === "string" ? moderationComment.trim() : "";
+
+  if (normalizedStatus === "rejected" && normalizedComment === "") {
+    throw new ApiError(400, "moderationComment is required when rejecting a review");
+  }
+
+  const existingReview = await reviewModel.getReviewById(reviewId);
+
+  if (!existingReview) {
+    throw new ApiError(404, "Review not found");
+  }
+
+  if (existingReview.status && existingReview.status !== "pending") {
+    throw new ApiError(409, "Only pending reviews can be moderated");
+  }
+
+  const moderatedReview = await reviewModel.updateReviewModeration({
+    reviewId,
+    status: normalizedStatus,
+    moderationComment: normalizedComment || null,
+  });
+
+  if (!moderatedReview) {
+    throw new ApiError(409, "Only pending reviews can be moderated");
+  }
+
+  return {
+    message: `Review ${normalizedStatus} successfully`,
+    review: moderatedReview,
+  };
+};
+
+
 exports.updateReview = async (userId, reviewId, { comment, rating }) => {
-    if (!comment && rating === undefined) {
-        throw new ApiError(400, "At least one field must be provided");
-    }
+  if (!comment && rating === undefined) {
+    throw new ApiError(400, "At least one field must be provided");
+  }
 
-    const existingReview = await reviewModel.getReviewById(reviewId);
+  const existingReview = await reviewModel.getReviewById(reviewId);
 
-    if (!existingReview) {
-        throw new ApiError(404, "Review not found");
-    }
+  if (!existingReview) {
+    throw new ApiError(404, "Review not found");
+  }
 
-    if (existingReview.user_id !== userId) {
-        throw new ApiError(403, "You can only update your own review");
-    }
+  if (existingReview.userId !== userId) {
+    throw new ApiError(403, "You can only update your own review");
+  }
 
-    const updatedReview = await reviewModel.updateReview(reviewId, {
-        comment,
-        rating,
-        approvalStatus: "pending"
-    });
+  const updatedReview = await reviewModel.updateReview(reviewId, {
+    comment,
+    rating,
+    approvalStatus: "pending",
+  });
 
-    return {
-        message: "Review updated successfully and is pending approval",
-        review: updatedReview
-    };
+  return {
+    message: "Review updated successfully and is pending approval",
+    review: updatedReview,
+  };
 };
