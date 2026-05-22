@@ -1064,6 +1064,104 @@ Status: `200 OK`
 
 ---
 
+### `POST /api/v3/products`
+
+Creates a new product (product manager only). Prices are always set to `0` on creation. Products stay inactive and invisible to the public until a sales manager sets a base price.
+
+#### Auth
+
+- Required (product manager only)
+
+#### Request Body
+
+```json
+{
+  "categoryId": "11111111-1111-1111-1111-111111111111",
+  "name": "Eco Camper Van",
+  "model": "ECO-2025",
+  "serialNumber": "SN-000002",
+  "description": "Product description",
+  "quantityInStocks": 10,
+  "warrantyStatus": "4 Years",
+  "distributorInfo": "Distributor name",
+  "berthCount": 2,
+  "fuelType": "Diesel",
+  "weightKg": 1500,
+  "hasKitchen": false,
+  "images": [
+    {
+      "url": "https://example.com/images/caravan-x-front.jpg",
+      "isPrimary": true
+    },
+    {
+      "url": "https://example.com/images/caravan-x-interior.jpg"
+    }
+  ]
+}
+```
+
+#### Notes
+
+- Any `basePrice`, `currentPrice`, or `discountRate` sent in the request body is ignored and stored as `0`.
+- The product is created with `is_active = false` and does not appear in public product endpoints until a sales manager sets a base price.
+- `images` is optional; when provided, only one image can be marked as primary. If none are marked, the first image becomes primary.
+
+#### Success Response
+
+Status: `201 Created`
+
+```json
+{
+  "message": "Product created successfully",
+  "product": {
+    "productId": "8924ed90-3acb-4e39-a9a5-5c47a84255e9",
+    "categoryId": "11111111-1111-1111-1111-111111111111",
+    "name": "Eco Camper Van",
+    "model": "ECO-2025",
+    "serialNumber": "SN-000002",
+    "description": "Product description",
+    "quantityInStocks": 10,
+    "basePrice": 0,
+    "currentPrice": 0,
+    "warrantyStatus": "4 Years",
+    "distributorInfo": "Distributor name",
+    "berthCount": 2,
+    "fuelType": "Diesel",
+    "weightKg": 1500,
+    "hasKitchen": false,
+    "discountRate": 0,
+    "averageRating": 0,
+    "reviewCount": 0,
+    "createdAt": "2026-05-22T10:00:00.000Z",
+    "updatedAt": "2026-05-22T10:00:00.000Z",
+    "images": [
+      {
+        "imageId": "3b67fbdd-d08b-47f7-b493-b3c27ec1a8c4",
+        "url": "https://example.com/images/caravan-x-front.jpg",
+        "isPrimary": true,
+        "createdAt": "2026-05-22T10:00:00.000Z"
+      },
+      {
+        "imageId": "0dd97142-8d8c-46f3-8353-fd7490864b56",
+        "url": "https://example.com/images/caravan-x-interior.jpg",
+        "isPrimary": false,
+        "createdAt": "2026-05-22T10:00:00.000Z"
+      }
+    ]
+  }
+}
+```
+
+#### Common Errors
+
+- `400` if required fields are missing or invalid
+- `401` if token is missing
+- `401` if token is invalid
+- `403` if user is not a product manager
+- `404` if category is not found
+
+---
+
 ### `PATCH /api/v3/products/:productId/activation`
 
 Activates or deactivates a product.
@@ -1083,6 +1181,10 @@ Activates or deactivates a product.
   "isActive": true
 }
 ```
+
+#### Notes
+
+- Products cannot be activated until a base price has been set by a sales manager.
 
 #### Success Response
 
@@ -1104,6 +1206,7 @@ Status: `200 OK`
 - `401` if token is missing
 - `401` if token is invalid
 - `403` if user is not a product manager
+- `409` if base price is not set
 - `404` if product is not found
 
 ---
@@ -1195,6 +1298,7 @@ Updates a product's base price. The backend recalculates `current_price` using t
 - `basePrice` must be a number greater than `0`.
 - The backend recalculates `current_price` using the existing `discount_rate`.
 - The existing `discount_rate` remains unchanged.
+- If the product was created without a price, setting a base price activates it for public visibility.
 
 #### Success Response
 
@@ -2669,6 +2773,7 @@ These must be set on the backend for invoice emails and wishlist discount notifi
 - `POST /api/v3/users/me/orders/:orderId/cancel`
 - `POST /api/v3/users/me/orders/:orderId/refund-requests`
 - `POST /api/v3/users/me/orders/:orderId/items/:orderItemId/refund-requests`
+- `POST /api/v3/products`
 - `PATCH /api/v3/products/:productId/activation`
 - `PATCH /api/v3/products/:productId/discount`
 - `PATCH /api/v3/products/:productId/base-price`

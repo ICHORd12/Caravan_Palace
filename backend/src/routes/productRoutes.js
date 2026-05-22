@@ -9,6 +9,7 @@ router.get("/all", productController.getAllProducts);
 router.get("/category_name", productController.getProductsByCategoryName);
 router.get("/search", productController.searchProductsByNameOrDescription);
 router.post("/by-ids", productController.getProductsByIds);
+router.post("/", authMiddleware, productController.createProduct);
 router.patch("/:productId/activation", authMiddleware, productController.updateProductActivation);
 router.patch("/:productId/discount", authMiddleware, productController.updateProductDiscount);
 router.patch("/:productId/base-price", authMiddleware, productController.updateProductBasePrice);

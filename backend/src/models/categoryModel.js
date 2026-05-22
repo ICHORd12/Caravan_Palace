@@ -48,3 +48,29 @@ exports.updateCategoryIsActive = async ({ categoryId, isActive }, client) => {
     isActive: row.is_active,
   };
 };
+
+exports.getCategoryById = async (categoryId, client) => {
+  const executor = client || pool;
+
+  const result = await executor.query(
+    `
+    SELECT
+      category_id,
+      category_name,
+      is_active
+    FROM categories
+    WHERE category_id = $1
+    `,
+    [categoryId]
+  );
+
+  const row = result.rows[0];
+
+  if (!row) return null;
+
+  return {
+    categoryId: row.category_id,
+    categoryName: row.category_name,
+    isActive: row.is_active,
+  };
+};

@@ -107,3 +107,18 @@ exports.updateProductBasePrice = async (req, res, next) => {
     next(err);
   }
 };
+
+exports.createProduct = async (req, res, next) => {
+  try {
+    const userRole = req.user.role;
+
+    const result = await productService.createProduct({
+      payload: req.body,
+      userRole,
+    });
+
+    res.status(201).json(result);
+  } catch (err) {
+    next(err);
+  }
+};

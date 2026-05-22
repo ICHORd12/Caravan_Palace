@@ -197,6 +197,10 @@ exports.updateProductBasePrice = async ({ productId, basePrice }, client) => {
     UPDATE products
     SET base_price = $1,
         current_price = ROUND(($1 * (1 - (COALESCE(discount_rate, 0)::numeric / 100)))::numeric, 2),
+        is_active = CASE
+          WHEN COALESCE(base_price, 0) <= 0 THEN true
+          ELSE is_active
+        END,
         updated_at = NOW()
     WHERE product_id = $2
     RETURNING *
@@ -205,6 +209,159 @@ exports.updateProductBasePrice = async ({ productId, basePrice }, client) => {
   );
 
   return mapProduct(result.rows[0] || null);
+};
+
+exports.getProductPricingById = async (productId, client) => {
+  const executor = client || pool;
+
+  const result = await executor.query(
+    `
+    SELECT
+      product_id,
+      base_price,
+      is_active
+    FROM products
+    WHERE product_id = $1
+    `,
+    [productId]
+  );
+
+  const row = result.rows[0];
+
+  if (!row) return null;
+
+  return {
+    productId: row.product_id,
+    basePrice: row.base_price,
+    isActive: row.is_active,
+  };
+};
+
+exports.createProduct = async (
+  {
+    categoryId,
+    name,
+    model,
+    serialNumber,
+    description,
+    quantityInStocks,
+    basePrice,
+    currentPrice,
+    warrantyStatus,
+    distributorInfo,
+    berthCount,
+    fuelType,
+    weightKg,
+    hasKitchen,
+    discountRate,
+    isActive,
+  },
+  client
+) => {
+  const executor = client || pool;
+
+  const result = await executor.query(
+    `
+    INSERT INTO products (
+      category_id,
+      name,
+      model,
+      serial_number,
+      description,
+      quantity_in_stocks,
+      base_price,
+      current_price,
+      warranty_status,
+      distributor_info,
+      berth_count,
+      fuel_type,
+      weight_kg,
+      has_kitchen,
+      discount_rate,
+      is_active
+    )
+    VALUES (
+      $1, $2, $3, $4, $5,
+      $6, $7, $8, $9, $10,
+      $11, $12, $13, $14, $15, $16
+    )
+    RETURNING *
+    `,
+    [
+      categoryId,
+      name,
+      model,
+      serialNumber,
+      description,
+      quantityInStocks,
+      basePrice,
+      currentPrice,
+      warrantyStatus,
+      distributorInfo,
+      berthCount,
+      fuelType,
+      weightKg,
+      hasKitchen,
+      discountRate,
+      isActive,
+    ]
+  );
+
+  return mapProduct(result.rows[0] || null);
+};
+
+exports.createProductImages = async ({ productId, images }, client) => {
+  if (!Array.isArray(images) || images.length === 0) {
+    return [];
+  }
+
+  const executor = client || pool;
+  const values = [productId];
+  const placeholders = images
+    .map((image, index) => {
+      const urlIndex = index * 2 + 2;
+      const primaryIndex = index * 2 + 3;
+      values.push(image.url, image.isPrimary);
+      return `($1, $${urlIndex}, $${primaryIndex})`;
+    })
+    .join(", ");
+
+  const result = await executor.query(
+    `
+    INSERT INTO product_images (product_id, url, is_primary)
+    VALUES ${placeholders}
+    RETURNING image_id, url, is_primary, created_at
+    `,
+    values
+  );
+
+  return result.rows.map((row) => ({
+    imageId: row.image_id,
+    url: row.url,
+    isPrimary: row.is_primary,
+    createdAt: row.created_at,
+  }));
+};
+
+exports.getProductDetailsByIdForManager = async (productId, client) => {
+  const executor = client || pool;
+
+  const result = await executor.query(
+    `
+    SELECT 
+      p.*,
+      ${productImagesSelect},
+      ${productRatingSelect}
+    FROM products p
+    LEFT JOIN product_images pi ON p.product_id = pi.product_id
+    ${productRatingJoin}
+    WHERE p.product_id = $1
+    GROUP BY p.product_id, pr.average_rating, pr.review_count
+    `,
+    [productId]
+  );
+
+  return mapProduct(result.rows[0]);
 };
 
 
