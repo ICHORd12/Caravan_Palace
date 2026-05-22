@@ -54,6 +54,16 @@ exports.mapProduct = (row) => {
     images: Array.isArray(row.images) ? row.images : [],
   };
 };
+
+exports.mapCategory = (row) => {
+  if (!row) return null;
+
+  return {
+    categoryId: row.category_id,
+    categoryName: row.category_name,
+  };
+};
+
 exports.mapUser = (row) => {
   if (!row) return null;
 
@@ -131,7 +141,7 @@ exports.mapReview = (row) => {
     rating: row.rating,
     commentText: row.comment_text,
     status: row.status,
-    moderationComment: row.moderation_comment,
+    moderationComment: row.moderation_comment ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -155,7 +165,7 @@ exports.mapReviewWithUser = (row) => {
     rating: row.rating,
     commentText: row.comment_text,
     status: row.status,
-    moderationComment: row.moderation_comment,
+    moderationComment: row.moderation_comment ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };

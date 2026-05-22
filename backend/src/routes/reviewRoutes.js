@@ -12,7 +12,6 @@ router.get("/:productId/review-eligibility", authMiddleware, reviewController.ch
 router.post("/:productId/reviews", authMiddleware, reviewController.createReview);
 router.delete("/:reviewId", authMiddleware, reviewController.deleteReview);
 router.patch("/:reviewId", authMiddleware, reviewController.updateReview);
-router.patch("/:reviewId/approve", authMiddleware, reviewController.approveReview);
-router.patch("/:reviewId/reject", authMiddleware, reviewController.rejectReview);
+router.patch("/:reviewId/moderate", authMiddleware, reviewController.moderateReview);
 
 module.exports = router;

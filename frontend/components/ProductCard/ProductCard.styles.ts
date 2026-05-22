@@ -99,11 +99,39 @@ export const styles = StyleSheet.create({
         fontSize: 14,
         color: '#F5C542',
     },
-    priceText: {
+    priceRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: 12,
+    },
+    priceStack: {
+        flexDirection: 'column',
+    },
+    basePriceText: {
+        fontFamily: 'Montserrat_600SemiBold',
+        fontSize: 14,
+        color: '#606060',
+    },
+    basePriceTextDiscounted: {
+        textDecorationLine: 'line-through',
+        textDecorationStyle: 'solid',
+    },
+    currentPriceText: {
         fontFamily: 'Montserrat_700Bold',
         fontSize: 20,
         color: '#bc6c25',
-        marginBottom: 12,
+    },
+    discountBadge: {
+        backgroundColor: '#85032a',
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 8,
+    },
+    discountText: {
+        fontFamily: 'Montserrat_700Bold',
+        fontSize: 12,
+        color: '#fefae0',
     },
     specsGrid: {
         marginBottom: 15,

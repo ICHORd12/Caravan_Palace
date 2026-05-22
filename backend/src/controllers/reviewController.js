@@ -69,48 +69,43 @@ exports.deleteReview = async (req, res, next) => {
 };
 
 
-exports.updateReview = async (req, res, next) => {
-    try {
-        const result = await reviewService.updateReview(
-            req.user.userId,
-            req.params.reviewId,
-            req.body
-        );
-
-        res.status(200).json(result);
-    } catch (err) {
-        next(err);
-    }
-};
-
 exports.getPendingReviews = async (req, res, next) => {
   try {
-    const userRole = req.user.role;
-    const result = await reviewService.getPendingReviews(userRole);
+    const result = await reviewService.getPendingReviews({
+      userRole: req.user.role,
+    });
+
     res.status(200).json(result);
   } catch (err) {
     next(err);
   }
 };
 
-exports.approveReview = async (req, res, next) => {
+exports.moderateReview = async (req, res, next) => {
   try {
-    const userRole = req.user.role;
-    const { reviewId } = req.params;
-    const { moderationComment } = req.body;
-    const result = await reviewService.approveReview(reviewId, userRole, moderationComment);
+    const moderationComment = req.body.moderationComment ?? req.body.moderation_comment;
+    const result = await reviewService.moderateReview({
+      reviewId: req.params.reviewId,
+      status: req.body.status,
+      moderationComment,
+      userRole: req.user.role,
+    });
+
     res.status(200).json(result);
   } catch (err) {
     next(err);
   }
 };
 
-exports.rejectReview = async (req, res, next) => {
+exports.updateReview = async (req, res, next) => {
   try {
-    const userRole = req.user.role;
-    const { reviewId } = req.params;
-    const { moderationComment } = req.body;
-    const result = await reviewService.rejectReview(reviewId, userRole, moderationComment);
+    const result = await reviewService.updateReview(
+      req.user.userId,
+      req.params.reviewId,
+      req.body
+    );
+
+
     res.status(200).json(result);
   } catch (err) {
     next(err);

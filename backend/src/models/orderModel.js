@@ -55,6 +55,23 @@ exports.getOrderByCustomerIdAndOrderId = async (customerId, orderId, client) => 
   return mapOrder(result.rows[0]);
 };
 
+exports.getOrderById = async (orderId, client) => {
+  const executor = client || pool;
+
+  const result = await executor.query(
+    `
+    SELECT *
+    FROM orders
+    WHERE order_id = $1
+    `,
+    [orderId]
+  );
+
+  if (result.rowCount === 0) return null;
+
+  return mapOrder(result.rows[0]);
+};
+
 exports.getOrderByCustomerIdAndOrderIdForUpdate = async (
   customerId,
   orderId,

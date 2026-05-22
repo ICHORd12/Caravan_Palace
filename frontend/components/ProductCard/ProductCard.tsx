@@ -59,6 +59,8 @@ export default function ProductCard({ dimensionStyle, caravan, quantity, isWishL
         setLocalQty(quantity.toString());
     }, [quantity]);
 
+    const hasDiscount = Number(caravan.discountRate) > 0;
+
 
     function nextImage(e: any) {
         if (e && e.stopPropagation) e.stopPropagation();
@@ -163,7 +165,21 @@ export default function ProductCard({ dimensionStyle, caravan, quantity, isWishL
                         </Text>
                     </View>
 
-                    <Text style={styles.priceText}>{caravan.currentPrice}</Text>
+                    <View style={styles.priceRow}>
+                        <View style={styles.priceStack}>
+                            {hasDiscount && (
+                                <Text style={[styles.basePriceText, styles.basePriceTextDiscounted]}>
+                                    ${caravan.basePrice}
+                                </Text>
+                            )}
+                            <Text style={styles.currentPriceText}>${caravan.currentPrice}</Text>
+                        </View>
+                        {hasDiscount && (
+                            <View style={styles.discountBadge}>
+                                <Text style={styles.discountText}>{caravan.discountRate}% OFF</Text>
+                            </View>
+                        )}
+                    </View>
 
                     <View style={styles.specsGrid}>
                         <Text style={styles.specText}>• Fuel: {caravan.fuelType}</Text>

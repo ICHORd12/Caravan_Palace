@@ -650,6 +650,12 @@ Product objects returned by the product endpoints below include an `images` arra
 }
 ```
 
+#### Active-Only Behavior
+
+- Product list, search, and details endpoints only return products where `is_active = true` for public or non-manager users.
+- If a request is authenticated with a JWT whose `role` is `product_manager` or `sales_manager`, the same endpoints will include deactivated products (manager visibility).
+- Requests for inactive products from unauthenticated or non-manager users return `404`.
+
 ### `GET /api/v3/products/all`
 
 Fetches all products.
@@ -975,6 +981,10 @@ Fetches one product's full detail payload, including product images, reviews, th
 - Optional
 - If a valid `Authorization: Bearer <token>` header is sent, the response includes user-specific review eligibility and the authenticated user's existing review if one exists.
 - If the token is missing or invalid, the endpoint still responds as a guest user.
+ - Optional
+ - If a valid `Authorization: Bearer <token>` header is sent, the response includes user-specific review eligibility and the authenticated user's existing review if one exists.
+ - If the token is missing or invalid, the endpoint still responds as a guest user.
+ - Manager visibility: authenticated users with `role` equal to `product_manager` or `sales_manager` will receive details for deactivated products; unauthenticated or non-manager users will receive `404` for inactive products.
 
 #### Path Params
 
@@ -1059,6 +1069,201 @@ Status: `200 OK`
 
 ---
 
+### `POST /api/v3/products`
+
+Creates a new product (product manager only). Prices are always set to `0` on creation. Products stay inactive and invisible to the public until a sales manager sets a base price.
+
+#### Auth
+
+- Required (product manager only)
+
+#### Request Body
+
+```json
+{
+  "categoryId": "11111111-1111-1111-1111-111111111111",
+  "name": "Eco Camper Van",
+  "model": "ECO-2025",
+  "serialNumber": "SN-000002",
+  "description": "Product description",
+  "quantityInStocks": 10,
+  "warrantyStatus": "4 Years",
+  "distributorInfo": "Distributor name",
+  "berthCount": 2,
+  "fuelType": "Diesel",
+  "weightKg": 1500,
+  "hasKitchen": false,
+  "images": [
+    {
+      "url": "https://example.com/images/caravan-x-front.jpg",
+      "isPrimary": true
+    },
+    {
+      "url": "https://example.com/images/caravan-x-interior.jpg"
+    }
+  ]
+}
+```
+
+#### Notes
+
+- Any `basePrice`, `currentPrice`, or `discountRate` sent in the request body is ignored and stored as `0`.
+- The product is created with `is_active = false` and does not appear in public product endpoints until a sales manager sets a base price.
+- `images` is optional; when provided, only one image can be marked as primary. If none are marked, the first image becomes primary.
+
+#### Success Response
+
+Status: `201 Created`
+
+```json
+{
+  "message": "Product created successfully",
+  "product": {
+    "productId": "8924ed90-3acb-4e39-a9a5-5c47a84255e9",
+    "categoryId": "11111111-1111-1111-1111-111111111111",
+    "name": "Eco Camper Van",
+    "model": "ECO-2025",
+    "serialNumber": "SN-000002",
+    "description": "Product description",
+    "quantityInStocks": 10,
+    "basePrice": 0,
+    "currentPrice": 0,
+    "warrantyStatus": "4 Years",
+    "distributorInfo": "Distributor name",
+    "berthCount": 2,
+    "fuelType": "Diesel",
+    "weightKg": 1500,
+    "hasKitchen": false,
+    "discountRate": 0,
+    "averageRating": 0,
+    "reviewCount": 0,
+    "createdAt": "2026-05-22T10:00:00.000Z",
+    "updatedAt": "2026-05-22T10:00:00.000Z",
+    "images": [
+      {
+        "imageId": "3b67fbdd-d08b-47f7-b493-b3c27ec1a8c4",
+        "url": "https://example.com/images/caravan-x-front.jpg",
+        "isPrimary": true,
+        "createdAt": "2026-05-22T10:00:00.000Z"
+      },
+      {
+        "imageId": "0dd97142-8d8c-46f3-8353-fd7490864b56",
+        "url": "https://example.com/images/caravan-x-interior.jpg",
+        "isPrimary": false,
+        "createdAt": "2026-05-22T10:00:00.000Z"
+      }
+    ]
+  }
+}
+```
+
+#### Common Errors
+
+- `400` if required fields are missing or invalid
+- `401` if token is missing
+- `401` if token is invalid
+- `403` if user is not a product manager
+- `404` if category is not found
+
+---
+
+### `PATCH /api/v3/products/:productId/activation`
+
+Activates or deactivates a product.
+
+#### Auth
+
+- Required (product manager only)
+
+#### Path Params
+
+- `productId`: target product id
+
+#### Request Body
+
+```json
+{
+  "isActive": true
+}
+```
+
+#### Notes
+
+- Products cannot be activated until a base price has been set by a sales manager.
+
+#### Success Response
+
+Status: `200 OK`
+
+```json
+{
+  "message": "Product activated successfully",
+  "product": {
+    "productId": "8924ed90-3acb-4e39-a9a5-5c47a84255e9",
+    "isActive": true
+  }
+}
+```
+
+#### Common Errors
+
+- `400` if `isActive` is missing or not a boolean
+- `401` if token is missing
+- `401` if token is invalid
+- `403` if user is not a product manager
+- `409` if base price is not set
+- `404` if product is not found
+
+---
+
+### `PATCH /api/v3/products/:productId/stock`
+
+Sets a product's stock quantity.
+
+#### Auth
+
+- Required (product manager only)
+
+#### Path Params
+
+- `productId`: target product id
+
+#### Request Body
+
+```json
+{
+  "quantityInStocks": 25
+}
+```
+
+#### Notes
+
+- `quantityInStocks` must be a non-negative integer.
+
+#### Success Response
+
+Status: `200 OK`
+
+```json
+{
+  "message": "Product stock updated successfully",
+  "product": {
+    "productId": "8924ed90-3acb-4e39-a9a5-5c47a84255e9",
+    "quantityInStocks": 25
+  }
+}
+```
+
+#### Common Errors
+
+- `400` if `quantityInStocks` is missing or not an integer
+- `401` if token is missing
+- `401` if token is invalid
+- `403` if user is not a product manager
+- `404` if product is not found
+
+---
+
 ### `PATCH /api/v3/products/:productId/discount`
 
 Updates a product's discount rate. If the new discount is greater than the previous discount, the backend emails users who have that product in their wishlist.
@@ -1121,6 +1326,142 @@ Status: `200 OK`
 
 ---
 
+### `PATCH /api/v3/products/:productId/base-price`
+
+Updates a product's base price. The backend recalculates `current_price` using the existing discount rate.
+
+#### Auth
+
+- Required (sales manager only)
+
+#### Path Params
+
+- `productId`: target product id
+
+#### Request Body
+
+```json
+{
+  "basePrice": 550000
+}
+```
+
+#### Notes
+
+- `basePrice` must be a number greater than `0`.
+- The backend recalculates `current_price` using the existing `discount_rate`.
+- The existing `discount_rate` remains unchanged.
+- If the product was created without a price, setting a base price activates it for public visibility.
+
+#### Success Response
+
+Status: `200 OK`
+
+```json
+{
+  "message": "Product base price updated successfully",
+  "product": {
+    "productId": "8924ed90-3acb-4e39-a9a5-5c47a84255e9",
+    "name": "Eco Camper Van",
+    "basePrice": "550000.00",
+    "currentPrice": "467500.00",
+    "discountRate": 15
+  }
+}
+```
+
+#### Common Errors
+
+- `400` if `basePrice` is missing, not numeric, or not greater than `0`
+- `401` if token is missing
+- `401` if token is invalid
+- `403` if user is not a sales manager
+- `404` if product is not found
+
+---
+
+
+## Category Endpoints
+
+### `GET /api/v3/categories`
+
+Fetches all categories.
+
+#### Auth
+
+- Not required
+
+#### Active-Only Behavior
+
+- This endpoint only returns categories where `is_active = true`.
+
+#### Success Response
+
+Status: `200 OK`
+
+```json
+{
+  "message": "Categories fetched successfully",
+  "categories": [
+    {
+      "categoryId": "ff28bce6-284e-4c65-8557-0416f4274679",
+      "categoryName": "Camper Vans"
+    }
+  ]
+}
+```
+
+#### Common Errors
+
+- None
+
+---
+
+### `PATCH /api/v3/categories/:categoryId/activation`
+
+Activates or deactivates a category.
+
+#### Auth
+
+- Required (product manager only)
+
+#### Path Params
+
+- `categoryId`: target category id
+
+#### Request Body
+
+```json
+{
+  "isActive": false
+}
+```
+
+#### Success Response
+
+Status: `200 OK`
+
+```json
+{
+  "message": "Category deactivated successfully",
+  "category": {
+    "categoryId": "ff28bce6-284e-4c65-8557-0416f4274679",
+    "categoryName": "Camper Vans",
+    "isActive": false
+  }
+}
+```
+
+#### Common Errors
+
+- `400` if `isActive` is missing or not a boolean
+- `401` if token is missing
+- `401` if token is invalid
+- `403` if user is not a product manager
+- `404` if category is not found
+
+---
+
 
 ## Review Endpoints
 
@@ -1138,6 +1479,8 @@ Public review responses include `userName`:
   "userName": "John Doe",
   "rating": 5,
   "commentText": "Excellent caravan.",
+  "status": "approved",
+  "moderationComment": null,
   "isApproved": true,
   "createdAt": "2026-04-20T14:30:00.000Z",
   "updatedAt": "2026-04-20T14:30:00.000Z"
@@ -1171,6 +1514,8 @@ Status: `200 OK`
       "userName": "John Doe",
       "rating": 5,
       "commentText": "Excellent caravan.",
+      "status": "approved",
+      "moderationComment": null,
       "isApproved": true,
       "createdAt": "2026-04-20T14:30:00.000Z",
       "updatedAt": "2026-04-20T14:30:00.000Z"
@@ -1263,13 +1608,15 @@ Status: `201 Created`
 
 ```json
 {
-  "message": "Review created successfully",
+  "message": "Review created successfully and is pending approval",
   "review": {
     "reviewId": "3a2fd384-e018-4f7d-81c5-9e0b9a57a2bf",
     "productId": "8924ed90-3acb-4e39-a9a5-5c47a84255e9",
     "userId": "b3c3f74e-4aba-4e46-8e5c-53c344f2d259",
     "rating": 5,
     "commentText": "Excellent caravan.",
+    "status": "pending",
+    "moderationComment": null,
     "isApproved": false,
     "createdAt": "2026-04-20T14:30:00.000Z",
     "updatedAt": "2026-04-20T14:30:00.000Z"
@@ -1361,6 +1708,8 @@ Status: `200 OK`
     "userId": "b3c3f74e-4aba-4e46-8e5c-53c344f2d259",
     "rating": 4,
     "commentText": "Still very happy with it after another trip.",
+    "status": "pending",
+    "moderationComment": null,
     "isApproved": false,
     "createdAt": "2026-04-20T14:30:00.000Z",
     "updatedAt": "2026-05-06T14:30:00.000Z"
@@ -1375,6 +1724,105 @@ Status: `200 OK`
 - `401` if token is invalid
 - `403` if the authenticated user does not own the review
 - `404` if review is not found
+
+---
+
+### `GET /api/v3/reviews/pending`
+
+Returns the product manager waiting list of pending reviews.
+
+#### Auth
+
+- Required
+- The authenticated user must have role `product_manager`.
+
+#### Success Response
+
+Status: `200 OK`
+
+```json
+{
+  "message": "Pending reviews fetched successfully",
+  "reviews": [
+    {
+      "reviewId": "3a2fd384-e018-4f7d-81c5-9e0b9a57a2bf",
+      "productId": "8924ed90-3acb-4e39-a9a5-5c47a84255e9",
+      "userId": "b3c3f74e-4aba-4e46-8e5c-53c344f2d259",
+      "userName": "John Doe",
+      "rating": 5,
+      "commentText": "Excellent caravan.",
+      "status": "pending",
+      "moderationComment": null,
+      "isApproved": false,
+      "createdAt": "2026-04-20T14:30:00.000Z",
+      "updatedAt": "2026-04-20T14:30:00.000Z"
+    }
+  ]
+}
+```
+
+#### Common Errors
+
+- `401` if token is missing
+- `401` if token is invalid
+- `403` if the user is not a product manager
+
+---
+
+### `PATCH /api/v3/reviews/:reviewId/moderate`
+
+Approves or rejects a pending review for moderation.
+
+#### Auth
+
+- Required
+- The authenticated user must have role `product_manager`.
+
+#### Request Body
+
+```json
+{
+  "status": "approved",
+  "moderationComment": "Looks good to publish."
+}
+```
+
+#### Request Fields
+
+- `status`: required, must be `approved` or `rejected`
+- `moderationComment`: optional for approval, required for rejection
+
+#### Success Response
+
+Status: `200 OK`
+
+```json
+{
+  "message": "Review approved successfully",
+  "review": {
+    "reviewId": "3a2fd384-e018-4f7d-81c5-9e0b9a57a2bf",
+    "productId": "8924ed90-3acb-4e39-a9a5-5c47a84255e9",
+    "userId": "b3c3f74e-4aba-4e46-8e5c-53c344f2d259",
+    "rating": 5,
+    "commentText": "Excellent caravan.",
+    "status": "approved",
+    "moderationComment": "Looks good to publish.",
+    "isApproved": true,
+    "createdAt": "2026-04-20T14:30:00.000Z",
+    "updatedAt": "2026-05-22T14:30:00.000Z"
+  }
+}
+```
+
+#### Common Errors
+
+- `400` if `status` is not `approved` or `rejected`
+- `400` if `moderationComment` is missing for a rejected review
+- `401` if token is missing
+- `401` if token is invalid
+- `403` if the user is not a product manager
+- `404` if review is not found
+- `409` if the review is not pending
 
 ---
 
@@ -1955,7 +2403,7 @@ Status: `200 OK`
 
 ## Order Management Endpoints
 
-All order management endpoints require authentication and are restricted to `sales_manager` users.
+All order management endpoints require authentication. All endpoints are restricted to `sales_manager` users except `PATCH /api/v3/orders/:orderId/status`, which requires `product_manager`.
 
 ### `GET /api/v3/orders/reports/financial-summary`
 
@@ -1963,7 +2411,7 @@ Returns revenue, loss, refund loss, net revenue, and profit for orders placed in
 
 #### Auth
 
-- Required (sales manager only)
+- Required (product manager only)
 
 #### Query Params
 
@@ -1981,9 +2429,10 @@ GET /api/v3/orders/reports/financial-summary?startDate=2026-05-01&endDate=2026-0
 - `startDate` and `endDate` are inclusive calendar dates.
 - Cancelled orders are excluded.
 - `grossRevenue` is based on purchased order item prices.
-- `discountLoss` is the difference between product base price and purchased price for sold items.
 - `refundLoss` includes approved/completed refunds for sold items in the selected order-date range.
-- `netRevenue` and `profit` are currently calculated as `grossRevenue - refundLoss`.
+- `totalLoss` is equal to `refundLoss`.
+- `netRevenue` is calculated as `grossRevenue - refundLoss`.
+- `profit` is calculated as `netRevenue * 0.5`.
 
 #### Success Response
 
@@ -2004,11 +2453,10 @@ Status: `200 OK`
     "refundCount": 1,
     "potentialRevenue": 6200000,
     "grossRevenue": 5890000,
-    "discountLoss": 310000,
     "refundLoss": 150000,
-    "totalLoss": 460000,
+    "totalLoss": 150000,
     "netRevenue": 5740000,
-    "profit": 5740000
+    "profit": 2870000
   }
 }
 ```
@@ -2021,6 +2469,44 @@ Status: `200 OK`
 - `401` if token is missing
 - `401` if token is invalid
 - `403` if user is not a sales manager
+
+---
+
+### `GET /api/v3/orders/:orderId/invoice.pdf`
+
+Generates the invoice PDF for any order and streams it back as a file download. This endpoint is intended for sales managers.
+
+#### Auth
+
+- Required (sales manager only)
+
+#### Path Params
+
+- `orderId`: target order id
+
+#### Request Body
+
+No request body.
+
+#### Success Response
+
+Status: `200 OK`
+
+Response is a binary PDF stream (not JSON):
+
+```http
+Content-Type: application/pdf
+Content-Disposition: attachment; filename="invoice-order-<orderId>.pdf"
+Content-Length: <bytes>
+```
+
+#### Common Errors
+
+- `400` if `orderId` is missing
+- `401` if token is missing
+- `401` if token is invalid
+- `403` if user is not a sales manager
+- `404` if the order is not found
 
 ---
 
@@ -2140,7 +2626,7 @@ Status: `200 OK`
 - `400` if `status` is missing or invalid
 - `401` if token is missing
 - `401` if token is invalid
-- `403` if user is not a sales manager
+- `403` if user is not a product manager
 - `404` if order is not found
 - `409` if the status transition is not allowed
 
@@ -2447,7 +2933,11 @@ These must be set on the backend for invoice emails and wishlist discount notifi
 - `POST /api/v3/users/me/orders/:orderId/cancel`
 - `POST /api/v3/users/me/orders/:orderId/refund-requests`
 - `POST /api/v3/users/me/orders/:orderId/items/:orderItemId/refund-requests`
+- `POST /api/v3/products`
+- `PATCH /api/v3/products/:productId/activation`
+- `PATCH /api/v3/products/:productId/stock`
 - `PATCH /api/v3/products/:productId/discount`
+- `PATCH /api/v3/products/:productId/base-price`
 - `GET /api/v3/cart/`
 - `POST /api/v3/cart/items`
 - `PATCH /api/v3/cart/items/:productId`
@@ -2465,11 +2955,13 @@ These must be set on the backend for invoice emails and wishlist discount notifi
 - `POST /api/v3/payments/`
 - `GET /api/v3/orders`
 - `GET /api/v3/orders/reports/financial-summary`
+- `GET /api/v3/orders/:orderId/invoice.pdf`
 - `PATCH /api/v3/orders/:orderId/status`
 - `GET /api/v3/refunds/`
 - `PATCH /api/v3/refunds/:refundId`
 - `GET /api/v3/invoices/:orderId/pdf`
 - `POST /api/v3/invoices/:orderId/email`
+- `PATCH /api/v3/categories/:categoryId/activation`
 
 ## Important Implementation Notes For Frontend
 
@@ -2490,7 +2982,7 @@ These must be set on the backend for invoice emails and wishlist discount notifi
 13. `GET /users/me/orders/:orderId/invoice.pdf` and `GET /invoices/:orderId/pdf` return a binary PDF (not JSON). The frontend should treat the response as a `Blob`/`ArrayBuffer` (e.g. `fetch(...).then(r => r.blob())` or axios `responseType: 'blob'`) and trigger a download. The `Content-Disposition` header carries the filename.
 14. `POST /invoices/:orderId/email` always emails the PDF to the authenticated user's email on file — no recipient field is accepted from the client. The endpoint can be called multiple times for the same order. SMTP credentials must be configured in backend env vars (see **Environment Variables** in the Invoice section).
 15. Wishlist endpoints use `productId` as a path parameter. `GET /wishlist/` returns product summary data and the primary image URL; `POST /wishlist/:productId` only returns the created wishlist row, so refetch the wishlist if the UI needs full product details.
-16. `PATCH /orders/:orderId/status` is restricted to `sales_manager` users and handles `processing -> in-transit -> delivered` transitions while populating deliveries.
+16. `PATCH /orders/:orderId/status` is restricted to `product_manager` users and handles `processing -> in-transit -> delivered` transitions while populating deliveries.
 17. `POST /users/me/orders/:orderId/cancel` only works when order status is `processing` and will restock items.
 18. `POST /users/me/orders/:orderId/refund-requests` only works when order status is `delivered` and within 30 days of the latest completed delivery; it creates one refund per order item.
 19. `POST /users/me/orders/:orderId/items/:orderItemId/refund-requests` allows item-level refunds under the same delivery and window rules.
@@ -2498,3 +2990,6 @@ These must be set on the backend for invoice emails and wishlist discount notifi
 21. `PATCH /products/:productId/discount` is restricted to `sales_manager` users and automatically emails wishlist users when the discount increases.
 22. `GET /orders/reports/financial-summary` is restricted to `sales_manager` users and requires `startDate` and `endDate` query params in `YYYY-MM-DD` format.
 23. `GET /orders` is restricted to `sales_manager` users and supports optional `status` and `startDate`/`endDate` filters.
+24. `GET /orders/:orderId/invoice.pdf` is restricted to `sales_manager` users and returns a binary PDF stream for any order.
+25. Product and category list/search/details endpoints return only active records (`is_active = true`).
+26. `PATCH /products/:productId/activation` and `PATCH /categories/:categoryId/activation` are restricted to `product_manager` users and accept `isActive` in the request body.

@@ -16,6 +16,12 @@ const assertSalesManager = (userRole, message) => {
   }
 };
 
+const assertProductManager = (userRole, message) => {
+  if (userRole !== "product_manager") {
+    throw new ApiError(403, message || "Only product managers can update order status");
+  }
+};
+
 const parseDateOnly = (value, fieldName) => {
   if (typeof value !== "string" || !value.trim()) {
     throw new ApiError(400, `${fieldName} is required`);
@@ -176,7 +182,7 @@ exports.cancelOrder = async ({ userId, orderId }) => {
 };
 
 exports.updateOrderStatusForManager = async ({ orderId, status, userRole }) => {
-  assertSalesManager(userRole);
+  assertProductManager(userRole);
 
   if (!orderId) {
     throw new ApiError(400, "Order ID is required");

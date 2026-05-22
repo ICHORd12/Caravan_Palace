@@ -13,6 +13,25 @@ exports.getAllProducts = async (sort) => {
     FROM products p
     LEFT JOIN product_images pi ON p.product_id = pi.product_id
     ${productRatingJoin}
+    WHERE p.is_active = TRUE
+    GROUP BY p.product_id, pr.average_rating, pr.review_count
+    ${getOrderByClause(sort)}
+    `
+  );
+
+  return result.rows.map(mapProduct);
+};
+
+exports.getAllProductsForManager = async (sort) => {
+  const result = await pool.query(
+    `
+    SELECT 
+      p.*,
+      ${productImagesSelect},
+      ${productRatingSelect}
+    FROM products p
+    LEFT JOIN product_images pi ON p.product_id = pi.product_id
+    ${productRatingJoin}
     GROUP BY p.product_id, pr.average_rating, pr.review_count
     ${getOrderByClause(sort)}
     `
@@ -34,6 +53,30 @@ exports.getProductsByCategoryName = async (category_name, sort) => {
     LEFT JOIN product_images pi ON p.product_id = pi.product_id
     ${productRatingJoin}
     WHERE c.category_name = $1
+      AND p.is_active = TRUE
+      AND c.is_active = TRUE
+    GROUP BY p.product_id, pr.average_rating, pr.review_count
+    ${getOrderByClause(sort)}
+    `,
+    [category_name]
+  );
+
+  return result.rows.map(mapProduct);
+};
+
+exports.getProductsByCategoryNameForManager = async (category_name, sort) => {
+  const result = await pool.query(
+    `
+    SELECT 
+      p.*,
+      ${productImagesSelect},
+      ${productRatingSelect}
+    FROM products p
+    INNER JOIN categories c ON p.category_id = c.category_id
+    LEFT JOIN product_images pi ON p.product_id = pi.product_id
+    ${productRatingJoin}
+    WHERE c.category_name = $1
+      AND c.is_active = TRUE
     GROUP BY p.product_id, pr.average_rating, pr.review_count
     ${getOrderByClause(sort)}
     `,
@@ -62,6 +105,25 @@ exports.getProductById = async (productId) => {
 };
 
 
+exports.getActiveProductById = async (productId) => {
+  const result = await pool.query(
+    `
+    SELECT 
+      product_id,
+      name,
+      current_price,
+      quantity_in_stocks
+    FROM products
+    WHERE product_id = $1
+      AND is_active = TRUE
+    `,
+    [productId]
+  );
+
+  return mapProduct(result.rows[0] || null);
+};
+
+
 exports.getProductDetailsById = async (productId) => {
   const result = await pool.query(
     `
@@ -73,6 +135,7 @@ exports.getProductDetailsById = async (productId) => {
     LEFT JOIN product_images pi ON p.product_id = pi.product_id
     ${productRatingJoin}
     WHERE p.product_id = $1
+      AND p.is_active = TRUE
     GROUP BY p.product_id, pr.average_rating, pr.review_count
     `,
     [productId]
@@ -83,6 +146,27 @@ exports.getProductDetailsById = async (productId) => {
 
 
 exports.getProductsByIds = async (productIds, sort) => {
+  const result = await pool.query(
+    `
+    SELECT 
+      p.*,
+      ${productImagesSelect},
+      ${productRatingSelect}
+    FROM products p
+    LEFT JOIN product_images pi ON p.product_id = pi.product_id
+    ${productRatingJoin}
+    WHERE p.product_id = ANY($1::uuid[])
+      AND p.is_active = TRUE
+    GROUP BY p.product_id, pr.average_rating, pr.review_count
+    ${getOrderByClause(sort)}
+    `,
+    [productIds]
+  );
+
+  return result.rows.map(mapProduct);
+};
+
+exports.getProductsByIdsForManager = async (productIds, sort) => {
   const result = await pool.query(
     `
     SELECT 
@@ -165,6 +249,223 @@ exports.updateProductDiscount = async ({ productId, discountRate }, client) => {
   return mapProduct(result.rows[0] || null);
 };
 
+exports.updateProductBasePrice = async ({ productId, basePrice }, client) => {
+  const executor = client || pool;
+
+  const result = await executor.query(
+    `
+    UPDATE products
+    SET base_price = $1,
+        current_price = ROUND(($1 * (1 - (COALESCE(discount_rate, 0)::numeric / 100)))::numeric, 2),
+        is_active = CASE
+          WHEN COALESCE(base_price, 0) <= 0 THEN true
+          ELSE is_active
+        END,
+        updated_at = NOW()
+    WHERE product_id = $2
+    RETURNING *
+    `,
+    [basePrice, productId]
+  );
+
+  return mapProduct(result.rows[0] || null);
+};
+
+exports.getProductPricingById = async (productId, client) => {
+  const executor = client || pool;
+
+  const result = await executor.query(
+    `
+    SELECT
+      product_id,
+      base_price,
+      is_active
+    FROM products
+    WHERE product_id = $1
+    `,
+    [productId]
+  );
+
+  const row = result.rows[0];
+
+  if (!row) return null;
+
+  return {
+    productId: row.product_id,
+    basePrice: row.base_price,
+    isActive: row.is_active,
+  };
+};
+
+exports.createProduct = async (
+  {
+    categoryId,
+    name,
+    model,
+    serialNumber,
+    description,
+    quantityInStocks,
+    basePrice,
+    currentPrice,
+    warrantyStatus,
+    distributorInfo,
+    berthCount,
+    fuelType,
+    weightKg,
+    hasKitchen,
+    discountRate,
+    isActive,
+  },
+  client
+) => {
+  const executor = client || pool;
+
+  const result = await executor.query(
+    `
+    INSERT INTO products (
+      category_id,
+      name,
+      model,
+      serial_number,
+      description,
+      quantity_in_stocks,
+      base_price,
+      current_price,
+      warranty_status,
+      distributor_info,
+      berth_count,
+      fuel_type,
+      weight_kg,
+      has_kitchen,
+      discount_rate,
+      is_active
+    )
+    VALUES (
+      $1, $2, $3, $4, $5,
+      $6, $7, $8, $9, $10,
+      $11, $12, $13, $14, $15, $16
+    )
+    RETURNING *
+    `,
+    [
+      categoryId,
+      name,
+      model,
+      serialNumber,
+      description,
+      quantityInStocks,
+      basePrice,
+      currentPrice,
+      warrantyStatus,
+      distributorInfo,
+      berthCount,
+      fuelType,
+      weightKg,
+      hasKitchen,
+      discountRate,
+      isActive,
+    ]
+  );
+
+  return mapProduct(result.rows[0] || null);
+};
+
+exports.createProductImages = async ({ productId, images }, client) => {
+  if (!Array.isArray(images) || images.length === 0) {
+    return [];
+  }
+
+  const executor = client || pool;
+  const values = [productId];
+  const placeholders = images
+    .map((image, index) => {
+      const urlIndex = index * 2 + 2;
+      const primaryIndex = index * 2 + 3;
+      values.push(image.url, image.isPrimary);
+      return `($1, $${urlIndex}, $${primaryIndex})`;
+    })
+    .join(", ");
+
+  const result = await executor.query(
+    `
+    INSERT INTO product_images (product_id, url, is_primary)
+    VALUES ${placeholders}
+    RETURNING image_id, url, is_primary, created_at
+    `,
+    values
+  );
+
+  return result.rows.map((row) => ({
+    imageId: row.image_id,
+    url: row.url,
+    isPrimary: row.is_primary,
+    createdAt: row.created_at,
+  }));
+};
+
+exports.getProductDetailsByIdForManager = async (productId, client) => {
+  const executor = client || pool;
+
+  const result = await executor.query(
+    `
+    SELECT 
+      p.*,
+      ${productImagesSelect},
+      ${productRatingSelect}
+    FROM products p
+    LEFT JOIN product_images pi ON p.product_id = pi.product_id
+    ${productRatingJoin}
+    WHERE p.product_id = $1
+    GROUP BY p.product_id, pr.average_rating, pr.review_count
+    `,
+    [productId]
+  );
+
+  return mapProduct(result.rows[0]);
+};
+
+
+exports.updateProductIsActive = async ({ productId, isActive }, client) => {
+  const executor = client || pool;
+
+  const result = await executor.query(
+    `
+    UPDATE products
+    SET is_active = $1,
+        updated_at = NOW()
+    WHERE product_id = $2
+    RETURNING product_id, is_active
+    `,
+    [isActive, productId]
+  );
+
+  const row = result.rows[0];
+
+  if (!row) return null;
+
+  return {
+    productId: row.product_id,
+    isActive: row.is_active,
+  };
+};
+
+exports.updateProductStock = async ({ productId, quantityInStocks }, client) => {
+  const executor = client || pool;
+
+  const result = await executor.query(
+    `
+    UPDATE products
+    SET quantity_in_stocks = $1,
+        updated_at = NOW()
+    WHERE product_id = $2
+    RETURNING *
+    `,
+    [quantityInStocks, productId]
+  );
+
+  return mapProduct(result.rows[0] || null);
+};
+
 
 exports.searchProductsByNameOrDescription = async (searchTerm, sort) => {
   const likePattern = "%" + searchTerm + "%";
@@ -178,7 +479,30 @@ exports.searchProductsByNameOrDescription = async (searchTerm, sort) => {
     FROM products p
     LEFT JOIN product_images pi ON p.product_id = pi.product_id
     ${productRatingJoin}
-    WHERE p.name ILIKE $1 OR p.description ILIKE $1
+    WHERE (p.name ILIKE $1 OR p.description ILIKE $1)
+      AND p.is_active = TRUE
+    GROUP BY p.product_id, pr.average_rating, pr.review_count
+    ${getOrderByClause(sort)}
+    `,
+    [likePattern]
+  );
+
+  return result.rows.map(mapProduct);
+};
+
+exports.searchProductsByNameOrDescriptionForManager = async (searchTerm, sort) => {
+  const likePattern = "%" + searchTerm + "%";
+
+  const result = await pool.query(
+    `
+    SELECT 
+      p.*,
+      ${productImagesSelect},
+      ${productRatingSelect}
+    FROM products p
+    LEFT JOIN product_images pi ON p.product_id = pi.product_id
+    ${productRatingJoin}
+    WHERE (p.name ILIKE $1 OR p.description ILIKE $1)
     GROUP BY p.product_id, pr.average_rating, pr.review_count
     ${getOrderByClause(sort)}
     `,

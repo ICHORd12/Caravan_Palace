@@ -65,13 +65,13 @@ export default function PMDashboard() {
         setIsLoading(true);
         try {
             const moderationComment = pmComments[reviewId] || '';
-            const response = await fetch(`${API_BASE_URL}/api/v3/reviews/${reviewId}/approve`, {
+            const response = await fetch(`${API_BASE_URL}/api/v3/reviews/${reviewId}/moderate`, {
                 method: 'PATCH',
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`
                 },
-                body: JSON.stringify({ moderationComment })
+                body: JSON.stringify({ status: 'approved', moderationComment })
             });
 
             if (response.ok) {
@@ -96,13 +96,13 @@ export default function PMDashboard() {
         setIsLoading(true);
         try {
             const moderationComment = pmComments[reviewId] || '';
-            const response = await fetch(`${API_BASE_URL}/api/v3/reviews/${reviewId}/reject`, {
+            const response = await fetch(`${API_BASE_URL}/api/v3/reviews/${reviewId}/moderate`, {
                 method: 'PATCH',
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`
                 },
-                body: JSON.stringify({ moderationComment })
+                body: JSON.stringify({ status: 'rejected', moderationComment })
             });
 
             if (response.ok) {
