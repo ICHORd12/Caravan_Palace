@@ -81,7 +81,6 @@ exports.getPendingReviews = async (req, res, next) => {
   }
 };
 
-
 exports.moderateReview = async (req, res, next) => {
   try {
     const moderationComment = req.body.moderationComment ?? req.body.moderation_comment;
@@ -98,7 +97,6 @@ exports.moderateReview = async (req, res, next) => {
   }
 };
 
-
 exports.updateReview = async (req, res, next) => {
   try {
     const result = await reviewService.updateReview(
@@ -106,6 +104,7 @@ exports.updateReview = async (req, res, next) => {
       req.params.reviewId,
       req.body
     );
+
 
     res.status(200).json(result);
   } catch (err) {

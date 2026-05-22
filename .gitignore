@@ -41,3 +41,7 @@ yarn-error.*
 /android
 
 app-example
+
+# IDE / Assistant configs
+.antigravitycli/
+.gemini/

@@ -134,17 +134,14 @@ exports.mapOrderItem = (row) => {
 exports.mapReview = (row) => {
   if (!row) return null;
 
-  const status = row.status ?? (row.is_approved ? "approved" : "pending");
-
   return {
     reviewId: row.review_id,
     productId: row.product_id,
     userId: row.user_id,
     rating: row.rating,
     commentText: row.comment_text,
-    status,
+    status: row.status,
     moderationComment: row.moderation_comment ?? null,
-    isApproved: status === "approved",
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -153,18 +150,22 @@ exports.mapReview = (row) => {
 exports.mapReviewWithUser = (row) => {
   if (!row) return null;
 
-  const status = row.status ?? (row.is_approved ? "approved" : "pending");
-
   return {
     reviewId: row.review_id,
     productId: row.product_id,
+    productName: row.product_name,
+    productModel: row.product_model,
+    productDescription: row.product_description,
+    productPrice: row.product_price,
+    productStock: row.product_stock,
+    productSeller: row.product_seller,
+    productCategory: row.category_name,
     userId: row.user_id,
     userName: row.user_name,
     rating: row.rating,
     commentText: row.comment_text,
-    status,
+    status: row.status,
     moderationComment: row.moderation_comment ?? null,
-    isApproved: status === "approved",
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
