@@ -5,7 +5,9 @@ import { Ionicons } from "@expo/vector-icons";
 
 import Navbar from "@/components/Navbar/Navbar";
 import WrappedGeneralButton from "@/components/Buttons/GeneralButtonWithWrapper/GeneralButtonWithWrapper";
-import { API_BASE_URL, PRODUCTS_END_POINT, PRODUCT_ACTIVATION_ENDPOINT, CREATE_PRODUCT_ENDPOINT } from "@/constants/API";
+import SortDropdown from "@/components/DropDowns/SortDropdown/SortDropdown"; 
+
+import { API_BASE_URL, PRODUCTS_END_POINT, PRODUCT_ACTIVATION_ENDPOINT, CREATE_PRODUCT_ENDPOINT, CATEGORIES_ENDPOINT } from "@/constants/API";
 import { Colors, Fonts } from "@/constants/theme";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/context/ToastContext";
@@ -30,6 +32,9 @@ export default function ProductManagerProducts() {
     const [isCreating, setIsCreating] = useState(false);
     const [updatingStatus, setUpdatingStatus] = useState<Record<string, boolean>>({});
 
+  
+    const [categoriesDropdown, setCategoriesDropdown] = useState<{label: string, value: string}[]>([]);
+
     const [formData, setFormData] = useState({
         name: "", categoryId: "", model: "", serialNumber: "",
         description: "", quantityInStocks: "0", warrantyStatus: "",
@@ -37,6 +42,22 @@ export default function ProductManagerProducts() {
     });
 
     const isPM = user?.role === "product_manager";
+
+   
+    const textInputConfig = [
+        { field: 'name', label: 'NAME', placeholder: 'e.g., Eco Camper Van' },
+        { field: 'model', label: 'MODEL', placeholder: 'e.g., ECO-2026' },
+        { field: 'serialNumber', label: 'SERIAL NUMBER', placeholder: 'e.g., SN-000002' },
+        { field: 'warrantyStatus', label: 'WARRANTY STATUS', placeholder: 'e.g., 2 Years' },
+        { field: 'distributorInfo', label: 'DISTRIBUTOR INFO', placeholder: 'e.g., Direct Sales' },
+        { field: 'fuelType', label: 'FUEL TYPE', placeholder: 'e.g., Diesel' }
+    ];
+
+    const numericInputConfig = [
+        { field: 'quantityInStocks', label: 'QUANTITY IN STOCKS', placeholder: 'e.g., 5' },
+        { field: 'berthCount', label: 'BERTH COUNT', placeholder: 'e.g., 4' },
+        { field: 'weightKg', label: 'WEIGHT KG', placeholder: 'e.g., 1800' }
+    ];
 
     const fetchProducts = async () => {
         if (!token) return;
@@ -59,6 +80,35 @@ export default function ProductManagerProducts() {
             showToast("Failed to fetch products", "error");
         } finally {
             setIsLoading(false);
+        }
+    };
+
+
+    const fetchCategories = async () => {
+        if (!token) return;
+        try {
+            const response = await fetch(`${API_BASE_URL}${CATEGORIES_ENDPOINT}`, {
+                headers: { "Authorization": `Bearer ${token}` }
+            });
+            const data = await response.json();
+            if (response.ok) {
+              
+                const mappedCategories = (data.categories || [])
+                    .filter((c: any) => c.isActive !== false && c.is_active !== false) 
+                    .map((c: any) => ({
+                        label: c.categoryName,
+                        value: c.categoryId
+                    }));
+                
+                setCategoriesDropdown(mappedCategories);
+
+             
+                if (mappedCategories.length > 0) {
+                    setFormData(prev => ({ ...prev, categoryId: mappedCategories[0].value }));
+                }
+            }
+        } catch (error) {
+            console.error("Failed to fetch categories");
         }
     };
 
@@ -95,7 +145,7 @@ export default function ProductManagerProducts() {
         if (!token) return;
         
         if (!formData.name || !formData.categoryId || !formData.model) {
-            showToast("Name, Category ID, and Model are required.", "error");
+            showToast("Name, Category, and Model are required.", "error");
             return;
         }
 
@@ -148,7 +198,8 @@ export default function ProductManagerProducts() {
                 navigateWithWipe("/");
                 return;
             }
-            fetchProducts().then(() => revealWipe());
+           
+            Promise.all([fetchProducts(), fetchCategories()]).then(() => revealWipe());
         }, [isPM])
     );
 
@@ -176,23 +227,8 @@ export default function ProductManagerProducts() {
             />
         </View>
     );
-    const textInputConfig = [
-        { field: 'name', label: 'NAME', placeholder: 'e.g., Eco Camper Van' },
-        { field: 'categoryId', label: 'CATEGORY ID', placeholder: 'e.g., ff28bce6-284e-4c65-8557-0416f4274679' },
-        { field: 'model', label: 'MODEL', placeholder: 'e.g., ECO-2026' },
-        { field: 'serialNumber', label: 'SERIAL NUMBER', placeholder: 'e.g., SN-000002' },
-        { field: 'warrantyStatus', label: 'WARRANTY STATUS', placeholder: 'e.g., 2 Years' },
-        { field: 'distributorInfo', label: 'DISTRIBUTOR INFO', placeholder: 'e.g., Direct Sales' },
-        { field: 'fuelType', label: 'FUEL TYPE', placeholder: 'e.g., Diesel' }
-    ];
 
-    const numericInputConfig = [
-        { field: 'quantityInStocks', label: 'QUANTITY IN STOCKS', placeholder: 'e.g., 5' },
-        { field: 'berthCount', label: 'BERTH COUNT', placeholder: 'e.g., 4' },
-        { field: 'weightKg', label: 'WEIGHT KG', placeholder: 'e.g., 1800' }
-    ];
-
-const renderCreationForm = () => (
+    const renderCreationForm = () => (
         <ScrollView style={styles.formContainer} showsVerticalScrollIndicator={false}>
             <TouchableOpacity style={styles.backButton} onPress={() => setIsCreating(false)}>
                 <Ionicons name="arrow-back" size={24} color={Colors.light.greenButtonBackground} />
@@ -203,21 +239,39 @@ const renderCreationForm = () => (
             <Text style={styles.formNote}>Note: Pricing is handled separately by the Sales Manager.</Text>
 
             <View style={styles.formGrid}>
-                {/* Dynamically render text inputs with syntax examples */}
+                
+                {/* --- NEW: THE DROPDOWN UI --- */}
+                {/* We use zIndex: 10 to ensure the dropdown menu opens ON TOP of the other fields below it */}
+                <View style={[styles.inputGroup, { zIndex: 10 }]}>
+                    <Text style={styles.label}>CATEGORY</Text>
+                    {categoriesDropdown.length > 0 ? (
+                        <SortDropdown
+                            options={categoriesDropdown}
+                            selectedValue={formData.categoryId}
+                            onChange={(val) => setFormData(prev => ({...prev, categoryId: val}))}
+                            containerStyle={{ width: '100%' }}
+                            triggerStyle={styles.input}
+                        />
+                    ) : (
+                        <Text style={[styles.input, { color: Colors.light.deleteButtonBackground }]}>
+                            No active categories found! Create one first.
+                        </Text>
+                    )}
+                </View>
+
                 {textInputConfig.map(({ field, label, placeholder }) => (
                     <View key={field} style={styles.inputGroup}>
                         <Text style={styles.label}>{label}</Text>
                         <TextInput 
                             style={styles.input} 
                             placeholder={placeholder}
-                            placeholderTextColor="#a09a80" // Makes the example text subtle
+                            placeholderTextColor="#a09a80"
                             value={(formData as any)[field]}
                             onChangeText={(val) => setFormData(prev => ({...prev, [field]: val}))}
                         />
                     </View>
                 ))}
 
-                {/* Dynamically render numeric inputs with syntax examples */}
                 {numericInputConfig.map(({ field, label, placeholder }) => (
                     <View key={field} style={styles.inputGroup}>
                         <Text style={styles.label}>{label}</Text>
@@ -328,7 +382,7 @@ const styles = StyleSheet.create({
     inputGroup: { flex: 1, minWidth: 250, marginBottom: 16 },
     fullWidthInput: { width: '100%', marginBottom: 16 },
     label: { fontFamily: Fonts.semibold, fontSize: 12, color: Colors.light.basePriceDiscountedTextColor, marginBottom: 8 },
-    input: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#c8bd96', borderRadius: 8, padding: 12, fontFamily: Fonts.regular },
+    input: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#c8bd96', borderRadius: 8, padding: 12, fontFamily: Fonts.regular, height: 45, justifyContent: 'center' },
     textArea: { height: 100, textAlignVertical: 'top' },
     switchGroup: { flexDirection: 'row', alignItems: 'center', gap: 15, marginBottom: 30 },
     saveButton: { backgroundColor: Colors.light.greenButtonBackground, padding: 15, borderRadius: 8, alignItems: 'center' }

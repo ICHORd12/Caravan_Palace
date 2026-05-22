@@ -1,19 +1,18 @@
 import { useFocusEffect } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
-import { ActivityIndicator, FlatList, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, FlatList, StyleSheet, Text, TextInput, View, Platform } from "react-native";
 
 import Navbar from "@/components/Navbar/Navbar";
 import SortDropdown from "@/components/DropDowns/SortDropdown/SortDropdown";
 import WrappedGeneralButton from "@/components/Buttons/GeneralButtonWithWrapper/GeneralButtonWithWrapper";
 
-// Reusing the general orders endpoint, assuming backend will grant PM access!
 import { API_BASE_URL, PM_ORDERS_ENDPOINT } from "@/constants/API"; 
 import { Colors, Fonts } from "@/constants/theme";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/context/ToastContext";
 import { useTransition } from "@/context/TransitionContext";
 
-//#region TYPES (Simplified for PM)
+//#region TYPES 
 type OrderStatus = "processing" | "pending" | "in-transit" | "delivered" | "cancelled" | "returned";
 
 interface PMOrderItem {
@@ -32,6 +31,7 @@ interface PMOrder {
     items: PMOrderItem[];
 }
 //#endregion
+
 
 const ORDER_STATUSES: OrderStatus[] = ["processing", "in-transit", "delivered"];
 const DISPLAY_ORDER_STATUSES: OrderStatus[] = ["processing", "in-transit", "delivered", "cancelled", "returned"];
@@ -62,7 +62,6 @@ export default function ProductManagerOrders() {
         if (!token) return;
         setIsLoadingOrders(true);
         try {
-            // Backend note: GET /orders must allow product_manager role
             const response = await fetch(`${API_BASE_URL}${PM_ORDERS_ENDPOINT}`, {
                 headers: { "Authorization": `Bearer ${token}` }
             });
@@ -181,13 +180,13 @@ export default function ProductManagerOrders() {
                     })}
                 </View>
 
-                {/* Fulfillment Actions (PM SPECIFIC) */}
+               
                 <Text style={styles.sectionTitle}>Fulfillment Actions</Text>
                 <View style={styles.statusButtonContainer}>
                     {ORDER_STATUSES.map((status) => (
                         <WrappedGeneralButton
                             key={status}
-                            title={`Mark ${status.toUpperCase()}`}
+                            title={`${status.toUpperCase()}`}
                             disabled={isUpdating || item.status === status || TERMINAL_DISPLAY_STATUSES.includes(item.status)}
                             wrapperStyles={[styles.statusButtonWrapper, item.status === status && styles.currentStatusButtonWrapper]}
                             textStyles={styles.statusButtonText}
@@ -217,13 +216,14 @@ export default function ProductManagerOrders() {
                         />
                     </View>
                     
+                    {/* The Z-Index wrapper for the dropdown menu */}
                     <View style={styles.sortContainer}>
                         <Text style={styles.filterLabel}>Priority Sort</Text>
                         <SortDropdown
                             options={statusSortOptions}
                             selectedValue={statusSort}
                             onChange={(val) => setStatusSort(val as OrderStatus)}
-                            containerStyle={{ width: '100%' }}
+                            containerStyle={{ width: '100%', zIndex: 999 }}
                             triggerStyle={styles.filterInput}
                         />
                     </View>
@@ -238,6 +238,8 @@ export default function ProductManagerOrders() {
                         renderItem={renderOrderCard}
                         contentContainerStyle={{ paddingBottom: 30 }}
                         showsVerticalScrollIndicator={false}
+                        // This prevents the FlatList from trapping the dropdown menu behind it
+                        style={{ zIndex: 1 }}
                     />
                 )}
             </View>
@@ -250,10 +252,20 @@ const styles = StyleSheet.create({
     contentContainer: { flex: 1, width: "100%", maxWidth: 1100, alignSelf: "center", padding: 20 },
     pageTitle: { marginBottom: 20, fontFamily: Fonts.bold, fontSize: 28, color: Colors.light.greenButtonBackground },
     
-    /* FILTERS */
-    filterContainer: { flexDirection: "row", gap: 15, backgroundColor: Colors.light.softContainerBackground, padding: 15, borderRadius: 8, marginBottom: 20 },
-    filterInputContainer: { flex: 2 },
-    sortContainer: { flex: 1, zIndex: 10 },
+    
+    filterContainer: { 
+        flexDirection: "row", 
+        gap: 15, 
+        backgroundColor: Colors.light.softContainerBackground, 
+        padding: 15, 
+        borderRadius: 8, 
+        marginBottom: 20,
+      
+        zIndex: 100,
+        ...(Platform.OS === 'web' ? { zIndex: 100 } : { elevation: 10 }) 
+    },
+    filterInputContainer: { flex: 2, zIndex: 1 },
+    sortContainer: { flex: 1, zIndex: 999 },
     filterLabel: { fontFamily: Fonts.semibold, fontSize: 13, color: Colors.light.greenButtonBackground, marginBottom: 6 },
     filterInput: { height: 42, borderWidth: 1, borderColor: "#c8bd96", borderRadius: 8, paddingHorizontal: 12, backgroundColor: "#fff", fontFamily: Fonts.regular },
 
@@ -280,10 +292,28 @@ const styles = StyleSheet.create({
     statusConnector: { position: "absolute", top: 16, left: "50%", width: "100%", height: 2, backgroundColor: "#c8bd96", zIndex: 1 },
     completedStatusConnector: { backgroundColor: Colors.light.greenButtonBackground },
 
-    /* BUTTONS */
+    /* BUTTONS (UPDATED FOR BETTER UI) */
     sectionTitle: { fontFamily: Fonts.bold, fontSize: 16, color: Colors.light.greenButtonBackground, marginBottom: 10 },
-    statusButtonContainer: { flexDirection: "row", gap: 10 },
-    statusButtonWrapper: { flex: 1, alignItems: "center", backgroundColor: Colors.light.greenButtonBackground, borderRadius: 8, paddingVertical: 12 },
+    statusButtonContainer: { 
+        flexDirection: "row", 
+        flexWrap: "wrap", 
+        gap: 15 
+    },
+    statusButtonWrapper: { 
+        flex: 1, 
+        minWidth: 150, 
+        minHeight: 48,
+        alignItems: "center", 
+        justifyContent: "center",
+        backgroundColor: Colors.light.greenButtonBackground, 
+        borderRadius: 8, 
+        paddingVertical: 14 
+    },
     currentStatusButtonWrapper: { backgroundColor: "#a94c0f" },
-    statusButtonText: { fontFamily: Fonts.semibold, fontSize: 13, color: '#fff' }
+    statusButtonText: { 
+        fontFamily: Fonts.bold, 
+        fontSize: 14, 
+        color: '#fff',
+        letterSpacing: 0.5
+    }
 });

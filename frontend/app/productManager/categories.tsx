@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from "react";
-import { View, Text, StyleSheet, FlatList, ActivityIndicator } from "react-native";
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, TextInput, TouchableOpacity } from "react-native";
 import { useFocusEffect } from "expo-router";
 
 import Navbar from "@/components/Navbar/Navbar";
@@ -15,7 +15,7 @@ import { useTransition } from "@/context/TransitionContext";
 interface PMCategory {
     categoryId: string;
     categoryName: string;
-    isActive?: boolean; // assumed the backend will return this for PMs eventually
+    isActive?: boolean;
 }
 
 export default function ProductManagerCategories() {
@@ -26,6 +26,11 @@ export default function ProductManagerCategories() {
     const [categories, setCategories] = useState<PMCategory[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [updatingStatus, setUpdatingStatus] = useState<Record<string, boolean>>({});
+    
+    // --- NEW: Category Creation State ---
+    const [isCreating, setIsCreating] = useState(false);
+    const [newCategoryName, setNewCategoryName] = useState("");
+    const [isCreatingLoading, setIsCreatingLoading] = useState(false);
 
     const isPM = user?.role === "product_manager";
 
@@ -34,16 +39,16 @@ export default function ProductManagerCategories() {
         if (!token) return;
         setIsLoading(true);
         try {
-            // Backend note: This endpoint needs to return inactive categories for PMs too
             const response = await fetch(`${API_BASE_URL}${CATEGORIES_ENDPOINT}`, {
                 headers: { "Authorization": `Bearer ${token}` }
             });
             const data = await response.json();
             
             if (response.ok) {
-                // Defaulting isActive to true since the current endpoint only returns active ones
+                // Safely mapping the new isActive boolean the backend just added!
                 const mappedCategories = (data.categories || []).map((c: any) => ({
-                    ...c, isActive: c.isActive !== undefined ? c.isActive : true 
+                    ...c, 
+                    isActive: c.isActive !== undefined ? c.isActive : (c.is_active !== undefined ? c.is_active : true)
                 }));
                 setCategories(mappedCategories);
             } else {
@@ -58,7 +63,6 @@ export default function ProductManagerCategories() {
 
     const toggleActivation = async (categoryId: string, currentStatus: boolean) => {
         if (!token) return;
-        
         setUpdatingStatus(prev => ({ ...prev, [categoryId]: true }));
         try {
             const response = await fetch(`${API_BASE_URL}${CATEGORIES_ENDPOINT}/${categoryId}/activation`, {
@@ -85,6 +89,44 @@ export default function ProductManagerCategories() {
             setUpdatingStatus(prev => ({ ...prev, [categoryId]: false }));
         }
     };
+
+
+    const handleCreateCategory = async () => {
+        if (!token) return;
+        
+        const trimmedName = newCategoryName.trim();
+        if (!trimmedName) {
+            showToast("Category name cannot be empty", "error");
+            return;
+        }
+
+        setIsCreatingLoading(true);
+        try {
+            const response = await fetch(`${API_BASE_URL}${CATEGORIES_ENDPOINT}`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`
+                },
+                body: JSON.stringify({ categoryName: trimmedName })
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                showToast("Category created successfully!", "success");
+                setNewCategoryName(""); // Clear the input
+                setIsCreating(false);   // Close the creation form
+                fetchCategories();      // Refresh the list to show the new category
+            } else {
+                showToast(data.message || "Failed to create category", "error");
+            }
+        } catch (error) {
+            showToast("Network error", "error");
+        } finally {
+            setIsCreatingLoading(false);
+        }
+    };
     //#endregion
 
     useFocusEffect(
@@ -99,12 +141,13 @@ export default function ProductManagerCategories() {
 
     if (!isPM) return null;
 
-    //#region RENDER CARD
+    //#region RENDER UI
     const renderCategoryCard = ({ item }: { item: PMCategory }) => (
         <View style={styles.card}>
             <View style={styles.cardInfo}>
                 <Text style={styles.categoryTitle}>{item.categoryName}</Text>
-                <Text style={styles.categoryId}>ID: {item.categoryId}</Text>
+                {/* Allowing the user to easily select and copy the UUID for product creation */}
+                <Text style={styles.categoryId} selectable={true}>ID: {item.categoryId}</Text>
             </View>
             
             <View style={styles.actionContainer}>
@@ -128,17 +171,56 @@ export default function ProductManagerCategories() {
         <View style={styles.mainContainer}>
             <Navbar />
             <View style={styles.contentContainer}>
+                
+                {/* HEADER */}
                 <View style={styles.header}>
                     <Text style={styles.pageTitle}>Category Management</Text>
-                    <WrappedGeneralButton
-                        title="Refresh"
-                        disabled={isLoading}
-                        wrapperStyles={styles.refreshButton}
-                        textStyles={styles.actionButtonText}
-                        onPress={fetchCategories}
-                    />
+                    <View style={styles.headerButtons}>
+                        <WrappedGeneralButton
+                            title="+ Add Category"
+                            wrapperStyles={styles.addButton}
+                            textStyles={styles.actionButtonText}
+                            onPress={() => setIsCreating(!isCreating)}
+                        />
+                        <WrappedGeneralButton
+                            title="Refresh"
+                            disabled={isLoading}
+                            wrapperStyles={styles.refreshButton}
+                            textStyles={styles.actionButtonText}
+                            onPress={fetchCategories}
+                        />
+                    </View>
                 </View>
 
+                {/* NEW: INLINE CREATION FORM */}
+                {isCreating && (
+                    <View style={styles.createFormContainer}>
+                        <View style={styles.inputWrapper}>
+                            <Text style={styles.createLabel}>NEW CATEGORY NAME</Text>
+                            <TextInput 
+                                style={styles.createInput}
+                                placeholder="e.g., Motorhomes"
+                                value={newCategoryName}
+                                onChangeText={setNewCategoryName}
+                                onSubmitEditing={handleCreateCategory}
+                            />
+                        </View>
+                        <View style={styles.createFormActions}>
+                            <TouchableOpacity onPress={() => { setIsCreating(false); setNewCategoryName(""); }}>
+                                <Text style={styles.cancelText}>Cancel</Text>
+                            </TouchableOpacity>
+                            <WrappedGeneralButton
+                                title="Save Category"
+                                disabled={isCreatingLoading || !newCategoryName.trim()}
+                                wrapperStyles={styles.saveCategoryButton}
+                                textStyles={styles.actionButtonText}
+                                onPress={handleCreateCategory}
+                            />
+                        </View>
+                    </View>
+                )}
+
+                {/* LIST */}
                 {isLoading ? (
                     <ActivityIndicator size="large" color={Colors.light.greenButtonBackground} style={{ marginTop: 50 }} />
                 ) : categories.length === 0 ? (
@@ -163,8 +245,19 @@ const styles = StyleSheet.create({
     
     header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 25 },
     pageTitle: { fontFamily: Fonts.bold, fontSize: 28, color: Colors.light.greenButtonBackground },
+    headerButtons: { flexDirection: 'row', gap: 10 },
+    addButton: { backgroundColor: '#a94c0f', paddingVertical: 10, paddingHorizontal: 20, borderRadius: 8 },
     refreshButton: { backgroundColor: Colors.light.greenButtonBackground, paddingVertical: 10, paddingHorizontal: 20, borderRadius: 8 },
     
+    /* CREATION FORM STYLES */
+    createFormContainer: { backgroundColor: '#fff', padding: 20, borderRadius: 8, marginBottom: 20, borderWidth: 1, borderColor: '#c8bd96', flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap', gap: 15 },
+    inputWrapper: { flex: 1, minWidth: 250 },
+    createLabel: { fontFamily: Fonts.semibold, fontSize: 12, color: Colors.light.basePriceDiscountedTextColor, marginBottom: 8 },
+    createInput: { backgroundColor: '#f9f9f9', borderWidth: 1, borderColor: '#c8bd96', borderRadius: 8, padding: 12, fontFamily: Fonts.regular },
+    createFormActions: { flexDirection: 'row', alignItems: 'center', gap: 15 },
+    cancelText: { fontFamily: Fonts.semibold, color: Colors.light.deleteButtonBackground },
+    saveCategoryButton: { backgroundColor: Colors.light.greenButtonBackground, paddingVertical: 12, paddingHorizontal: 20, borderRadius: 8 },
+
     emptyText: { textAlign: 'center', fontFamily: Fonts.semibold, fontSize: 16, color: Colors.light.greenButtonBackground, marginTop: 40 },
 
     /* CARD STYLES */
