@@ -5,6 +5,7 @@ const authMiddleware = require("../middlewares/authMiddleware");
 const router = express.Router();
 
 router.get("/", categoryController.getAllCategories);
+router.post("/", authMiddleware, categoryController.createCategory);
 router.patch("/:categoryId/activation", authMiddleware, categoryController.updateCategoryActivation);
 
 module.exports = router;

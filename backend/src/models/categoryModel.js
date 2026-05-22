@@ -26,6 +26,40 @@ exports.getAllCategories = async ({ includeInactive }) => {
   return result.rows.map(mapCategory);
 };
 
+exports.getCategoryByName = async (categoryName, client) => {
+  const executor = client || pool;
+
+  const result = await executor.query(
+    `
+    SELECT
+      category_id,
+      category_name,
+      is_active
+    FROM categories
+    WHERE LOWER(TRIM(category_name)) = LOWER(TRIM($1))
+    LIMIT 1
+    `,
+    [categoryName]
+  );
+
+  return mapCategory(result.rows[0]);
+};
+
+exports.createCategory = async ({ categoryName, isActive = true }, client) => {
+  const executor = client || pool;
+
+  const result = await executor.query(
+    `
+    INSERT INTO categories (category_name, is_active)
+    VALUES ($1, $2)
+    RETURNING category_id, category_name, is_active
+    `,
+    [categoryName, isActive]
+  );
+
+  return mapCategory(result.rows[0]);
+};
+
 exports.updateCategoryIsActive = async ({ categoryId, isActive }, client) => {
   const executor = client || pool;
 

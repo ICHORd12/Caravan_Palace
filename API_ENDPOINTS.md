@@ -1420,6 +1420,53 @@ Status: `200 OK`
 
 ---
 
+### `POST /api/v3/categories`
+
+Creates a new category.
+
+#### Auth
+
+- Required (product manager only)
+
+#### Request Body
+
+```json
+{
+  "categoryName": "Camper Vans"
+}
+```
+
+#### Notes
+
+- `categoryName` is required and must be a non-empty string.
+- Backend also accepts `category_name` for compatibility.
+- Category names are unique (case-insensitive, whitespace-normalized).
+
+#### Success Response
+
+Status: `201 Created`
+
+```json
+{
+  "message": "Category created successfully",
+  "category": {
+    "categoryId": "5eb18129-c3d4-4d5f-8d24-02f04a355f19",
+    "categoryName": "Camper Vans",
+    "isActive": true
+  }
+}
+```
+
+#### Common Errors
+
+- `400` if `categoryName` is missing or empty
+- `401` if token is missing
+- `401` if token is invalid
+- `403` if user is not a product manager
+- `409` if category already exists
+
+---
+
 ### `PATCH /api/v3/categories/:categoryId/activation`
 
 Activates or deactivates a category.
@@ -2964,6 +3011,7 @@ These must be set on the backend for invoice emails and wishlist discount notifi
 - `PATCH /api/v3/refunds/:refundId`
 - `GET /api/v3/invoices/:orderId/pdf`
 - `POST /api/v3/invoices/:orderId/email`
+- `POST /api/v3/categories`
 - `PATCH /api/v3/categories/:categoryId/activation`
 
 ## Important Implementation Notes For Frontend
@@ -2995,4 +3043,5 @@ These must be set on the backend for invoice emails and wishlist discount notifi
 23. `GET /orders` returns the site-wide order list and supports optional `status` and `startDate`/`endDate` filters. This endpoint is available to both `sales_manager` and `product_manager` users.
 24. `GET /orders/:orderId/invoice.pdf` is restricted to `sales_manager` users and returns a binary PDF stream for any order.
 25. By default, public product and category endpoints return only active records (`is_active = true`). Manager/admin-facing product and category views may include inactive records and will also include the `isActive` boolean in responses.
-26. `PATCH /products/:productId/activation` and `PATCH /categories/:categoryId/activation` are restricted to `product_manager` users and accept `isActive` in the request body.
+26. `POST /categories` and activation endpoints (`PATCH /products/:productId/activation`, `PATCH /categories/:categoryId/activation`) are restricted to `product_manager` users.
+27. `POST /categories` accepts `categoryName` (or `category_name`) and rejects duplicate names with `409`.
