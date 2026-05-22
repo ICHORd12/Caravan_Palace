@@ -26,6 +26,7 @@ describe("categoryModel", () => {
         {
           category_id: "cat-1",
           category_name: "Camping",
+          is_active: true,
         },
       ],
       rowCount: 1,
@@ -43,6 +44,7 @@ describe("categoryModel", () => {
       {
         categoryId: "cat-1",
         categoryName: "Camping",
+        isActive: true,
       },
     ]);
   });

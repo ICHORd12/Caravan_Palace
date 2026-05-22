@@ -33,6 +33,7 @@ describe('productModel', () => {
           name: 'Vintage Lamp',
           current_price: '49.99',
           quantity_in_stocks: 10,
+          is_active: true,
         },
       ],
       rowCount: 1,
@@ -53,6 +54,7 @@ describe('productModel', () => {
       name: 'Vintage Lamp',
       currentPrice: '49.99',
       quantityInStocks: 10,
+      isActive: true,
     });
   });
 
@@ -79,6 +81,7 @@ describe('productModel', () => {
           name: 'Active Product',
           current_price: '19.99',
           quantity_in_stocks: 2,
+          is_active: true,
         },
       ],
       rowCount: 1,
@@ -98,6 +101,7 @@ describe('productModel', () => {
       name: 'Active Product',
       currentPrice: '19.99',
       quantityInStocks: 2,
+      isActive: true,
     });
   });
 
@@ -107,8 +111,8 @@ describe('productModel', () => {
   test('getAllProducts maps every row and applies the sort ORDER BY', async () => {
     querySpy.mockResolvedValue({
       rows: [
-        { product_id: 1, name: 'A', current_price: '10.00', quantity_in_stocks: 3 },
-        { product_id: 2, name: 'B', current_price: '20.00', quantity_in_stocks: 0 },
+        { product_id: 1, name: 'A', current_price: '10.00', quantity_in_stocks: 3, is_active: true },
+        { product_id: 2, name: 'B', current_price: '20.00', quantity_in_stocks: 0, is_active: false },
       ],
       rowCount: 2,
     });
@@ -122,8 +126,8 @@ describe('productModel', () => {
     expect(sql).toMatch(/ORDER BY current_price ASC/);
 
     expect(products).toHaveLength(2);
-    expect(products[0]).toMatchObject({ productId: 1, name: 'A' });
-    expect(products[1]).toMatchObject({ productId: 2, name: 'B' });
+    expect(products[0]).toMatchObject({ productId: 1, name: 'A', isActive: true });
+    expect(products[1]).toMatchObject({ productId: 2, name: 'B', isActive: false });
   });
 
   // ------------------------------------------------------------------

@@ -14,7 +14,8 @@ exports.getAllCategories = async ({ includeInactive }) => {
     `
     SELECT
       category_id,
-      category_name
+      category_name,
+      is_active
     FROM categories
     ${whereClause}
     ORDER BY category_name ASC
