@@ -102,3 +102,73 @@ describe("product creation", () => {
     });
   });
 });
+
+describe("product stock update", () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  test("updateProductStock rejects non product managers", async () => {
+    await expect(
+      productService.updateProductStock({
+        productId: "prod-1",
+        quantityInStocks: 10,
+        userRole: "sales_manager",
+      })
+    ).rejects.toThrow(/product managers/i);
+  });
+
+  test("updateProductStock validates quantityInStocks as non-negative integer", async () => {
+    await expect(
+      productService.updateProductStock({
+        productId: "prod-1",
+        quantityInStocks: -1,
+        userRole: "product_manager",
+      })
+    ).rejects.toThrow(/quantityInStocks must be 0 or greater/i);
+
+    await expect(
+      productService.updateProductStock({
+        productId: "prod-1",
+        quantityInStocks: 2.5,
+        userRole: "product_manager",
+      })
+    ).rejects.toThrow(/quantityInStocks must be an integer/i);
+  });
+
+  test("updateProductStock returns updated product", async () => {
+    const updateSpy = jest
+      .spyOn(productModel, "updateProductStock")
+      .mockResolvedValue({ productId: "prod-1", quantityInStocks: 15 });
+
+    const result = await productService.updateProductStock({
+      productId: "prod-1",
+      quantityInStocks: 15,
+      userRole: "product_manager",
+    });
+
+    expect(updateSpy).toHaveBeenCalledWith({
+      productId: "prod-1",
+      quantityInStocks: 15,
+    });
+
+    expect(result).toMatchObject({
+      message: "Product stock updated successfully",
+      product: { productId: "prod-1", quantityInStocks: 15 },
+    });
+  });
+
+  test("updateProductStock throws when product is not found", async () => {
+    jest
+      .spyOn(productModel, "updateProductStock")
+      .mockResolvedValue(null);
+
+    await expect(
+      productService.updateProductStock({
+        productId: "missing",
+        quantityInStocks: 5,
+        userRole: "product_manager",
+      })
+    ).rejects.toThrow(/Product not found/i);
+  });
+});

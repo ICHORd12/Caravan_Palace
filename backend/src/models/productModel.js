@@ -389,6 +389,23 @@ exports.updateProductIsActive = async ({ productId, isActive }, client) => {
   };
 };
 
+exports.updateProductStock = async ({ productId, quantityInStocks }, client) => {
+  const executor = client || pool;
+
+  const result = await executor.query(
+    `
+    UPDATE products
+    SET quantity_in_stocks = $1,
+        updated_at = NOW()
+    WHERE product_id = $2
+    RETURNING *
+    `,
+    [quantityInStocks, productId]
+  );
+
+  return mapProduct(result.rows[0] || null);
+};
+
 
 exports.searchProductsByNameOrDescription = async (searchTerm, sort) => {
   const likePattern = "%" + searchTerm + "%";

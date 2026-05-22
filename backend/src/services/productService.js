@@ -349,6 +349,34 @@ exports.updateProductActivation = async ({ productId, isActive, userRole }) => {
   };
 };
 
+exports.updateProductStock = async ({ productId, quantityInStocks, userRole }) => {
+  assertProductManager(userRole, "update product stock");
+
+  if (!productId) {
+    throw new ApiError(400, "Product ID is required");
+  }
+
+  const normalizedQuantity = normalizeIntegerValue(
+    quantityInStocks,
+    "quantityInStocks",
+    { min: 0 }
+  );
+
+  const updatedProduct = await productModel.updateProductStock({
+    productId,
+    quantityInStocks: normalizedQuantity,
+  });
+
+  if (!updatedProduct) {
+    throw new ApiError(404, "Product not found");
+  }
+
+  return {
+    message: "Product stock updated successfully",
+    product: updatedProduct,
+  };
+};
+
 exports.createProduct = async ({ payload, userRole }) => {
   assertProductManager(userRole, "create products");
 

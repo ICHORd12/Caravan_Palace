@@ -108,6 +108,25 @@ exports.updateProductBasePrice = async (req, res, next) => {
   }
 };
 
+exports.updateProductStock = async (req, res, next) => {
+  try {
+    const { productId } = req.params;
+    const userRole = req.user.role;
+    const quantityInStocks =
+      req.body.quantityInStocks ?? req.body.quantity_in_stocks;
+
+    const result = await productService.updateProductStock({
+      productId,
+      quantityInStocks,
+      userRole,
+    });
+
+    res.status(200).json(result);
+  } catch (err) {
+    next(err);
+  }
+};
+
 exports.createProduct = async (req, res, next) => {
   try {
     const userRole = req.user.role;
