@@ -27,7 +27,7 @@ export default function Navbar({ navbarContainerStyle, navbarLinksStyle, loginRe
     const { setWipe, navigateWithWipe, revealWipe } = useTransition();
 
     const isSM = user?.role === 'sales_manager';
-    const isPM = user?.role === 'product_manager'; // <-- NEW: Check for PM role
+    const isPM = user?.role === 'product_manager';
 
     const isAuthScreen = pathname === '/login' || pathname === '/register';
 
@@ -56,7 +56,7 @@ export default function Navbar({ navbarContainerStyle, navbarLinksStyle, loginRe
                                     <GeneralButton title="REFUNDS" onPress={() => navigateWithWipe('/salesManager/refunds')} />
                                 </>
                             ) : isPM ? (
-                                // --- NEW: PRODUCT MANAGER LINKS ---
+                                // --- PRODUCT MANAGER LINKS ---
                                 <>
                                     <GeneralButton title="ORDERS" onPress={() => navigateWithWipe('/productManager/orders')} />
                                     <GeneralButton title="PRODUCTS" onPress={() => navigateWithWipe('/productManager/products')} />
@@ -95,12 +95,12 @@ export default function Navbar({ navbarContainerStyle, navbarLinksStyle, loginRe
                     )
                 }
 
-                {/* --- UPDATED: Dynamic Home Button --- */}
+                {/* --- Dynamic Home Button --- */}
                 {pathname !== (isSM ? '/salesManager/home' : isPM ? '/productManager/home' : '/') && (
                     <GeneralButton title="HOME" onPress={() => navigateWithWipe(isSM ? '/salesManager/home' : isPM ? '/productManager/home' : '/')} />
                 )}
 
-                {/* --- UPDATED: Hide Shop Links for both SM and PM --- */}
+                {/* --- Hide Shop Links for both SM and PM --- */}
                 {pathname !== '/login' && pathname !== '/register' && !isSM && !isPM && (
                     <>
                         <GeneralButton textStyle={styles.caravansTextStyle} title="CARAVANS" onPress={() => navigateWithWipe('/shopping/caravans')} />
@@ -108,7 +108,7 @@ export default function Navbar({ navbarContainerStyle, navbarLinksStyle, loginRe
                     </>
                 )}
 
-                {/* 3. Global Links */}
+                {/* Global Links */}
                 <GeneralButton title="CONTACT" onPress={() => console.log("Contact clicked")} />
                 <GeneralButton title="INSTAGRAM" onPress={() => console.log("Instagram clicked")} />
                 <GeneralButton title="X/TWITTER" onPress={() => console.log("Twitter clicked")} />

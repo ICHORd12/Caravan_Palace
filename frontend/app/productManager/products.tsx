@@ -11,14 +11,13 @@ import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/context/ToastContext";
 import { useTransition } from "@/context/TransitionContext";
 
-// --- TYPES ---
 interface PMProduct {
     productId: string;
     name: string;
     model: string;
     serialNumber: string;
     quantityInStocks: number;
-    isActive?: boolean; // We assume the backend will return this for PMs eventually
+    isActive?: boolean;
 }
 
 export default function ProductManagerProducts() {
@@ -26,13 +25,11 @@ export default function ProductManagerProducts() {
     const { showToast } = useToast();
     const { navigateWithWipe, revealWipe } = useTransition();
 
-    // State
     const [products, setProducts] = useState<PMProduct[]>([]);
     const [isLoading, setIsLoading] = useState(false);
-    const [isCreating, setIsCreating] = useState(false); // Toggles between List and Form
+    const [isCreating, setIsCreating] = useState(false);
     const [updatingStatus, setUpdatingStatus] = useState<Record<string, boolean>>({});
 
-    // --- FORM STATE (Excluding Price as per Jira) ---
     const [formData, setFormData] = useState({
         name: "", categoryId: "", model: "", serialNumber: "",
         description: "", quantityInStocks: "0", warrantyStatus: "",
@@ -41,20 +38,18 @@ export default function ProductManagerProducts() {
 
     const isPM = user?.role === "product_manager";
 
-    //#region API FUNCTIONS
     const fetchProducts = async () => {
         if (!token) return;
         setIsLoading(true);
         try {
-            // NOTE: Backend needs to update this to return inactive products too
             const response = await fetch(`${API_BASE_URL}${PRODUCTS_END_POINT}`, {
                 headers: { "Authorization": `Bearer ${token}` }
             });
             const data = await response.json();
             if (response.ok) {
-                // Defaulting isActive to true since the current endpoint only returns active ones
                 const mappedProducts = (data.products || []).map((p: any) => ({
-                    ...p, isActive: p.isActive !== undefined ? p.isActive : true 
+                    ...p, 
+                    isActive: p.isActive !== undefined ? p.isActive : (p.is_active !== undefined ? p.is_active : true)
                 }));
                 setProducts(mappedProducts);
             } else {
@@ -97,12 +92,55 @@ export default function ProductManagerProducts() {
     };
 
     const handleCreateProduct = async () => {
-        // TO DO: Wire to backend once the POST endpoint is created
-        showToast("Backend POST endpoint missing. Form data ready!", "info");
-        console.log("Submitting:", formData);
-        // setIsCreating(false);
+        if (!token) return;
+        
+        if (!formData.name || !formData.categoryId || !formData.model) {
+            showToast("Name, Category ID, and Model are required.", "error");
+            return;
+        }
+
+        setIsLoading(true);
+        try {
+            const payload = {
+                categoryId: formData.categoryId,
+                name: formData.name,
+                model: formData.model,
+                serialNumber: formData.serialNumber,
+                description: formData.description,
+                quantityInStocks: Number(formData.quantityInStocks) || 0,
+                warrantyStatus: formData.warrantyStatus,
+                distributorInfo: formData.distributorInfo || null,
+                berthCount: Number(formData.berthCount) || 0,
+                fuelType: formData.fuelType,
+                weightKg: Number(formData.weightKg) || 0,
+                hasKitchen: formData.hasKitchen,
+                images: [] 
+            };
+
+            const response = await fetch(`${API_BASE_URL}${CREATE_PRODUCT_ENDPOINT}`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`
+                },
+                body: JSON.stringify(payload)
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                showToast("Product created successfully (Pending Price)", "success");
+                setIsCreating(false);
+                fetchProducts(); 
+            } else {
+                showToast(data.message || "Failed to create product", "error");
+            }
+        } catch (error) {
+            showToast("Network error while creating product", "error");
+        } finally {
+            setIsLoading(false);
+        }
     };
-    //#endregion
 
     useFocusEffect(
         useCallback(() => {
@@ -116,7 +154,6 @@ export default function ProductManagerProducts() {
 
     if (!isPM) return null;
 
-    //#region RENDERERS
     const renderProductCard = ({ item }: { item: PMProduct }) => (
         <View style={styles.card}>
             <View style={styles.cardHeader}>
@@ -139,8 +176,23 @@ export default function ProductManagerProducts() {
             />
         </View>
     );
+    const textInputConfig = [
+        { field: 'name', label: 'NAME', placeholder: 'e.g., Eco Camper Van' },
+        { field: 'categoryId', label: 'CATEGORY ID', placeholder: 'e.g., ff28bce6-284e-4c65-8557-0416f4274679' },
+        { field: 'model', label: 'MODEL', placeholder: 'e.g., ECO-2026' },
+        { field: 'serialNumber', label: 'SERIAL NUMBER', placeholder: 'e.g., SN-000002' },
+        { field: 'warrantyStatus', label: 'WARRANTY STATUS', placeholder: 'e.g., 2 Years' },
+        { field: 'distributorInfo', label: 'DISTRIBUTOR INFO', placeholder: 'e.g., Direct Sales' },
+        { field: 'fuelType', label: 'FUEL TYPE', placeholder: 'e.g., Diesel' }
+    ];
 
-    const renderCreationForm = () => (
+    const numericInputConfig = [
+        { field: 'quantityInStocks', label: 'QUANTITY IN STOCKS', placeholder: 'e.g., 5' },
+        { field: 'berthCount', label: 'BERTH COUNT', placeholder: 'e.g., 4' },
+        { field: 'weightKg', label: 'WEIGHT KG', placeholder: 'e.g., 1800' }
+    ];
+
+const renderCreationForm = () => (
         <ScrollView style={styles.formContainer} showsVerticalScrollIndicator={false}>
             <TouchableOpacity style={styles.backButton} onPress={() => setIsCreating(false)}>
                 <Ionicons name="arrow-back" size={24} color={Colors.light.greenButtonBackground} />
@@ -151,25 +203,28 @@ export default function ProductManagerProducts() {
             <Text style={styles.formNote}>Note: Pricing is handled separately by the Sales Manager.</Text>
 
             <View style={styles.formGrid}>
-                {/* Basic Text Inputs */}
-                {['name', 'categoryId', 'model', 'serialNumber', 'warrantyStatus', 'distributorInfo', 'fuelType'].map((field) => (
+                {/* Dynamically render text inputs with syntax examples */}
+                {textInputConfig.map(({ field, label, placeholder }) => (
                     <View key={field} style={styles.inputGroup}>
-                        <Text style={styles.label}>{field.toUpperCase()}</Text>
+                        <Text style={styles.label}>{label}</Text>
                         <TextInput 
                             style={styles.input} 
-                            placeholder={`Enter ${field}`}
+                            placeholder={placeholder}
+                            placeholderTextColor="#a09a80" // Makes the example text subtle
                             value={(formData as any)[field]}
                             onChangeText={(val) => setFormData(prev => ({...prev, [field]: val}))}
                         />
                     </View>
                 ))}
 
-                {/* Numeric Inputs */}
-                {['quantityInStocks', 'berthCount', 'weightKg'].map((field) => (
+                {/* Dynamically render numeric inputs with syntax examples */}
+                {numericInputConfig.map(({ field, label, placeholder }) => (
                     <View key={field} style={styles.inputGroup}>
-                        <Text style={styles.label}>{field.toUpperCase()}</Text>
+                        <Text style={styles.label}>{label}</Text>
                         <TextInput 
                             style={styles.input} 
+                            placeholder={placeholder}
+                            placeholderTextColor="#a09a80"
                             keyboardType="numeric"
                             value={(formData as any)[field]}
                             onChangeText={(val) => setFormData(prev => ({...prev, [field]: val}))}
@@ -182,6 +237,8 @@ export default function ProductManagerProducts() {
                 <Text style={styles.label}>DESCRIPTION</Text>
                 <TextInput 
                     style={[styles.input, styles.textArea]} 
+                    placeholder="e.g., This lightweight, off-grid camper features solar panels and..."
+                    placeholderTextColor="#a09a80"
                     multiline 
                     value={formData.description}
                     onChangeText={(val) => setFormData(prev => ({...prev, description: val}))}
@@ -198,7 +255,7 @@ export default function ProductManagerProducts() {
             </View>
 
             <WrappedGeneralButton
-                title="Save Product (Pending Backend)"
+                title="Save Product"
                 wrapperStyles={styles.saveButton}
                 textStyles={styles.actionButtonText}
                 onPress={handleCreateProduct}
@@ -206,7 +263,6 @@ export default function ProductManagerProducts() {
             <View style={{height: 40}} /> 
         </ScrollView>
     );
-    //#endregion
 
     return (
         <View style={styles.mainContainer}>
@@ -252,7 +308,6 @@ const styles = StyleSheet.create({
     listHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
     addButton: { backgroundColor: '#a94c0f', padding: 12, borderRadius: 8 },
     
-    // Cards
     card: { backgroundColor: Colors.light.softContainerBackground, borderRadius: 8, padding: 16, marginBottom: 16 },
     cardHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 },
     cardTitle: { fontFamily: Fonts.bold, fontSize: 18, color: Colors.light.greenButtonBackground },
@@ -260,13 +315,11 @@ const styles = StyleSheet.create({
     statusBadge: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 8, height: 30 },
     statusBadgeText: { fontFamily: Fonts.semibold, color: '#fff', fontSize: 12 },
     
-    // Buttons
     actionButton: { padding: 12, borderRadius: 8, alignItems: 'center' },
     activateBtn: { backgroundColor: Colors.light.greenButtonBackground },
     deactivateBtn: { backgroundColor: Colors.light.deleteButtonBackground },
     actionButtonText: { fontFamily: Fonts.bold, color: '#fff', fontSize: 14 },
 
-    // Form
     formContainer: { flex: 1, backgroundColor: Colors.light.softContainerBackground, padding: 30, borderRadius: 12 },
     backButton: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
     backButtonText: { fontFamily: Fonts.semibold, color: Colors.light.greenButtonBackground, marginLeft: 8 },

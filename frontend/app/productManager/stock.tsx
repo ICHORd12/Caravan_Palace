@@ -65,7 +65,9 @@ export default function ProductManagerStock() {
     };
 
     // --- PENDING BACKEND ENDPOINT ---
-    const handleUpdateStock = async (productId: string) => {
+   const handleUpdateStock = async (productId: string) => {
+        if (!token) return;
+        
         const newStockValue = stockInputs[productId];
         
         if (!newStockValue || isNaN(Number(newStockValue)) || Number(newStockValue) < 0) {
@@ -73,15 +75,30 @@ export default function ProductManagerStock() {
             return;
         }
 
-        // Placeholder for tomorrow's API!
-        console.log(`Ready to send: PATCH /api/v3/products/${productId}/stock with { quantity: ${newStockValue} }`);
-        
-        // Simulating a successful update on the frontend so you can see it work visually
-        setProducts(prev => prev.map(p => 
-            p.productId === productId ? { ...p, quantityInStocks: Number(newStockValue) } : p
-        ));
-        
-        showToast("Backend endpoint missing! Simulated update successful.", "info");
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/v3/products/${productId}/stock`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ quantityInStocks: Number(newStockValue) })
+            });
+
+            const data = await response.json();
+            
+            if (response.ok) {
+                // Update local state instantly so the UI reflects the change
+                setProducts(prev => prev.map(p => 
+                    p.productId === productId ? { ...p, quantityInStocks: Number(newStockValue) } : p
+                ));
+                showToast("Stock updated successfully.", "success");
+            } else {
+                showToast(data.message || "Failed to update stock", "error");
+            }
+        } catch (error) {
+            showToast("Network error updating stock", "error");
+        }
     };
     //#endregion
 
