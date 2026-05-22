@@ -16,6 +16,15 @@ const assertSalesManager = (userRole, message) => {
   }
 };
 
+const assertOrderManager = (userRole, message) => {
+  if (userRole !== "sales_manager" && userRole !== "product_manager") {
+    throw new ApiError(
+      403,
+      message || "Only sales managers or product managers can view all orders"
+    );
+  }
+};
+
 const assertProductManager = (userRole, message) => {
   if (userRole !== "product_manager") {
     throw new ApiError(403, message || "Only product managers can update order status");
@@ -249,7 +258,10 @@ exports.updateOrderStatusForManager = async ({ orderId, status, userRole }) => {
 };
 
 exports.getAllOrdersForManager = async ({ status, startDate, endDate, userRole }) => {
-  assertSalesManager(userRole, "Only sales managers can view all orders");
+  assertOrderManager(
+    userRole,
+    "Only sales managers or product managers can view all orders"
+  );
 
   if ((startDate && !endDate) || (!startDate && endDate)) {
     throw new ApiError(400, "startDate and endDate must be provided together");

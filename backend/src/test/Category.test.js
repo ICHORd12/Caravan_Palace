@@ -26,6 +26,7 @@ describe("categoryModel", () => {
         {
           category_id: "cat-1",
           category_name: "Camping",
+          is_active: true,
         },
       ],
       rowCount: 1,
@@ -43,6 +44,7 @@ describe("categoryModel", () => {
       {
         categoryId: "cat-1",
         categoryName: "Camping",
+        isActive: true,
       },
     ]);
   });
@@ -92,6 +94,70 @@ describe("categoryModel", () => {
       categoryId: "cat-2",
       categoryName: "Luxury",
       isActive: false,
+    });
+  });
+
+  // ------------------------------------------------------------------
+  // Test 4: getCategoryByName finds category by normalized name
+  // ------------------------------------------------------------------
+  test("getCategoryByName selects category with case-insensitive normalized match", async () => {
+    querySpy.mockResolvedValue({
+      rows: [
+        {
+          category_id: "cat-3",
+          category_name: "Camper Vans",
+          is_active: true,
+        },
+      ],
+      rowCount: 1,
+    });
+
+    const category = await categoryModel.getCategoryByName(" camper vans ");
+
+    expect(querySpy).toHaveBeenCalledTimes(1);
+    const [sql, params] = querySpy.mock.calls[0];
+    expect(sql).toMatch(/FROM categories/i);
+    expect(sql).toMatch(/LOWER\(TRIM\(category_name\)\) = LOWER\(TRIM\(\$1\)\)/i);
+    expect(sql).toMatch(/LIMIT 1/i);
+    expect(params).toEqual([" camper vans "]);
+
+    expect(category).toEqual({
+      categoryId: "cat-3",
+      categoryName: "Camper Vans",
+      isActive: true,
+    });
+  });
+
+  // ------------------------------------------------------------------
+  // Test 5: createCategory inserts new category
+  // ------------------------------------------------------------------
+  test("createCategory inserts a category and returns mapped fields", async () => {
+    querySpy.mockResolvedValue({
+      rows: [
+        {
+          category_id: "cat-4",
+          category_name: "Off Road",
+          is_active: true,
+        },
+      ],
+      rowCount: 1,
+    });
+
+    const category = await categoryModel.createCategory({
+      categoryName: "Off Road",
+      isActive: true,
+    });
+
+    expect(querySpy).toHaveBeenCalledTimes(1);
+    const [sql, params] = querySpy.mock.calls[0];
+    expect(sql).toMatch(/INSERT INTO categories/i);
+    expect(sql).toMatch(/VALUES \(\$1, \$2\)/i);
+    expect(params).toEqual(["Off Road", true]);
+
+    expect(category).toEqual({
+      categoryId: "cat-4",
+      categoryName: "Off Road",
+      isActive: true,
     });
   });
 });

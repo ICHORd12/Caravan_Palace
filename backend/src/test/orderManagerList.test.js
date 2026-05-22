@@ -22,6 +22,20 @@ describe("orderService.getAllOrdersForManager", () => {
     ).rejects.toThrow(/sales managers/i);
   });
 
+  test("allows product managers to view all orders", async () => {
+    jest.spyOn(orderModel, "listOrdersForManager").mockResolvedValue([]);
+    jest.spyOn(orderItemModel, "getOrderItemsByOrderId").mockResolvedValue([]);
+
+    await expect(
+      orderService.getAllOrdersForManager({
+        userRole: "product_manager",
+      })
+    ).resolves.toMatchObject({
+      message: "Orders fetched successfully",
+      orders: [],
+    });
+  });
+
   test("rejects when date filters are incomplete", async () => {
     await expect(
       orderService.getAllOrdersForManager({

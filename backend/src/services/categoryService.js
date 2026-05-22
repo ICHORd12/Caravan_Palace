@@ -29,6 +29,20 @@ const normalizeIsActive = (value) => {
   throw new ApiError(400, "isActive must be a boolean");
 };
 
+const normalizeCategoryName = (value) => {
+  if (typeof value !== "string") {
+    throw new ApiError(400, "categoryName is required");
+  }
+
+  const normalizedValue = value.trim().replace(/\s+/g, " ");
+
+  if (!normalizedValue) {
+    throw new ApiError(400, "categoryName is required");
+  }
+
+  return normalizedValue;
+};
+
 exports.getAllCategories = async () => {
   const categories = await categoryModel.getAllCategories({
     includeInactive: false,
@@ -37,6 +51,29 @@ exports.getAllCategories = async () => {
   return {
     message: "Categories fetched successfully",
     categories,
+  };
+};
+
+exports.createCategory = async ({ categoryName, userRole }) => {
+  assertProductManager(userRole, "create categories");
+
+  const normalizedCategoryName = normalizeCategoryName(categoryName);
+  const existingCategory = await categoryModel.getCategoryByName(
+    normalizedCategoryName
+  );
+
+  if (existingCategory) {
+    throw new ApiError(409, "Category already exists");
+  }
+
+  const category = await categoryModel.createCategory({
+    categoryName: normalizedCategoryName,
+    isActive: true,
+  });
+
+  return {
+    message: "Category created successfully",
+    category,
   };
 };
 

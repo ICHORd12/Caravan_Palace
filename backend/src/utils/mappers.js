@@ -47,6 +47,7 @@ exports.mapProduct = (row) => {
     weightKg: row.weight_kg,
     hasKitchen: row.has_kitchen,
     discountRate: row.discount_rate,
+    isActive: row.is_active,
     averageRating: Number(row.average_rating || 0),
     reviewCount: Number(row.review_count || 0),
     createdAt: row.created_at,
@@ -61,6 +62,7 @@ exports.mapCategory = (row) => {
   return {
     categoryId: row.category_id,
     categoryName: row.category_name,
+    isActive: row.is_active,
   };
 };
 

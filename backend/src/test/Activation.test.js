@@ -99,4 +99,70 @@ describe("activation services", () => {
       },
     });
   });
+
+  test("category creation rejects non product managers", async () => {
+    await expect(
+      categoryService.createCategory({
+        categoryName: "Camper Vans",
+        userRole: "sales_manager",
+      })
+    ).rejects.toThrow(/product managers/i);
+  });
+
+  test("category creation validates categoryName", async () => {
+    await expect(
+      categoryService.createCategory({
+        categoryName: "   ",
+        userRole: "product_manager",
+      })
+    ).rejects.toThrow(/categoryName is required/i);
+  });
+
+  test("category creation rejects duplicate category names", async () => {
+    jest.spyOn(categoryModel, "getCategoryByName").mockResolvedValue({
+      categoryId: "cat-7",
+      categoryName: "Camper Vans",
+      isActive: false,
+    });
+
+    await expect(
+      categoryService.createCategory({
+        categoryName: "Camper Vans",
+        userRole: "product_manager",
+      })
+    ).rejects.toThrow(/already exists/i);
+  });
+
+  test("category creation creates category with normalized name", async () => {
+    const findSpy = jest
+      .spyOn(categoryModel, "getCategoryByName")
+      .mockResolvedValue(null);
+    const createSpy = jest
+      .spyOn(categoryModel, "createCategory")
+      .mockResolvedValue({
+        categoryId: "cat-8",
+        categoryName: "Camper Vans",
+        isActive: true,
+      });
+
+    const result = await categoryService.createCategory({
+      categoryName: "  Camper   Vans  ",
+      userRole: "product_manager",
+    });
+
+    expect(findSpy).toHaveBeenCalledWith("Camper Vans");
+    expect(createSpy).toHaveBeenCalledWith({
+      categoryName: "Camper Vans",
+      isActive: true,
+    });
+
+    expect(result).toMatchObject({
+      message: "Category created successfully",
+      category: {
+        categoryId: "cat-8",
+        categoryName: "Camper Vans",
+        isActive: true,
+      },
+    });
+  });
 });

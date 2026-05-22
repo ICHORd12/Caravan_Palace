@@ -9,6 +9,22 @@ exports.getAllCategories = async (req, res, next) => {
   }
 };
 
+exports.createCategory = async (req, res, next) => {
+  try {
+    const userRole = req.user.role;
+    const categoryName = req.body.categoryName ?? req.body.category_name;
+
+    const result = await categoryService.createCategory({
+      categoryName,
+      userRole,
+    });
+
+    res.status(201).json(result);
+  } catch (err) {
+    next(err);
+  }
+};
+
 exports.updateCategoryActivation = async (req, res, next) => {
   try {
     const { categoryId } = req.params;
