@@ -42,25 +42,39 @@ export default function Navbar({ navbarContainerStyle, navbarLinksStyle, loginRe
         <View style={[styles.navbarContainer, navbarContainerStyle]}>
             <View style={[styles.navbarLinks, navbarLinksStyle]}>
 
-
                 {isAuthenticated ?
                     (
                         // IF LOGGED IN
                         <>
                             <GeneralButton title="MY ACCOUNT" onPress={() => navigateWithWipe('/profile')} />
+                            
                             {isSM ? (
+                                // --- SALES MANAGER LINKS ---
                                 <>
                                     <GeneralButton title="ORDERS" onPress={() => navigateWithWipe('/salesManager/orders')} />
                                     <GeneralButton title="PRODUCTS" onPress={() => navigateWithWipe('/salesManager/products')} />
                                     <GeneralButton title="STATISTICS" onPress={() => navigateWithWipe('/salesManager/statistics')} />
                                     <GeneralButton title="REFUNDS" onPress={() => navigateWithWipe('/salesManager/refunds')} />
                                 </>
+                            ) : isPM ? (
+                                // --- PRODUCT MANAGER LINKS (COMBINED) ---
+                                <>
+                                    {/* Your friend's Review Dashboard */}
+                                    <GeneralButton title="REVIEWS" onPress={() => navigateWithWipe('/productManager/reviews')} />
+                                    {/* Your Inventory/Fulfillment Links */}
+                                    <GeneralButton title="ORDERS" onPress={() => navigateWithWipe('/productManager/orders')} />
+                                    <GeneralButton title="PRODUCTS" onPress={() => navigateWithWipe('/productManager/products')} />
+                                    <GeneralButton title="CATEGORIES" onPress={() => navigateWithWipe('/productManager/categories')} />
+                                    <GeneralButton title="STOCK" onPress={() => navigateWithWipe('/productManager/stock')} />
+                                </>
                             ) : (
+                                // --- STANDARD CUSTOMER LINKS ---
                                 <>
                                     <GeneralButton title="ORDERS" onPress={() => navigateWithWipe('/orderHistory')} />
                                     <GeneralButton title="WISHLIST" onPress={() => navigateWithWipe('/shopping/wishlist')} />
                                 </>
                             )}
+                            
                             <GeneralButton title="LOGOUT" onPress={() => {
                                 if (pathname === '/profile') {
                                     navigateWithWipe('/login', () => logout());
@@ -86,11 +100,13 @@ export default function Navbar({ navbarContainerStyle, navbarLinksStyle, loginRe
                     )
                 }
 
-                {pathname !== (isSM ? '/salesManager/home' : '/') && (
-                    <GeneralButton title="HOME" onPress={() => navigateWithWipe(isSM ? '/salesManager/home' : '/')} />
+                {/* --- Dynamic Home Button --- */}
+                {pathname !== (isSM ? '/salesManager/home' : isPM ? '/productManager/dashboard' : '/') && (
+                    <GeneralButton title="HOME" onPress={() => navigateWithWipe(isSM ? '/salesManager/home' : isPM ? '/productManager/dashboard' : '/')} />
                 )}
 
-                {pathname !== '/login' && pathname !== '/register' && !isSM && (
+                {/* --- Hide Shop Links for both SM and PM --- */}
+                {pathname !== '/login' && pathname !== '/register' && !isSM && !isPM && (
                     <>
                         <GeneralButton textStyle={styles.caravansTextStyle} title="CARAVANS" onPress={() => navigateWithWipe('/shopping/caravans')} />
                         <GeneralButton textStyle={styles.shopTextStyle} title="SHOP" onPress={() => navigateWithWipe('/shopping/shoppingCart')} />

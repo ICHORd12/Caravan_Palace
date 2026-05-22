@@ -11,7 +11,7 @@ import { API_BASE_URL } from '../../constants/API';
 import { Colors, Fonts } from '../../constants/theme';
 import { Review } from '../../models/BACKEND_MODELS';
 
-export default function PMDashboard() {
+export default function ProductManagerReviews() {
     const { token, isAuthenticated, user } = useAuth();
     const { showToast } = useToast();
     const { revealWipe, navigateWithWipe } = useTransition();
@@ -213,7 +213,8 @@ export default function PMDashboard() {
 const styles = StyleSheet.create({
     mainContainer: {
         flex: 1,
-        backgroundColor: Colors.light.mainBackground,
+        // --- THE FIX: Changed from mainBackground to salesManagerBackground ---
+        backgroundColor: Colors.light.salesManagerBackground,
     },
     contentContainer: {
         flex: 1,
@@ -230,7 +231,8 @@ const styles = StyleSheet.create({
         fontSize: 28,
         marginBottom: 24,
         marginTop: 20,
-        color: Colors.light.mainTextColor,
+        // Updated to explicitly use the green text color to match other headers
+        color: Colors.light.greenButtonBackground,
         textAlign: 'center',
     },
     emptyContainer: {
@@ -241,7 +243,7 @@ const styles = StyleSheet.create({
     emptyText: {
         fontFamily: Fonts.semibold,
         fontSize: 16,
-        color: Colors.light.mainTextColor,
+        color: Colors.light.greenButtonBackground,
         textAlign: 'center',
     },
     reviewCard: {
@@ -279,7 +281,7 @@ const styles = StyleSheet.create({
     sectionTitle: {
         fontFamily: Fonts.bold,
         fontSize: 18,
-        color: Colors.light.mainTextColor,
+        color: Colors.light.greenButtonBackground,
         marginBottom: 16,
     },
     productDetailsGrid: {
@@ -292,7 +294,7 @@ const styles = StyleSheet.create({
     detailLabel: {
         fontFamily: Fonts.semibold,
         fontSize: 14,
-        color: Colors.light.mainTextColor,
+        color: Colors.light.basePriceDiscountedTextColor,
         width: 140,
     },
     detailValue: {
@@ -304,19 +306,19 @@ const styles = StyleSheet.create({
     detailValuePending: {
         fontFamily: Fonts.bold,
         fontSize: 14,
-        color: Colors.light.basePriceTextColor,
+        color: '#a94c0f', // Match the accent color
         flex: 1,
     },
     descriptionLabel: {
         fontFamily: Fonts.semibold,
         fontSize: 14,
-        color: Colors.light.mainTextColor,
+        color: Colors.light.basePriceDiscountedTextColor,
         marginBottom: 8,
     },
     descriptionText: {
         fontFamily: Fonts.regular,
         fontSize: 14,
-        color: Colors.light.commentTextColor,
+        color: Colors.light.mainTextColor,
         lineHeight: 20,
     },
     reviewHeader: {
@@ -328,30 +330,30 @@ const styles = StyleSheet.create({
     reviewUser: {
         fontFamily: Fonts.bold,
         fontSize: 16,
-        color: Colors.light.mainTextColor,
+        color: Colors.light.greenButtonBackground,
     },
     reviewDate: {
         fontFamily: Fonts.regular,
         fontSize: 12,
-        color: Colors.light.mainTextColor,
+        color: Colors.light.basePriceDiscountedTextColor,
     },
     reviewRating: {
         fontFamily: Fonts.semibold,
         fontSize: 14,
-        color: Colors.light.basePriceTextColor,
+        color: '#a94c0f',
         marginBottom: 10,
     },
     reviewComment: {
         fontFamily: Fonts.regular,
         fontSize: 15,
-        color: Colors.light.commentTextColor,
+        color: Colors.light.mainTextColor,
         marginBottom: 14,
         backgroundColor: '#ffffff',
         padding: 16,
         borderRadius: 8,
         lineHeight: 22,
         borderWidth: 1,
-        borderColor: '#eaeaea',
+        borderColor: '#c8bd96',
     },
     pmCommentContainer: {
         marginTop: 'auto',
@@ -359,14 +361,14 @@ const styles = StyleSheet.create({
     pmCommentInput: {
         backgroundColor: '#ffffff',
         borderWidth: 1,
-        borderColor: '#cccccc',
+        borderColor: '#c8bd96',
         borderRadius: 8,
         padding: 12,
         height: 100,
         textAlignVertical: 'top',
         fontFamily: Fonts.regular,
         fontSize: 14,
-        color: Colors.light.commentTextColor,
+        color: Colors.light.mainTextColor,
     },
     reviewActions: {
         flexDirection: 'row',
