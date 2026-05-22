@@ -331,8 +331,12 @@ export default function Caravans() {
             } 
             else 
             {
-                if (response.status === 404) showToast('ERROR 404');
-                else showToast('ERROR: Else');
+               try {
+                    const errorData = await response.json();
+                    showToast(errorData.message || `Error ${response.status}: Failed to fetch products`, 'error');
+                } catch {
+                    showToast(`Error ${response.status}: Failed to fetch products`, 'error');
+                }
             }
 
         } catch(err: any) {

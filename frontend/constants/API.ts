@@ -32,4 +32,11 @@ export const REVIEWS_ENDPOINT = `${base}/reviews`
 
 export const SALES_MANAGER_ORDERS_ENDPOINT = `${base}/orders`;
 
-
+// --- PRODUCT MANAGER (PM) ENDPOINTS ---
+export const CATEGORIES_ENDPOINT = `${base}/categories`;
+export const PM_PRODUCTS_ENDPOINT = `${base}/products`; 
+export const PM_ORDERS_ENDPOINT = `${base}/orders`; 
+export const PM_REVIEWS_ENDPOINT = `${base}/reviews`;
+export const PRODUCT_ACTIVATION_ENDPOINT = (productId: string) => `${base}/products/${productId}/activation`;
+export const CREATE_PRODUCT_ENDPOINT = `${base}/products`;
+export const PRODUCT_STOCK_ENDPOINT = (productId: string) => `${base}/products/${productId}/stock`;

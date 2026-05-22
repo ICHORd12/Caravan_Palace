@@ -81,7 +81,7 @@ export default function Login() {
                 if (data.user.role === 'sales_manager') {
                     navigateWithWipe('/salesManager/home');
                 } else if (data.user.role === 'product_manager') {
-                    navigateWithWipe('/productManager/dashboard');
+                    navigateWithWipe('/productManager/reviews');
                 } else {
                     navigateWithWipe('/'); 
                 }
