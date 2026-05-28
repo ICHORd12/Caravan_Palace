@@ -19,7 +19,7 @@ type Address = {
 };
 
 export default function Profile() {
-    const { token, isAuthenticated } = useAuth();
+    const { token, isAuthenticated, isLoading } = useAuth();
     const { showToast } = useToast();
     const { revealWipe, navigateWithWipe } = useTransition();
 
@@ -44,26 +44,19 @@ export default function Profile() {
     const [editAddressLabel, setEditAddressLabel] = useState('');
     const [editAddressText, setEditAddressText] = useState('');
 
-    const [isLoading, setIsLoading] = useState(false);
-    const authTracker = useRef(isAuthenticated);
-
-    useEffect(() => {
-        authTracker.current = isAuthenticated;
-        if (!isAuthenticated) {
-            navigateWithWipe('/login');
-        }
-    }, [isAuthenticated]);
+    const [isSaving, setIsSaving] = useState(false);
 
     useFocusEffect(
         useCallback(() => {
-            if (!authTracker.current) {
+            if (isLoading) return;
+            if (!isAuthenticated) {
                 showToast('Please login to view your profile.', 'error');
                 navigateWithWipe('/login');
             } else {
                 fetchProfileData();
                 revealWipe();
             }
-        }, [])
+        }, [isAuthenticated, isLoading])
     );
 
     const fetchProfileData = async () => {
@@ -105,7 +98,7 @@ export default function Profile() {
             bodyData.password = editPassword;
         }
 
-        setIsLoading(true);
+        setIsSaving(true);
         try {
             const response = await fetch(`${API_BASE_URL}${UPDATE_PROFILE_ENDPOINT}`, {
                 method: 'PATCH',
@@ -128,7 +121,7 @@ export default function Profile() {
         } catch (error: any) {
             showToast(`Network error: ${error?.message || 'Cannot reach server'}`, 'error');
         } finally {
-            setIsLoading(false);
+            setIsSaving(false);
         }
     };
 
@@ -138,7 +131,7 @@ export default function Profile() {
             return;
         }
 
-        setIsLoading(true);
+        setIsSaving(true);
         try {
             const response = await fetch(`${API_BASE_URL}${ADDRESSES_ENDPOINT}`, {
                 method: 'POST',
@@ -163,7 +156,7 @@ export default function Profile() {
         } catch (error) {
             showToast('Network error adding address', 'error');
         } finally {
-            setIsLoading(false);
+            setIsSaving(false);
         }
     };
 
@@ -173,7 +166,7 @@ export default function Profile() {
             return;
         }
 
-        setIsLoading(true);
+        setIsSaving(true);
         try {
             const response = await fetch(`${API_BASE_URL}${ADDRESSES_ENDPOINT}/${addressId}`, {
                 method: 'PATCH',
@@ -197,12 +190,12 @@ export default function Profile() {
         } catch (error) {
             showToast('Network error updating address', 'error');
         } finally {
-            setIsLoading(false);
+            setIsSaving(false);
         }
     };
 
     const handleSetDefaultAddress = async (addressId: number) => {
-        setIsLoading(true);
+        setIsSaving(true);
         try {
             const response = await fetch(`${API_BASE_URL}${ADDRESSES_ENDPOINT}/${addressId}`, {
                 method: 'PATCH',
@@ -222,12 +215,12 @@ export default function Profile() {
         } catch (error) {
             showToast('Network error updating address', 'error');
         } finally {
-            setIsLoading(false);
+            setIsSaving(false);
         }
     };
 
     const handleDeleteAddress = async (addressId: number) => {
-        setIsLoading(true);
+        setIsSaving(true);
         try {
             const response = await fetch(`${API_BASE_URL}${ADDRESSES_ENDPOINT}/${addressId}`, {
                 method: 'DELETE',
@@ -245,7 +238,7 @@ export default function Profile() {
         } catch (error) {
             showToast('Network error deleting address', 'error');
         } finally {
-            setIsLoading(false);
+            setIsSaving(false);
         }
     };
 
@@ -274,15 +267,15 @@ export default function Profile() {
                             <>
                                 <TextInput style={styles.input} value={editName} onChangeText={setEditName} />
                                 <View style={styles.addressActions}>
-                                    <WrappedGeneralButton title="Save" wrapperStyles={styles.smallButtonWrapper} textStyles={styles.smallButtonText} onPress={() => handleUpdateSingleField('name')} disabled={isLoading} />
-                                    <WrappedGeneralButton title="Cancel" wrapperStyles={[styles.smallButtonWrapper, { backgroundColor: '#ccc' }]} textStyles={styles.smallButtonText} onPress={() => setEditingField(null)} disabled={isLoading} />
+                                    <WrappedGeneralButton title="Save" wrapperStyles={styles.smallButtonWrapper} textStyles={styles.smallButtonText} onPress={() => handleUpdateSingleField('name')} disabled={isSaving} />
+                                    <WrappedGeneralButton title="Cancel" wrapperStyles={[styles.smallButtonWrapper, { backgroundColor: '#ccc' }]} textStyles={styles.smallButtonText} onPress={() => setEditingField(null)} disabled={isSaving} />
                                 </View>
                             </>
                         ) : (
                             <>
                                 <Text style={styles.addressText}>{name}</Text>
                                 <View style={styles.addressActions}>
-                                    <WrappedGeneralButton title="Edit" wrapperStyles={styles.smallButtonWrapper} textStyles={styles.smallButtonText} onPress={() => { setEditName(name); setEditingField('name'); }} disabled={isLoading} />
+                                    <WrappedGeneralButton title="Edit" wrapperStyles={styles.smallButtonWrapper} textStyles={styles.smallButtonText} onPress={() => { setEditName(name); setEditingField('name'); }} disabled={isSaving} />
                                 </View>
                             </>
                         )}
@@ -295,15 +288,15 @@ export default function Profile() {
                             <>
                                 <TextInput style={styles.input} value={editTaxId} onChangeText={setEditTaxId} />
                                 <View style={styles.addressActions}>
-                                    <WrappedGeneralButton title="Save" wrapperStyles={styles.smallButtonWrapper} textStyles={styles.smallButtonText} onPress={() => handleUpdateSingleField('taxId')} disabled={isLoading} />
-                                    <WrappedGeneralButton title="Cancel" wrapperStyles={[styles.smallButtonWrapper, { backgroundColor: '#ccc' }]} textStyles={styles.smallButtonText} onPress={() => setEditingField(null)} disabled={isLoading} />
+                                    <WrappedGeneralButton title="Save" wrapperStyles={styles.smallButtonWrapper} textStyles={styles.smallButtonText} onPress={() => handleUpdateSingleField('taxId')} disabled={isSaving} />
+                                    <WrappedGeneralButton title="Cancel" wrapperStyles={[styles.smallButtonWrapper, { backgroundColor: '#ccc' }]} textStyles={styles.smallButtonText} onPress={() => setEditingField(null)} disabled={isSaving} />
                                 </View>
                             </>
                         ) : (
                             <>
                                 <Text style={styles.addressText}>{taxId}</Text>
                                 <View style={styles.addressActions}>
-                                    <WrappedGeneralButton title="Edit" wrapperStyles={styles.smallButtonWrapper} textStyles={styles.smallButtonText} onPress={() => { setEditTaxId(taxId); setEditingField('taxId'); }} disabled={isLoading} />
+                                    <WrappedGeneralButton title="Edit" wrapperStyles={styles.smallButtonWrapper} textStyles={styles.smallButtonText} onPress={() => { setEditTaxId(taxId); setEditingField('taxId'); }} disabled={isSaving} />
                                 </View>
                             </>
                         )}
@@ -319,15 +312,15 @@ export default function Profile() {
                                 <Text style={styles.labelText}>Confirm New Password</Text>
                                 <TextInput style={styles.input} value={editConfirmPassword} onChangeText={setEditConfirmPassword} secureTextEntry />
                                 <View style={styles.addressActions}>
-                                    <WrappedGeneralButton title="Save" wrapperStyles={styles.smallButtonWrapper} textStyles={styles.smallButtonText} onPress={() => handleUpdateSingleField('password')} disabled={isLoading} />
-                                    <WrappedGeneralButton title="Cancel" wrapperStyles={[styles.smallButtonWrapper, { backgroundColor: '#ccc' }]} textStyles={styles.smallButtonText} onPress={() => setEditingField(null)} disabled={isLoading} />
+                                    <WrappedGeneralButton title="Save" wrapperStyles={styles.smallButtonWrapper} textStyles={styles.smallButtonText} onPress={() => handleUpdateSingleField('password')} disabled={isSaving} />
+                                    <WrappedGeneralButton title="Cancel" wrapperStyles={[styles.smallButtonWrapper, { backgroundColor: '#ccc' }]} textStyles={styles.smallButtonText} onPress={() => setEditingField(null)} disabled={isSaving} />
                                 </View>
                             </>
                         ) : (
                             <>
                                 <Text style={styles.addressText}>••••••••</Text>
                                 <View style={styles.addressActions}>
-                                    <WrappedGeneralButton title="Change Password" wrapperStyles={styles.smallButtonWrapper} textStyles={styles.smallButtonText} onPress={() => { setEditPassword(''); setEditConfirmPassword(''); setEditingField('password'); }} disabled={isLoading} />
+                                    <WrappedGeneralButton title="Change Password" wrapperStyles={styles.smallButtonWrapper} textStyles={styles.smallButtonText} onPress={() => { setEditPassword(''); setEditConfirmPassword(''); setEditingField('password'); }} disabled={isSaving} />
                                 </View>
                             </>
                         )}
@@ -360,14 +353,14 @@ export default function Profile() {
                                             wrapperStyles={styles.smallButtonWrapper}
                                             textStyles={styles.smallButtonText}
                                             onPress={() => handleUpdateAddress(address.addressId)}
-                                            disabled={isLoading}
+                                            disabled={isSaving}
                                         />
                                         <WrappedGeneralButton
                                             title="Cancel"
                                             wrapperStyles={[styles.smallButtonWrapper, { backgroundColor: '#ccc' }]}
                                             textStyles={styles.smallButtonText}
                                             onPress={() => setEditingAddressId(null)}
-                                            disabled={isLoading}
+                                            disabled={isSaving}
                                         />
                                     </View>
                                 </>
@@ -390,7 +383,7 @@ export default function Profile() {
                                                 wrapperStyles={[styles.smallButtonWrapper, { backgroundColor: '#7e7e7e' }]}
                                                 textStyles={[styles.smallButtonText, { color: '#fff' }]}
                                                 onPress={() => handleSetDefaultAddress(address.addressId)}
-                                                disabled={isLoading}
+                                                disabled={isSaving}
                                             />
                                         )}
                                         <TouchableOpacity
@@ -400,14 +393,14 @@ export default function Profile() {
                                                 setEditAddressLabel(address.label);
                                                 setEditAddressText(address.fullAddress);
                                             }}
-                                            disabled={isLoading}
+                                            disabled={isSaving}
                                         >
                                             <Ionicons name="pencil" size={18} color="#222" />
                                         </TouchableOpacity>
                                         <TouchableOpacity
                                             style={[styles.iconButton, styles.iconButtonDelete]}
                                             onPress={() => handleDeleteAddress(address.addressId)}
-                                            disabled={isLoading}
+                                            disabled={isSaving}
                                         >
                                             <Ionicons name="trash" size={18} color="#fff" />
                                         </TouchableOpacity>
@@ -444,7 +437,7 @@ export default function Profile() {
                                 wrapperStyles={styles.actionButtonWrapper}
                                 textStyles={styles.actionButtonText}
                                 onPress={handleAddAddress}
-                                disabled={isLoading}
+                                disabled={isSaving}
                             />
                         </View>
                     </View>

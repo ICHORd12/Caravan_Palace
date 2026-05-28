@@ -12,30 +12,25 @@ import { Colors, Fonts } from '../../constants/theme';
 import { Review } from '../../models/BACKEND_MODELS';
 
 export default function ProductManagerReviews() {
-    const { token, isAuthenticated, user } = useAuth();
+    const { token, isAuthenticated, user, isLoading: isAuthLoading } = useAuth();
     const { showToast } = useToast();
     const { revealWipe, navigateWithWipe } = useTransition();
 
     const [reviews, setReviews] = useState<Review[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [pmComments, setPmComments] = useState<Record<string, string>>({});
-    
-    const authTracker = useRef(isAuthenticated);
-
-    useEffect(() => {
-        authTracker.current = isAuthenticated;
-    }, [isAuthenticated]);
 
     useFocusEffect(
         useCallback(() => {
-            if (!authTracker.current || user?.role !== 'product_manager') {
+            if (isAuthLoading) return;
+            if (!isAuthenticated || user?.role !== 'product_manager') {
                 showToast('Access denied. Product Managers only.', 'error');
                 navigateWithWipe('/login');
             } else {
                 fetchPendingReviews();
                 revealWipe();
             }
-        }, [user])
+        }, [isAuthenticated, isAuthLoading, user])
     );
 
     const fetchPendingReviews = async () => {

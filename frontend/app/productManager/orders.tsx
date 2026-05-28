@@ -260,8 +260,6 @@ const styles = StyleSheet.create({
         padding: 15, 
         borderRadius: 8, 
         marginBottom: 20,
-      
-        zIndex: 100,
         ...(Platform.OS === 'web' ? { zIndex: 100 } : { elevation: 10 }) 
     },
     filterInputContainer: { flex: 2, zIndex: 1 },

@@ -101,8 +101,8 @@ export default function Navbar({ navbarContainerStyle, navbarLinksStyle, loginRe
                 }
 
                 {/* --- Dynamic Home Button --- */}
-                {pathname !== (isSM ? '/salesManager/home' : isPM ? '/productManager/dashboard' : '/') && (
-                    <GeneralButton title="HOME" onPress={() => navigateWithWipe(isSM ? '/salesManager/home' : isPM ? '/productManager/dashboard' : '/')} />
+                {pathname !== (isSM ? '/salesManager/home' : isPM ? '/productManager/home' : '/') && (
+                    <GeneralButton title="HOME" onPress={() => navigateWithWipe(isSM ? '/salesManager/home' : isPM ? '/productManager/home' : '/')} />
                 )}
 
                 {/* --- Hide Shop Links for both SM and PM --- */}
