@@ -2471,7 +2471,7 @@ Status: `200 OK`
 
 ## Order Management Endpoints
 
-All order management endpoints require authentication. The orders listing (`GET /api/v3/orders`) is available to both `sales_manager` and `product_manager` users; the financial summary and invoice download endpoints remain restricted to `sales_manager` users. The `PATCH /api/v3/orders/:orderId/status` endpoint remains restricted to `product_manager`.
+All order management endpoints require authentication. The orders listing (`GET /api/v3/orders`) is available to both `sales_manager` and `product_manager` users; the financial summary remains restricted to `sales_manager` users, the invoice download endpoint is available to both manager roles, and the `PATCH /api/v3/orders/:orderId/status` endpoint remains restricted to `product_manager`.
 
 ### `GET /api/v3/orders/reports/financial-summary`
 
@@ -2542,11 +2542,11 @@ Status: `200 OK`
 
 ### `GET /api/v3/orders/:orderId/invoice.pdf`
 
-Generates the invoice PDF for any order and streams it back as a file download. This endpoint is intended for sales managers.
+Generates the invoice PDF for any order and streams it back as a file download. This endpoint is intended for sales managers and product managers.
 
 #### Auth
 
-- Required (sales manager only)
+- Required (sales manager or product manager)
 
 #### Path Params
 
@@ -2573,7 +2573,7 @@ Content-Length: <bytes>
 - `400` if `orderId` is missing
 - `401` if token is missing
 - `401` if token is invalid
-- `403` if user is not a sales manager or product manager (depending on the endpoint)
+- `403` if user is not a sales manager or product manager
 - `404` if the order is not found
 
 ---
@@ -2653,7 +2653,7 @@ Updates an order status and populates deliveries when the order enters transit.
 
 #### Auth
 
-- Required (sales manager only)
+- Required (sales manager or product manager)
 
 #### Path Params
 
@@ -2743,7 +2743,7 @@ Status: `200 OK`
 - `400` if `status` filter is invalid
 - `401` if token is missing
 - `401` if token is invalid
-- `403` if user is not a sales manager
+- `403` if user is not a sales manager or product manager
 
 ---
 
@@ -3059,7 +3059,7 @@ These must be set on the backend for invoice emails and wishlist discount notifi
 21. `PATCH /products/:productId/discount` is restricted to `sales_manager` users and automatically emails wishlist users when the discount increases.
 22. `GET /orders/reports/financial-summary` is restricted to `sales_manager` users and requires `startDate` and `endDate` query params in `YYYY-MM-DD` format.
 23. `GET /orders` returns the site-wide order list and supports optional `status` and `startDate`/`endDate` filters. This endpoint is available to both `sales_manager` and `product_manager` users.
-24. `GET /orders/:orderId/invoice.pdf` is restricted to `sales_manager` users and returns a binary PDF stream for any order.
+24. `GET /orders/:orderId/invoice.pdf` is available to both `sales_manager` and `product_manager` users and returns a binary PDF stream for any order.
 25. By default, public product and category endpoints return only active records (`is_active = true`). Manager/admin-facing product and category views may include inactive records and will also include the `isActive` boolean in responses.
 26. `POST /categories` and activation endpoints (`PATCH /products/:productId/activation`, `PATCH /categories/:categoryId/activation`) are restricted to `product_manager` users.
 27. `POST /categories` accepts `categoryName` (or `category_name`) and rejects duplicate names with `409`.

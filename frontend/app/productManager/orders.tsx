@@ -1,6 +1,6 @@
 import { useFocusEffect } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
-import { ActivityIndicator, FlatList, StyleSheet, Text, TextInput, View, Platform } from "react-native";
+import { ActivityIndicator, FlatList, Platform, StyleSheet, Text, TextInput, View } from "react-native";
 
 import Navbar from "@/components/Navbar/Navbar";
 import SortDropdown from "@/components/DropDowns/SortDropdown/SortDropdown";
@@ -33,6 +33,11 @@ interface PMOrder {
 //#endregion
 
 
+//#region API NAMES
+const downloadOrderInvoiceApi = (orderId: string) => `/api/v3/orders/${orderId}/invoice.pdf`;
+//#endregion
+
+
 const ORDER_STATUSES: OrderStatus[] = ["processing", "in-transit", "delivered"];
 const DISPLAY_ORDER_STATUSES: OrderStatus[] = ["processing", "in-transit", "delivered", "cancelled", "returned"];
 const TERMINAL_DISPLAY_STATUSES: OrderStatus[] = ["cancelled", "returned"];
@@ -51,6 +56,7 @@ export default function ProductManagerOrders() {
     const [orders, setOrders] = useState<PMOrder[]>([]);
     const [isLoadingOrders, setIsLoadingOrders] = useState(false);
     const [updatingOrders, setUpdatingOrders] = useState<Record<string, boolean>>({});
+    const [downloadingInvoices, setDownloadingInvoices] = useState<Record<string, boolean>>({});
 
     const [orderIdFilter, setOrderIdFilter] = useState("");
     const [statusSort, setStatusSort] = useState<OrderStatus>("processing");
@@ -58,7 +64,7 @@ export default function ProductManagerOrders() {
     const isPM = user?.role === "product_manager";
 
     //#region API FUNCTIONS
-    const fetchOrders = async () => {
+    const fetchOrders = React.useCallback(async () => {
         if (!token) return;
         setIsLoadingOrders(true);
         try {
@@ -71,12 +77,12 @@ export default function ProductManagerOrders() {
             } else {
                 showToast(data.message || "Failed to fetch orders", "error");
             }
-        } catch (error) {
+        } catch {
             showToast("Network Error", "error");
         } finally {
             setIsLoadingOrders(false);
         }
-    };
+    }, [showToast, token]);
 
     const updateOrderStatus = async (orderId: string, status: OrderStatus) => {
         if (!token) return;
@@ -101,10 +107,52 @@ export default function ProductManagerOrders() {
                 const data = await response.json();
                 showToast(data.message || "Status update failed", "error");
             }
-        } catch (error) {
+        } catch {
             showToast("Network Error", "error");
         } finally {
             setUpdatingOrders(prev => ({ ...prev, [orderId]: false }));
+        }
+    };
+
+    const downloadInvoice = async (orderId: string): Promise<void> => {
+        if (!token) return;
+
+        if (Platform.OS !== "web") {
+            showToast("PDF downloads on mobile require Expo FileSystem. Try this on web!", "info");
+            return;
+        }
+
+        setDownloadingInvoices(prev => ({ ...prev, [orderId]: true }));
+
+        try {
+            const response = await fetch(`${API_BASE_URL}${downloadOrderInvoiceApi(orderId)}`, {
+                method: "GET",
+                headers: {
+                    "Authorization": `Bearer ${token}`,
+                },
+            });
+
+            if (!response.ok) {
+                const data = await response.json();
+                throw new Error(data.message || "Invoice could not be downloaded");
+            }
+
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const anchor = document.createElement("a");
+            anchor.href = url;
+            anchor.download = `invoice-order-${orderId}.pdf`;
+            document.body.appendChild(anchor);
+            anchor.click();
+            anchor.remove();
+            window.URL.revokeObjectURL(url);
+
+            showToast("Invoice downloaded", "success");
+        } catch (error) {
+            showToast(error instanceof Error ? error.message : "Failed to download invoice", "error");
+            console.error("LOG::ERROR::downloadInvoice", error);
+        } finally {
+            setDownloadingInvoices(prev => ({ ...prev, [orderId]: false }));
         }
     };
     //#endregion
@@ -129,7 +177,7 @@ export default function ProductManagerOrders() {
                 return;
             }
             fetchOrders().then(() => revealWipe());
-        }, [isPM])
+        }, [fetchOrders, isPM, navigateWithWipe, revealWipe])
     );
 
     if (!isPM) return null;
@@ -193,6 +241,17 @@ export default function ProductManagerOrders() {
                             onPress={() => updateOrderStatus(item.orderId, status)}
                         />
                     ))}
+                </View>
+
+                <Text style={[styles.sectionTitle, styles.invoiceSectionTitle]}>Invoice Actions</Text>
+                <View style={styles.invoiceButtonContainer}>
+                    <WrappedGeneralButton
+                        title={downloadingInvoices[item.orderId] ? "Downloading..." : "Download Invoice"}
+                        disabled={updatingOrders[item.orderId] || downloadingInvoices[item.orderId]}
+                        wrapperStyles={styles.statusButtonWrapper}
+                        textStyles={styles.statusButtonText}
+                        onPress={() => downloadInvoice(item.orderId)}
+                    />
                 </View>
             </View>
         );
@@ -292,10 +351,14 @@ const styles = StyleSheet.create({
 
     /* BUTTONS (UPDATED FOR BETTER UI) */
     sectionTitle: { fontFamily: Fonts.bold, fontSize: 16, color: Colors.light.greenButtonBackground, marginBottom: 10 },
+    invoiceSectionTitle: { marginTop: 12 },
     statusButtonContainer: { 
         flexDirection: "row", 
         flexWrap: "wrap", 
         gap: 15 
+    },
+    invoiceButtonContainer: {
+        marginTop: 4,
     },
     statusButtonWrapper: { 
         flex: 1, 

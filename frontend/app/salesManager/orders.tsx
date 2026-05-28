@@ -17,7 +17,6 @@ import { useUser } from "@/context/UserContext";
 
 
 //#region API NAMES
-const updateOrderStatusApi = (orderId: string) => `/api/v3/orders/${orderId}/status`;
 const downloadOrderInvoiceApi = (orderId: string) => `/api/v3/orders/${orderId}/invoice.pdf`;
 //#endregion
 
@@ -63,16 +62,13 @@ interface GetOrdersResponse {
 
 interface SalesManagerOrderCardProps {
     order: SalesManagerOrder;
-    isUpdating: boolean;
     isDownloadingInvoice: boolean;
-    onStatusChange: (orderId: string, status: OrderStatus) => void;
     onDownloadInvoice: (orderId: string) => void;
 }
 //#endregion
 
 
 //#region LOCAL CONSTANTS
-const ORDER_STATUSES: OrderStatus[] = ["processing", "in-transit", "delivered"];
 const DISPLAY_ORDER_STATUSES: OrderStatus[] = ["processing", "in-transit", "delivered", "cancelled", "returned"];
 const TERMINAL_DISPLAY_STATUSES: OrderStatus[] = ["cancelled", "returned"];
 
@@ -116,23 +112,6 @@ function formatDateFilterInput(text: string): string
     if (digitsOnly.length <= 6) return `${digitsOnly.slice(0, 4)}-${digitsOnly.slice(4)}`;
 
     return `${digitsOnly.slice(0, 4)}-${digitsOnly.slice(4, 6)}-${digitsOnly.slice(6)}`;
-}
-
-function isValidStrictDate(date: string): boolean
-{
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return false;
-
-    const [yearString, monthString, dayString] = date.split("-");
-    const year = Number(yearString);
-    const month = Number(monthString);
-    const day = Number(dayString);
-    const parsedDate = new Date(Date.UTC(year, month - 1, day));
-
-    return (
-        parsedDate.getUTCFullYear() === year &&
-        parsedDate.getUTCMonth() === month - 1 &&
-        parsedDate.getUTCDate() === day
-    );
 }
 
 function getStatusSortRank(status: OrderStatus, selectedStatus: string): number 
@@ -197,21 +176,6 @@ function getCustomerUserId(order: SalesManagerOrder): string
     return order.customer?.userId || order.customerId;
 }
 
-function isDateFilterReady(date: string): boolean
-{
-    return date.length === 10 && isValidStrictDate(date);
-}
-
-function shouldApplyDateFilter(date: string): boolean
-{
-    return date.trim().length === 0 || isDateFilterReady(date);
-}
-
-function shouldApplyDateRangeFilter(startDate: string, endDate: string): boolean
-{
-    return shouldApplyDateFilter(startDate) && shouldApplyDateFilter(endDate);
-}
-
 function isOrderInDateRange(orderDate: string, startDate: string, endDate: string): boolean
 {
     if (!shouldApplyDateRangeFilter(startDate, endDate)) return false;
@@ -229,13 +193,6 @@ function getDateFilterError(date: string): string
     return "Use YYYY-MM-DD";
 }
 
-function getStatusUpdatePayload(status: OrderStatus): OrderStatus
-{
-    if (status === "pending") return "processing";
-
-    return status;
-}
-
 async function readResponseJson<T>(response: Response): Promise<T | null> 
 {
     try {
@@ -250,9 +207,7 @@ async function readResponseJson<T>(response: Response): Promise<T | null>
 //#region ORDER CARD COMPONENT
 function SalesManagerOrderCard({
     order,
-    isUpdating,
     isDownloadingInvoice,
-    onStatusChange,
     onDownloadInvoice,
 }: SalesManagerOrderCardProps) 
 {
@@ -337,7 +292,6 @@ function SalesManagerOrderCard({
                                     isActive && styles.activeStatusCircle,
                                     status === "cancelled" && isActive && styles.cancelledStatusCircle,
                                     status === "returned" && isActive && styles.returnedStatusCircle,
-                                    isUpdating && styles.disabledStatusCircle,
                                 ]}
                             >
                                 <Text style={[styles.statusCircleText, (isCompleted || isActive) && styles.activeStatusCircleText]}>
@@ -375,26 +329,10 @@ function SalesManagerOrderCard({
                 ))}
             </View>
 
-            <View style={styles.statusButtonContainer}>
-                {ORDER_STATUSES.map((status) => (
-                    <WrappedGeneralButton
-                        key={status}
-                        title={formatStatus(status)}
-                        disabled={isUpdating || order.status === status}
-                        wrapperStyles={[
-                            styles.statusButtonWrapper,
-                            order.status === status && styles.currentStatusButtonWrapper,
-                        ]}
-                        textStyles={styles.statusButtonText}
-                        onPress={() => onStatusChange(order.orderId, getStatusUpdatePayload(status))}
-                    />
-                ))}
-            </View>
-
             <View style={styles.invoiceButtonContainer}>
                 <WrappedGeneralButton
                     title={isDownloadingInvoice ? "Downloading..." : "Download Invoice"}
-                    disabled={isUpdating || isDownloadingInvoice}
+                    disabled={isDownloadingInvoice}
                     wrapperStyles={styles.invoiceButtonWrapper}
                     textStyles={styles.invoiceButtonText}
                     onPress={() => onDownloadInvoice(order.orderId)}
@@ -415,7 +353,6 @@ export default function SalesManagerOrders() {
     const [orders, setOrders] = useState<SalesManagerOrder[]>([]);
     const [isLoadingOrders, setIsLoadingOrders] = useState(false);
     const [hasHandledAccess, setHasHandledAccess] = useState(false);
-    const [updatingOrders, setUpdatingOrders] = useState<Record<string, boolean>>({});
     const [downloadingInvoices, setDownloadingInvoices] = useState<Record<string, boolean>>({});
 
     const [beginningDateFilter, setBeginningDateFilter] = useState("");
@@ -431,7 +368,7 @@ export default function SalesManagerOrders() {
     const endingDateFilterError = getDateFilterError(endingDateFilter);
 
     //#region API FUNCTIONS
-    async function fetchOrders(): Promise<void> 
+    const fetchOrders = useCallback(async (): Promise<void> =>
     {
         if (!token) return;
 
@@ -463,55 +400,7 @@ export default function SalesManagerOrders() {
         } finally {
             setIsLoadingOrders(false);
         }
-    }
-
-    async function updateOrderStatus(orderId: string, status: OrderStatus): Promise<void> {
-        if (!token) return;
-
-        setUpdatingOrders(prev => ({ ...prev, [orderId]: true }));
-
-        try {
-            const response = await fetch(`${API_BASE_URL}${updateOrderStatusApi(orderId)}`, {
-                method: "PATCH",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${token}`,
-                },
-                body: JSON.stringify({ status: getStatusUpdatePayload(status) }),
-            });
-
-            const responseData = await readResponseJson<{ message?: string }>(response);
-
-            if (response.ok) 
-            {
-                const nextStatus = normalizeOrderStatus(status);
-                setOrders(prevOrders =>
-                    prevOrders.map(order =>
-                        order.orderId === orderId
-                            ? {
-                                ...order,
-                                status: nextStatus,
-                                items: nextStatus === "delivered"
-                                    ? order.items.map(item => ({ ...item, isDelivered: true }))
-                                    : order.items,
-                            }
-                            : order
-                    )
-                );
-                showToast(`Order status changed to ${formatStatus(status)}`, "success");
-            }
-            else 
-            {
-                showToast(responseData?.message || "Order status could not be updated", "error");
-            }
-            
-        } catch (error) {
-            showToast("Something went wrong while updating order status", "error");
-            console.error("LOG::ERROR::updateOrderStatus", error);
-        } finally {
-            setUpdatingOrders(prev => ({ ...prev, [orderId]: false }));
-        }
-    }
+    }, [showToast, token]);
 
     async function downloadInvoice(orderId: string): Promise<void> {
         if (!token) return;
@@ -623,7 +512,7 @@ export default function SalesManagerOrders() {
 
             setHasHandledAccess(true);
             fetchOrders();
-        }, [isLoading, isLoadingUser, isSalesManager, userRole, token])
+        }, [fetchOrders, isLoading, isLoadingUser, isSalesManager, navigateWithWipe, showToast, userRole])
     );
 
     useFocusEffect(
@@ -741,9 +630,7 @@ export default function SalesManagerOrders() {
                         renderItem={({ item }) => (
                             <SalesManagerOrderCard
                                 order={item}
-                                isUpdating={!!updatingOrders[item.orderId]}
                                 isDownloadingInvoice={!!downloadingInvoices[item.orderId]}
-                                onStatusChange={updateOrderStatus}
                                 onDownloadInvoice={downloadInvoice}
                             />
                         )}
@@ -1062,31 +949,8 @@ const styles = StyleSheet.create({
         color: Colors.light.mainTextColor,
     },
 
-    /* STATUS BUTTONS */
-    statusButtonContainer: {
-        flexDirection: "row",
-        flexWrap: "wrap",
-        gap: 10,
-        marginTop: 8,
-    },
     invoiceButtonContainer: {
         marginTop: 10,
-    },
-    statusButtonWrapper: {
-        minWidth: 120,
-        alignItems: "center",
-        backgroundColor: Colors.light.greenButtonBackground,
-        borderRadius: 8,
-        paddingVertical: 10,
-        paddingHorizontal: 12,
-    },
-    currentStatusButtonWrapper: {
-        backgroundColor: "#a94c0f",
-    },
-    statusButtonText: {
-        fontFamily: Fonts.semibold,
-        fontSize: 13,
-        color: Colors.light.greenButtonTextColor,
     },
     invoiceButtonWrapper: {
         minWidth: 170,
