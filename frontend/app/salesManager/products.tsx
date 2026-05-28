@@ -5,9 +5,11 @@ import { ActivityIndicator, FlatList, Image, Pressable, StyleSheet, Text, TextIn
 import { Ionicons } from "@expo/vector-icons";
 
 import Navbar from "@/components/Navbar/Navbar";
+import ManagerFilterPanel from '@/components/ManagerUI/ManagerFilterPanel';
 import CustomMultiSelect from "@/components/DropDowns/CustomMultiSelect/CustomMultiSelect";
 import SortDropdown from "@/components/DropDowns/SortDropdown/SortDropdown";
 import WrappedGeneralButton from "@/components/Buttons/GeneralButtonWithWrapper/GeneralButtonWithWrapper";
+import ManagerDetailGrid from '@/components/ManagerUI/ManagerDetailGrid';
 
 import { API_BASE_URL, PRODUCTS_END_POINT } from "@/constants/API";
 import { Colors, Fonts } from "@/constants/theme";
@@ -300,81 +302,24 @@ function SalesManagerProductCard({
                     )}
                 </View>
 
-                <View style={styles.detailGrid}>
-                    <View style={styles.detailItem}>
-                        <Text style={styles.detailLabel}>Product ID</Text>
-                        <Text style={styles.detailValue}>{product.productId}</Text>
-                    </View>
-
-                    <View style={styles.detailItem}>
-                        <Text style={styles.detailLabel}>Category ID</Text>
-                        <Text style={styles.detailValue}>{product.categoryId}</Text>
-                    </View>
-
-                    <View style={styles.detailItem}>
-                        <Text style={styles.detailLabel}>Quantity In Stocks</Text>
-                        <Text style={styles.detailValue}>{product.quantityInStocks}</Text>
-                    </View>
-
-                    <View style={styles.detailItem}>
-                        <Text style={styles.detailLabel}>Base Price</Text>
-                        <Text style={styles.detailValue}>{formatCurrency(product.basePrice)}</Text>
-                    </View>
-
-                    <View style={styles.detailItem}>
-                        <Text style={styles.detailLabel}>Current Price</Text>
-                        <Text style={styles.detailValue}>{formatCurrency(product.currentPrice)}</Text>
-                    </View>
-
-                    <View style={styles.detailItem}>
-                        <Text style={styles.detailLabel}>Warranty Status</Text>
-                        <Text style={styles.detailValue}>{product.warrantyStatus}</Text>
-                    </View>
-
-                    <View style={styles.detailItem}>
-                        <Text style={styles.detailLabel}>Distributor Info</Text>
-                        <Text style={styles.detailValue}>{product.distributorInfo || "N/A"}</Text>
-                    </View>
-
-                    <View style={styles.detailItem}>
-                        <Text style={styles.detailLabel}>Berth Count</Text>
-                        <Text style={styles.detailValue}>{product.berthCount}</Text>
-                    </View>
-
-                    <View style={styles.detailItem}>
-                        <Text style={styles.detailLabel}>Fuel Type</Text>
-                        <Text style={styles.detailValue}>{product.fuelType}</Text>
-                    </View>
-
-                    <View style={styles.detailItem}>
-                        <Text style={styles.detailLabel}>Weight KG</Text>
-                        <Text style={styles.detailValue}>{product.weightKg}</Text>
-                    </View>
-
-                    <View style={styles.detailItem}>
-                        <Text style={styles.detailLabel}>Has Kitchen</Text>
-                        <Text style={styles.detailValue}>{formatBoolean(product.hasKitchen)}</Text>
-                    </View>
-
-                    <View style={styles.detailItem}>
-                        <Text style={styles.detailLabel}>Rating</Text>
-                        <Text style={styles.detailValue}>
-                            {product.reviewCount > 0 && product.averageRating !== null
-                                ? `${product.averageRating} / 5 (${product.reviewCount})`
-                                : "No ratings yet"}
-                        </Text>
-                    </View>
-
-                    <View style={styles.detailItem}>
-                        <Text style={styles.detailLabel}>Created At</Text>
-                        <Text style={styles.detailValue}>{formatDate(product.createdAt)}</Text>
-                    </View>
-
-                    <View style={styles.detailItem}>
-                        <Text style={styles.detailLabel}>Updated At</Text>
-                        <Text style={styles.detailValue}>{formatDate(product.updatedAt)}</Text>
-                    </View>
-                </View>
+                <ManagerDetailGrid
+                    items={[
+                        { label: 'Product ID', value: product.productId },
+                        { label: 'Category ID', value: product.categoryId || 'N/A' },
+                        { label: 'Quantity In Stocks', value: product.quantityInStocks },
+                        { label: 'Base Price', value: formatCurrency(product.basePrice) },
+                        { label: 'Current Price', value: formatCurrency(product.currentPrice) },
+                        { label: 'Warranty Status', value: product.warrantyStatus || 'N/A' },
+                        { label: 'Distributor Info', value: product.distributorInfo || 'N/A' },
+                        { label: 'Berth Count', value: product.berthCount ?? 'N/A' },
+                        { label: 'Fuel Type', value: product.fuelType || 'N/A' },
+                        { label: 'Weight KG', value: product.weightKg ?? 'N/A' },
+                        { label: 'Has Kitchen', value: product.hasKitchen ? 'Yes' : 'No' },
+                        { label: 'Rating', value: product.reviewCount > 0 && product.averageRating !== null ? `${product.averageRating} / 5 (${product.reviewCount})` : 'No ratings yet' },
+                        { label: 'Created At', value: formatDate(product.createdAt) },
+                        { label: 'Updated At', value: formatDate(product.updatedAt) },
+                    ]}
+                />
             </View>
 
             <View style={styles.descriptionContainer}>
@@ -768,7 +713,7 @@ export default function SalesManagerProducts()
             <View style={styles.contentContainer}>
                 <Text style={styles.pageTitle}>Sales Manager Products</Text>
 
-                <View style={styles.filterContainer}>
+                <ManagerFilterPanel>
                     <View style={[styles.filterInputContainer, styles.searchInputContainer]}>
                         <Text style={styles.filterLabel}>Search</Text>
                         <TextInput
@@ -864,7 +809,7 @@ export default function SalesManagerProducts()
                             onPress={refreshProductsButtonFunction}
                         />
                     </View>
-                </View>
+                </ManagerFilterPanel>
 
                 {isLoadingProducts ? (
                     <ActivityIndicator size="large" color={Colors.light.greenButtonBackground} style={styles.loadingIndicator} />

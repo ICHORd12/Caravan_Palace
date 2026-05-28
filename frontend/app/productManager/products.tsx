@@ -4,6 +4,7 @@ import { useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 
 import Navbar from "@/components/Navbar/Navbar";
+import ManagerFilterPanel from '@/components/ManagerUI/ManagerFilterPanel';
 import WrappedGeneralButton from "@/components/Buttons/GeneralButtonWithWrapper/GeneralButtonWithWrapper";
 import SortDropdown from "@/components/DropDowns/SortDropdown/SortDropdown"; 
 
@@ -438,7 +439,7 @@ export default function ProductManagerProducts() {
                             />
                         </View>
 
-                        <View style={styles.filterContainer}>
+                        <ManagerFilterPanel>
                             <View style={styles.filterInputContainer}>
                                 <Text style={styles.filterLabel}>Search Product</Text>
                                 <TextInput
@@ -469,7 +470,7 @@ export default function ProductManagerProducts() {
                                     onPress={clearFiltersButtonFunction}
                                 />
                             </View>
-                        </View>
+                        </ManagerFilterPanel>
 
                         {isLoading ? (
                             <ActivityIndicator size="large" color={Colors.light.greenButtonBackground} style={{ marginTop: 50 }} />

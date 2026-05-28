@@ -4,6 +4,9 @@ import React, { useCallback, useMemo, useState } from "react";
 import { ActivityIndicator, FlatList, Platform, StyleSheet, Text, TextInput, View } from "react-native";
 
 import Navbar from "@/components/Navbar/Navbar";
+import ManagerFilterPanel from '@/components/ManagerUI/ManagerFilterPanel';
+import ManagerDetailGrid from '@/components/ManagerUI/ManagerDetailGrid';
+import ManagerStatusTimeline from '@/components/ManagerUI/ManagerStatusTimeline';
 import SortDropdown from "@/components/DropDowns/SortDropdown/SortDropdown";
 import WrappedGeneralButton from "@/components/Buttons/GeneralButtonWithWrapper/GeneralButtonWithWrapper";
 
@@ -112,6 +115,38 @@ function formatDateFilterInput(text: string): string
     if (digitsOnly.length <= 6) return `${digitsOnly.slice(0, 4)}-${digitsOnly.slice(4)}`;
 
     return `${digitsOnly.slice(0, 4)}-${digitsOnly.slice(4, 6)}-${digitsOnly.slice(6)}`;
+}
+
+function isValidStrictDate(date: string): boolean
+{
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return false;
+
+    const [yearString, monthString, dayString] = date.split("-");
+    const year = Number(yearString);
+    const month = Number(monthString);
+    const day = Number(dayString);
+    const parsedDate = new Date(Date.UTC(year, month - 1, day));
+
+    return (
+        parsedDate.getUTCFullYear() === year &&
+        parsedDate.getUTCMonth() === month - 1 &&
+        parsedDate.getUTCDate() === day
+    );
+}
+
+function isDateFilterReady(date: string): boolean
+{
+    return date.length === 10 && isValidStrictDate(date);
+}
+
+function shouldApplyDateFilter(date: string): boolean
+{
+    return date.trim().length === 0 || isDateFilterReady(date);
+}
+
+function shouldApplyDateRangeFilter(startDate: string, endDate: string): boolean
+{
+    return shouldApplyDateFilter(startDate) && shouldApplyDateFilter(endDate);
 }
 
 function getStatusSortRank(status: OrderStatus, selectedStatus: string): number 
@@ -227,89 +262,30 @@ function SalesManagerOrderCard({
                 </View>
             </View>
 
-            <View style={styles.detailGrid}>
-                <View style={styles.detailItem}>
-                    <Text style={styles.detailLabel}>Customer ID</Text>
-                    <Text style={styles.detailValue}>{getCustomerUserId(order)}</Text>
-                </View>
-
-                <View style={styles.detailItem}>
-                    <Text style={styles.detailLabel}>Customer Name</Text>
-                    <Text style={styles.detailValue}>{getCustomerName(order)}</Text>
-                </View>
-
-                <View style={styles.detailItem}>
-                    <Text style={styles.detailLabel}>Customer Email</Text>
-                    <Text style={styles.detailValue}>{getCustomerEmail(order)}</Text>
-                </View>
-
-                <View style={styles.detailItem}>
-                    <Text style={styles.detailLabel}>Customer Tax ID</Text>
-                    <Text style={styles.detailValue}>{getCustomerTaxId(order)}</Text>
-                </View>
-
-                <View style={styles.detailItem}>
-                    <Text style={styles.detailLabel}>Customer Role</Text>
-                    <Text style={styles.detailValue}>{getCustomerRole(order)}</Text>
-                </View>
-
-                <View style={styles.detailItem}>
-                    <Text style={styles.detailLabel}>Customer Created At</Text>
-                    <Text style={styles.detailValue}>{getCustomerCreatedAt(order)}</Text>
-                </View>
-
-                <View style={styles.detailItem}>
-                    <Text style={styles.detailLabel}>Card Last 4</Text>
-                    <Text style={styles.detailValue}>{order.cardLast4}</Text>
-                </View>
-
-                <View style={styles.detailItem}>
-                    <Text style={styles.detailLabel}>Invoice Number</Text>
-                    <Text style={styles.detailValue}>{order.invoiceNumber}</Text>
-                </View>
-
-                <View style={styles.detailItem}>
-                    <Text style={styles.detailLabel}>Total Price</Text>
-                    <Text style={styles.detailValue}>{formatCurrency(order.totalPrice)}</Text>
-                </View>
-            </View>
+                    <ManagerDetailGrid
+                        items={[
+                            { label: 'Customer ID', value: getCustomerUserId(order) },
+                            { label: 'Customer Name', value: getCustomerName(order) },
+                            { label: 'Customer Email', value: getCustomerEmail(order) },
+                            { label: 'Customer Tax ID', value: getCustomerTaxId(order) },
+                            { label: 'Customer Role', value: getCustomerRole(order) },
+                            { label: 'Customer Created At', value: getCustomerCreatedAt(order) },
+                            { label: 'Card Last 4', value: order.cardLast4 },
+                            { label: 'Invoice Number', value: order.invoiceNumber },
+                            { label: 'Total Price', value: formatCurrency(order.totalPrice) },
+                        ]}
+                    />
 
             <View style={styles.addressContainer}>
                 <Text style={styles.detailLabel}>Delivery Address</Text>
                 <Text style={styles.addressText}>{order.deliveryAddress}</Text>
             </View>
 
-            <View style={styles.statusTimelineContainer}>
-                {DISPLAY_ORDER_STATUSES.map((status, index) => {
-                    const isActive = order.status === status;
-                    const isCompleted = activeStatusIndex >= index && !isTerminalDisplayStatus;
-                    return (
-                        <View key={status} style={styles.statusStepContainer}>
-                            <View
-                                style={[
-                                    styles.statusCircle,
-                                    isCompleted && styles.completedStatusCircle,
-                                    isActive && styles.activeStatusCircle,
-                                    status === "cancelled" && isActive && styles.cancelledStatusCircle,
-                                    status === "returned" && isActive && styles.returnedStatusCircle,
-                                ]}
-                            >
-                                <Text style={[styles.statusCircleText, (isCompleted || isActive) && styles.activeStatusCircleText]}>
-                                    {index + 1}
-                                </Text>
-                            </View>
-
-                            <Text style={[styles.statusStepText, isActive && styles.activeStatusStepText]}>
-                                {formatStatus(status)}
-                            </Text>
-
-                            {index < DISPLAY_ORDER_STATUSES.length - 1 && (
-                                <View style={[styles.statusConnector, activeStatusIndex > index && !isTerminalDisplayStatus && styles.completedStatusConnector]} />
-                            )}
-                        </View>
-                    );
-                })}
-            </View>
+            <ManagerStatusTimeline
+                statuses={DISPLAY_ORDER_STATUSES}
+                currentStatus={order.status}
+                terminalStatuses={TERMINAL_DISPLAY_STATUSES}
+            />
 
             <View style={styles.itemsContainer}>
                 <Text style={styles.sectionTitle}>Order Items</Text>
@@ -535,7 +511,7 @@ export default function SalesManagerOrders() {
             <View style={styles.contentContainer}>
                 <Text style={styles.pageTitle}>Sales Manager Orders</Text>
 
-                <View style={styles.filterContainer}>
+                <ManagerFilterPanel>
                     <View style={[styles.filterInputContainer, styles.dateFilterInputContainer]}>
                         <Text style={styles.filterLabel}>Beginning Date</Text>
                         <TextInput
@@ -617,7 +593,7 @@ export default function SalesManagerOrders() {
                             onPress={refreshOrdersButtonFunction}
                         />
                     </View>
-                </View>
+                </ManagerFilterPanel>
 
                 {isLoadingOrders ? (
                     <ActivityIndicator size="large" color={Colors.light.greenButtonBackground} style={styles.loadingIndicator} />

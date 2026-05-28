@@ -3,6 +3,7 @@ import React, { useCallback, useMemo, useState } from "react";
 import { ActivityIndicator, FlatList, Platform, StyleSheet, Text, TextInput, View } from "react-native";
 
 import Navbar from "@/components/Navbar/Navbar";
+import ManagerFilterPanel from '@/components/ManagerUI/ManagerFilterPanel';
 import SortDropdown from "@/components/DropDowns/SortDropdown/SortDropdown";
 import WrappedGeneralButton from "@/components/Buttons/GeneralButtonWithWrapper/GeneralButtonWithWrapper";
 
@@ -332,7 +333,7 @@ export default function ProductManagerOrders() {
             <View style={styles.contentContainer}>
                 <Text style={styles.pageTitle}>Logistics & Fulfillment</Text>
 
-                <View style={styles.filterContainer}>
+                <ManagerFilterPanel>
                     <View style={styles.filterInputContainer}>
                         <Text style={styles.filterLabel}>Search Order ID</Text>
                         <TextInput
@@ -341,6 +342,7 @@ export default function ProductManagerOrders() {
                             onChangeText={setOrderIdFilter}
                             placeholder="e.g. 7e8f8f62..."
                         />
+
                     </View>
 
                     <View style={styles.filterInputContainer}>
@@ -380,7 +382,7 @@ export default function ProductManagerOrders() {
                             onPress={refreshOrdersButtonFunction}
                         />
                     </View>
-                </View>
+                </ManagerFilterPanel>
 
                 {isLoadingOrders ? (
                     <ActivityIndicator size="large" color={Colors.light.greenButtonBackground} style={{ marginTop: 50 }} />
