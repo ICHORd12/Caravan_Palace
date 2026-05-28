@@ -15,7 +15,7 @@ exports.productImagesSelect = `
 
 
 exports.productRatingSelect = `
-  COALESCE(pr.average_rating, 0) AS average_rating,
+  pr.average_rating AS average_rating,
   COALESCE(pr.review_count, 0) AS review_count
 `;
 

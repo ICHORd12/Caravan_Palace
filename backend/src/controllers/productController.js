@@ -13,8 +13,12 @@ exports.getAllProducts = async (req, res, next) => {
 exports.getProductsByCategoryName = async (req, res, next) => {
     try {
     const userRole = req.user?.role || null;
-    const result = await productService.getProductsByCategoryName({ ...req.body, userRole });
-        res.status(201).json(result);
+  const result = await productService.getProductsByCategoryName({
+    category_name: req.query.category_name ?? req.body.category_name,
+    sort: req.query.sort ?? req.body.sort,
+    userRole,
+  });
+    res.status(200).json(result);
     } catch (err) {
         next(err);
     }

@@ -3,7 +3,61 @@ const { mapProduct } = require("../utils/mappers");
 const { getOrderByClause } = require("../utils/sorter");
 const { productImagesSelect, productRatingSelect, productRatingJoin } = require("../utils/sqlHelpers");
 
-exports.getAllProducts = async (sort) => {
+const normalizeListParam = (value) => {
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item).trim()).filter(Boolean);
+  }
+
+  if (typeof value === "string") {
+    return value
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+
+  return [];
+};
+
+const buildProductListQuery = ({ categoryIds, q, includeInactive }) => {
+  const whereClauses = [];
+  const params = [];
+
+  const addParam = (value) => {
+    params.push(value);
+    return `$${params.length}`;
+  };
+
+  if (!includeInactive) {
+    whereClauses.push("p.is_active = TRUE");
+  }
+
+  const normalizedCategoryIds = normalizeListParam(categoryIds);
+  if (normalizedCategoryIds.length > 0) {
+    whereClauses.push(`p.category_id = ANY(${addParam(normalizedCategoryIds)}::uuid[])`);
+  }
+
+  const searchTerm = typeof q === "string" ? q.trim() : "";
+  if (searchTerm) {
+    const likePattern = `%${searchTerm}%`;
+    const searchParam = addParam(likePattern);
+    whereClauses.push(`(p.name ILIKE ${searchParam} OR p.description ILIKE ${searchParam} OR p.model ILIKE ${searchParam})`);
+  }
+
+  return {
+    whereClause: whereClauses.length > 0 ? `WHERE ${whereClauses.join(" AND ")}` : "",
+    params,
+  };
+};
+
+exports.getAllProducts = async (filtersOrSort) => {
+  const filters = typeof filtersOrSort === "string" ? { sort: filtersOrSort } : (filtersOrSort || {});
+  const { sort, categoryIds, q } = filters;
+  const { whereClause, params } = buildProductListQuery({
+    categoryIds,
+    q,
+    includeInactive: false,
+  });
+
   const result = await pool.query(
     `
     SELECT 
@@ -13,16 +67,25 @@ exports.getAllProducts = async (sort) => {
     FROM products p
     LEFT JOIN product_images pi ON p.product_id = pi.product_id
     ${productRatingJoin}
-    WHERE p.is_active = TRUE
+    ${whereClause}
     GROUP BY p.product_id, pr.average_rating, pr.review_count
     ${getOrderByClause(sort)}
     `
+    , params
   );
 
   return result.rows.map(mapProduct);
 };
 
-exports.getAllProductsForManager = async (sort) => {
+exports.getAllProductsForManager = async (filtersOrSort) => {
+  const filters = typeof filtersOrSort === "string" ? { sort: filtersOrSort } : (filtersOrSort || {});
+  const { sort, categoryIds, q } = filters;
+  const { whereClause, params } = buildProductListQuery({
+    categoryIds,
+    q,
+    includeInactive: true,
+  });
+
   const result = await pool.query(
     `
     SELECT 
@@ -32,9 +95,11 @@ exports.getAllProductsForManager = async (sort) => {
     FROM products p
     LEFT JOIN product_images pi ON p.product_id = pi.product_id
     ${productRatingJoin}
+    ${whereClause}
     GROUP BY p.product_id, pr.average_rating, pr.review_count
     ${getOrderByClause(sort)}
     `
+    , params
   );
 
   return result.rows.map(mapProduct);

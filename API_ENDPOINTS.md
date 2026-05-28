@@ -666,6 +666,15 @@ Fetches all products.
 - Allowed values:
   - `price_asc`
   - `price_desc`
+  - `date_asc`
+  - `date_desc`
+  - `rating_asc`
+  - `rating_desc`
+
+#### Optional Filter Parameters
+
+- `categoryIds`: optional comma-separated list of category ids
+- `q`: optional search text matched against name, description, and model
 
 #### Request Example
 
@@ -673,6 +682,12 @@ Current backend reads `sort` from query params for this endpoint:
 
 ```http
 GET /api/v3/products/all?sort=price_asc
+```
+
+Example with category filtering:
+
+```http
+GET /api/v3/products/all?categoryIds=ff28bce6-284e-4c65-8557-0416f4274679,ab12cd34-5678-90ef-ab12-cd34567890ef
 ```
 
 #### Success Response
@@ -738,18 +753,13 @@ Fetches products by category name.
 #### Important Backend Behavior
 
 - This route is defined as `GET`.
-- But the current backend reads `category_name` from `req.body`, not from query params.
-- The backend also accepts optional `sort` in the same request body.
-- In standard HTTP usage, `GET` requests usually do not send a body.
-- For frontend usage, it would be safer if backend later changes this to query-based usage like `?category_name=...`.
+- The backend reads `category_name` and `sort` from query params, with body fallbacks for compatibility.
+- In standard HTTP usage, `GET` requests should use query params rather than a body.
 
-#### Request Body
+#### Request Example
 
-```json
-{
-  "category_name": "Camper Vans",
-  "sort": "price_desc"
-}
+```http
+GET /api/v3/products/category_name?category_name=Camper%20Vans&sort=price_desc
 ```
 
 #### Optional Sort Parameter
@@ -758,10 +768,14 @@ Fetches products by category name.
 - Allowed values:
   - `price_asc`
   - `price_desc`
+  - `date_asc`
+  - `date_desc`
+  - `rating_asc`
+  - `rating_desc`
 
 #### Success Response
 
-Status: `201 Created`
+Status: `200 OK`
 
 ```json
 {
@@ -827,6 +841,10 @@ Searches products by name or description.
 - Allowed values:
   - `price_asc`
   - `price_desc`
+  - `date_asc`
+  - `date_desc`
+  - `rating_asc`
+  - `rating_desc`
 
 #### Request Example
 

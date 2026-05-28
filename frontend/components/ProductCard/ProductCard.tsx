@@ -54,6 +54,9 @@ export default function ProductCard({ dimensionStyle, caravan, quantity, isWishL
     const [localQty, setLocalQty] = useState(quantity.toString());
 
     const {isAuthenticated} = useAuth();
+    const ratingDisplay = caravan.reviewCount > 0 && caravan.averageRating !== null
+        ? caravan.averageRating.toFixed(1)
+        : "No ratings yet";
 
     useEffect(() => {
         setLocalQty(quantity.toString());
@@ -161,7 +164,7 @@ export default function ProductCard({ dimensionStyle, caravan, quantity, isWishL
                     <View style={styles.ratingContainer}>
                         <Ionicons name="star" size={16} color="#F5C542" />
                         <Text style={styles.ratingText}>
-                            {caravan.averageRating?.toFixed(1) ?? "0.0"}
+                            {ratingDisplay}
                         </Text>
                     </View>
 

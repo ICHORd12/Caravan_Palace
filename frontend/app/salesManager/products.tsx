@@ -358,7 +358,11 @@ function SalesManagerProductCard({
 
                     <View style={styles.detailItem}>
                         <Text style={styles.detailLabel}>Rating</Text>
-                        <Text style={styles.detailValue}>{product.averageRating} / 5 ({product.reviewCount})</Text>
+                        <Text style={styles.detailValue}>
+                            {product.reviewCount > 0 && product.averageRating !== null
+                                ? `${product.averageRating} / 5 (${product.reviewCount})`
+                                : "No ratings yet"}
+                        </Text>
                     </View>
 
                     <View style={styles.detailItem}>
