@@ -41,17 +41,17 @@ const MARGIN = 20;
 
 //#region INPUT INTERFACES
 interface fetchProductsInput {
-    payload: Object; 
-    API_BASE_URL: string; 
-    PRODUCTS_END_POINT: string;
+    payload: object; 
+    apiBaseUrl: string; 
+    productsEndPoint: string;
     signal: AbortSignal 
     sort?: string;
     categoryIds?: string[];
 }
 
 interface getQuantityInformationInput {
-    API_BASE_URL: string; 
-    GET_BACKEND_CART: string;
+    apiBaseUrl: string; 
+    getBackendCart: string;
     signal: AbortSignal 
 }
 
@@ -151,12 +151,12 @@ export default function Caravans() {
         setCartQuantity(localCartMap);
     }
 
-    async function getQuantityInformationAuth({ API_BASE_URL, GET_BACKEND_CART, signal }: getQuantityInformationInput)
+    async function getQuantityInformationAuth({ apiBaseUrl, getBackendCart, signal }: getQuantityInformationInput)
     {
         const _token = token
 
         try {
-            const response = await fetch(`${API_BASE_URL}${GET_BACKEND_CART}`, {
+            const response = await fetch(`${apiBaseUrl}${getBackendCart}`, {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
@@ -188,14 +188,14 @@ export default function Caravans() {
         }
     }
 
-    async function getQuantityInformation({ API_BASE_URL, GET_BACKEND_CART, signal }: getQuantityInformationInput) {
+    async function getQuantityInformation({ apiBaseUrl, getBackendCart, signal }: getQuantityInformationInput) {
         if (DEBUG) console.log("LOG::executed: getQuantityInformation");
 
         const localCartMap = getLocalCartMap();
 
         if (isAuthenticated) 
         {
-            getQuantityInformationAuth({API_BASE_URL: API_BASE_URL, GET_BACKEND_CART: GET_BACKEND_CART, signal: signal});
+            getQuantityInformationAuth({apiBaseUrl: API_BASE_URL, getBackendCart: GET_BACKEND_CART, signal: signal});
         } 
         else 
         {
@@ -329,7 +329,7 @@ export default function Caravans() {
     //#region FETCH PRODUCTS
 
 
-    async function fetchProducts({payload, API_BASE_URL, PRODUCTS_END_POINT, signal}: fetchProductsInput)
+    async function fetchProducts({payload, apiBaseUrl, productsEndPoint, signal}: fetchProductsInput)
     {
         setisCaravansLoaded(false);
 
@@ -358,8 +358,8 @@ export default function Caravans() {
 
         try {
             const endpoint = queryParams.toString()
-                ? `${API_BASE_URL}${PRODUCTS_END_POINT}?${queryParams.toString()}`
-                : `${API_BASE_URL}${PRODUCTS_END_POINT}`;
+                ? `${apiBaseUrl}${productsEndPoint}?${queryParams.toString()}`
+                : `${apiBaseUrl}${productsEndPoint}`;
 
             const response = await fetch(endpoint, {
                 method: 'GET',
@@ -623,14 +623,14 @@ export default function Caravans() {
                     sort: sortOption,
                     categoryIds: appliedFilters.categories,
                 },
-                API_BASE_URL,
-                PRODUCTS_END_POINT,
+                apiBaseUrl: API_BASE_URL,
+                productsEndPoint: PRODUCTS_END_POINT,
                 signal: controller.signal,
             });
 
             getQuantityInformation({
-                API_BASE_URL,
-                GET_BACKEND_CART,
+                apiBaseUrl: API_BASE_URL,
+                getBackendCart: GET_BACKEND_CART,
                 signal: controller.signal
             });
 

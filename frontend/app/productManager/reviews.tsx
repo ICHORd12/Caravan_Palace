@@ -163,7 +163,7 @@ export default function ProductManagerReviews() {
                                         </Text>
                                     </View>
                                     <Text style={styles.reviewRating}>Rating: {review.rating}/5</Text>
-                                    <Text style={styles.reviewComment}>"{review.commentText}"</Text>
+                                    <Text style={styles.reviewComment}>{`"${review.commentText}"`}</Text>
                                 </View>
 
                                 <View style={styles.pmCommentContainer}>

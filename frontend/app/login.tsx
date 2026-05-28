@@ -47,9 +47,9 @@ export default function Login() {
     );
 
     // TO DO-> Tell Backend to return proper message for User Not Found, not just 404.
-    const handleLogin = async (email: string, password: string) => {
+    const handleLogin = async (inputEmail: string, inputPassword: string) => {
 
-        if (!email.trim() || !password.trim()) {
+        if (!inputEmail.trim() || !inputPassword.trim()) {
             showToast('Please enter both email and password.', 'error');
             return;
         }
@@ -62,8 +62,8 @@ export default function Login() {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    email: email,
-                    password: password
+                    email: inputEmail,
+                    password: inputPassword
                 }),
             });
 
@@ -81,7 +81,7 @@ export default function Login() {
                 if (data.user.role === 'sales_manager') {
                     navigateWithWipe('/salesManager/home');
                 } else if (data.user.role === 'product_manager') {
-                    navigateWithWipe('/productManager/reviews');
+                            navigateWithWipe('/productManager/reviews');
                 } else {
                     navigateWithWipe('/'); 
                 }
@@ -151,8 +151,8 @@ export default function Login() {
                             onSubmitEditing={() => {
                                 // Prevent triggering if already loading
                                 if (!isLoading) {
-                                    handleLogin(email, password);
-                                }
+                                        handleLogin(email, password);
+                                    }
                             }}
                         />
 
