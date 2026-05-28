@@ -222,9 +222,6 @@ export default function ProductManagerProducts() {
             Promise.all([fetchProducts(), fetchCategories()]).then(() => revealWipe());
         }, [isPM])
     );
-
-    if (!isPM) return null;
-
     const filteredProducts = useMemo(() => {
         const searchValue = productSearchFilter.trim().toLowerCase();
         return [...products]
@@ -263,6 +260,8 @@ export default function ProductManagerProducts() {
                 return firstProduct.name.localeCompare(secondProduct.name);
             });
     }, [products, productSearchFilter, productSort]);
+
+    if (!isPM) return null;
 
     function clearFiltersButtonFunction(): void {
         setProductSearchFilter("");
