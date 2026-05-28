@@ -4,13 +4,13 @@ import React, { useCallback, useState } from "react";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 
 import Navbar from "@/components/Navbar/Navbar";
+import ManagerDashboardCard from "@/components/ManagerUI/ManagerDashboardCard";
 
 import { Colors, Fonts } from "@/constants/theme";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/context/ToastContext";
 import { useTransition } from "@/context/TransitionContext";
 import { useUser } from "@/context/UserContext";
-import GeneralButton from "@/components/Buttons/GeneralButton/GeneralButton";
 //#endregion
 
 
@@ -73,12 +73,36 @@ export default function SalesManagerHome() {
             <View style={styles.contentContainer}>
                 {isPageReady ? (
                     <View>
-                        <Text style={styles.welcomeText}>Welcome, Sales Manager {userName}</Text>
+                        <View style={styles.header}>
+                            <Text style={styles.welcomeText}>Welcome, Sales Manager {userName}</Text>
+                            <Text style={styles.subHeader}>Revenue, order, and pricing control center</Text>
+                        </View>
+
                         <View style={styles.buttonsContainer}>
-                            <GeneralButton title="Statistics" onPress={onStatisticsPress} />
-                            <GeneralButton title="Products" onPress={onProductsPress} />
-                            <GeneralButton title="Orders" onPress={onOrdersPress} />
-                            <GeneralButton title="Refunds" onPress={onRefundsPress} />
+                            <ManagerDashboardCard
+                                icon="📈"
+                                title="Statistics"
+                                description="Track monthly performance, refund losses, and profit indicators."
+                                onPress={onStatisticsPress}
+                            />
+                            <ManagerDashboardCard
+                                icon="🏷️"
+                                title="Products"
+                                description="Adjust base prices and discounts with advanced filtering."
+                                onPress={onProductsPress}
+                            />
+                            <ManagerDashboardCard
+                                icon="📦"
+                                title="Orders"
+                                description="Inspect order details and issue invoice documents quickly."
+                                onPress={onOrdersPress}
+                            />
+                            <ManagerDashboardCard
+                                icon="↩️"
+                                title="Refunds"
+                                description="Review and process refund requests in grouped or detailed views."
+                                onPress={onRefundsPress}
+                            />
                         </View>
                     </View>
                 ) : (
@@ -97,21 +121,32 @@ const styles = StyleSheet.create({
     },
     contentContainer: {
         flex: 1,
-        marginTop: '15%',
-        alignItems: "center",
+        maxWidth: 1100,
+        width: "100%",
+        alignSelf: "center",
         padding: 20,
     },
+    header: {
+        marginTop: 24,
+        marginBottom: 26,
+    },
     welcomeText: {
+        fontFamily: Fonts.bold,
+        fontSize: 30,
+        color: Colors.light.greenButtonBackground,
+    },
+    subHeader: {
+        marginTop: 8,
         fontFamily: Fonts.semibold,
-        fontSize: 28,
+        fontSize: 17,
         color: Colors.light.mainTextColor,
-        textAlign: "center",
     },
     buttonsContainer: {
-        marginTop: 10,
+        marginTop: 8,
         flexDirection: "row",
-        justifyContent: "center",
-        gap: 40,
+        flexWrap: "wrap",
+        justifyContent: "space-between",
+        gap: 16,
     }
 });
 //#endregion

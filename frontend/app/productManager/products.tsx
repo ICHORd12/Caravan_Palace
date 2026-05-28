@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { View, Text, StyleSheet, FlatList, TextInput, ActivityIndicator, TouchableOpacity, ScrollView, Switch } from "react-native";
 import { useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -15,12 +15,29 @@ import { useTransition } from "@/context/TransitionContext";
 
 interface PMProduct {
     productId: string;
+    categoryId?: string;
     name: string;
     model: string;
     serialNumber: string;
+    description?: string;
     quantityInStocks: number;
+    warrantyStatus?: string;
+    distributorInfo?: string | null;
+    berthCount?: number;
+    fuelType?: string;
+    weightKg?: number;
+    hasKitchen?: boolean;
+    createdAt?: string;
+    updatedAt?: string;
     isActive?: boolean;
 }
+
+const PM_PRODUCT_SORT_OPTIONS = [
+    { label: "Status: Active First", value: "active" },
+    { label: "Status: Inactive First", value: "inactive" },
+    { label: "Stock: Highest First", value: "stock-desc" },
+    { label: "Stock: Lowest First", value: "stock-asc" }
+];
 
 export default function ProductManagerProducts() {
     const { token, user } = useAuth();
@@ -31,6 +48,8 @@ export default function ProductManagerProducts() {
     const [isLoading, setIsLoading] = useState(false);
     const [isCreating, setIsCreating] = useState(false);
     const [updatingStatus, setUpdatingStatus] = useState<Record<string, boolean>>({});
+    const [productSearchFilter, setProductSearchFilter] = useState("");
+    const [productSort, setProductSort] = useState("active");
 
   
     const [categoriesDropdown, setCategoriesDropdown] = useState<{label: string, value: string}[]>([]);
@@ -205,6 +224,50 @@ export default function ProductManagerProducts() {
 
     if (!isPM) return null;
 
+    const filteredProducts = useMemo(() => {
+        const searchValue = productSearchFilter.trim().toLowerCase();
+        return [...products]
+            .filter((product) => {
+                if (!searchValue) return true;
+                const searchText = [
+                    product.name,
+                    product.model,
+                    product.serialNumber,
+                    product.productId,
+                    product.categoryId || "",
+                    product.fuelType || "",
+                ].join(" ").toLowerCase();
+
+                return searchText.includes(searchValue);
+            })
+            .sort((firstProduct, secondProduct) => {
+                if (productSort === "active") {
+                    if (!!firstProduct.isActive && !secondProduct.isActive) return -1;
+                    if (!!secondProduct.isActive && !firstProduct.isActive) return 1;
+                }
+
+                if (productSort === "inactive") {
+                    if (!firstProduct.isActive && !!secondProduct.isActive) return -1;
+                    if (!secondProduct.isActive && !!firstProduct.isActive) return 1;
+                }
+
+                if (productSort === "stock-desc") {
+                    return secondProduct.quantityInStocks - firstProduct.quantityInStocks;
+                }
+
+                if (productSort === "stock-asc") {
+                    return firstProduct.quantityInStocks - secondProduct.quantityInStocks;
+                }
+
+                return firstProduct.name.localeCompare(secondProduct.name);
+            });
+    }, [products, productSearchFilter, productSort]);
+
+    function clearFiltersButtonFunction(): void {
+        setProductSearchFilter("");
+        setProductSort("active");
+    }
+
     const renderProductCard = ({ item }: { item: PMProduct }) => (
         <View style={styles.card}>
             <View style={styles.cardHeader}>
@@ -217,6 +280,45 @@ export default function ProductManagerProducts() {
                     <Text style={styles.statusBadgeText}>{item.isActive ? "Active" : "Inactive"}</Text>
                 </View>
             </View>
+
+            <View style={styles.detailGrid}>
+                <View style={styles.detailItem}>
+                    <Text style={styles.detailLabel}>Product ID</Text>
+                    <Text style={styles.detailValue}>{item.productId}</Text>
+                </View>
+
+                <View style={styles.detailItem}>
+                    <Text style={styles.detailLabel}>Category ID</Text>
+                    <Text style={styles.detailValue}>{item.categoryId || "N/A"}</Text>
+                </View>
+
+                <View style={styles.detailItem}>
+                    <Text style={styles.detailLabel}>Warranty</Text>
+                    <Text style={styles.detailValue}>{item.warrantyStatus || "N/A"}</Text>
+                </View>
+
+                <View style={styles.detailItem}>
+                    <Text style={styles.detailLabel}>Fuel Type</Text>
+                    <Text style={styles.detailValue}>{item.fuelType || "N/A"}</Text>
+                </View>
+
+                <View style={styles.detailItem}>
+                    <Text style={styles.detailLabel}>Berth Count</Text>
+                    <Text style={styles.detailValue}>{item.berthCount ?? "N/A"}</Text>
+                </View>
+
+                <View style={styles.detailItem}>
+                    <Text style={styles.detailLabel}>Has Kitchen</Text>
+                    <Text style={styles.detailValue}>{item.hasKitchen === undefined ? "N/A" : item.hasKitchen ? "Yes" : "No"}</Text>
+                </View>
+            </View>
+
+            {item.description ? (
+                <View style={styles.descriptionContainer}>
+                    <Text style={styles.detailLabel}>Description</Text>
+                    <Text style={styles.descriptionText}>{item.description}</Text>
+                </View>
+            ) : null}
             
             <WrappedGeneralButton
                 title={item.isActive ? "Deactivate Product" : "Activate Product"}
@@ -336,11 +438,44 @@ export default function ProductManagerProducts() {
                             />
                         </View>
 
+                        <View style={styles.filterContainer}>
+                            <View style={styles.filterInputContainer}>
+                                <Text style={styles.filterLabel}>Search Product</Text>
+                                <TextInput
+                                    style={styles.filterInput}
+                                    value={productSearchFilter}
+                                    onChangeText={setProductSearchFilter}
+                                    placeholder="Name, model, serial, product ID..."
+                                    placeholderTextColor="#a09a80"
+                                />
+                            </View>
+
+                            <View style={styles.filterInputContainer}>
+                                <Text style={styles.filterLabel}>Sort</Text>
+                                <SortDropdown
+                                    options={PM_PRODUCT_SORT_OPTIONS}
+                                    selectedValue={productSort}
+                                    onChange={(newValue) => setProductSort(newValue)}
+                                    containerStyle={{ width: "100%" }}
+                                    triggerStyle={styles.filterInput}
+                                />
+                            </View>
+
+                            <View style={styles.filterButtonContainer}>
+                                <WrappedGeneralButton
+                                    title="Clear Filters"
+                                    wrapperStyles={styles.filterButton}
+                                    textStyles={styles.actionButtonText}
+                                    onPress={clearFiltersButtonFunction}
+                                />
+                            </View>
+                        </View>
+
                         {isLoading ? (
                             <ActivityIndicator size="large" color={Colors.light.greenButtonBackground} style={{ marginTop: 50 }} />
                         ) : (
                             <FlatList
-                                data={products}
+                                data={filteredProducts}
                                 keyExtractor={(item) => item.productId}
                                 renderItem={renderProductCard}
                                 contentContainerStyle={{ paddingBottom: 30 }}
@@ -361,6 +496,43 @@ const styles = StyleSheet.create({
     
     listHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
     addButton: { backgroundColor: '#a94c0f', padding: 12, borderRadius: 8 },
+
+    filterContainer: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 12,
+        backgroundColor: Colors.light.softContainerBackground,
+        borderRadius: 8,
+        padding: 14,
+        marginBottom: 16,
+        zIndex: 10,
+    },
+    filterInputContainer: { flex: 1, minWidth: 220, zIndex: 20 },
+    filterLabel: {
+        marginBottom: 6,
+        fontFamily: Fonts.semibold,
+        fontSize: 13,
+        color: Colors.light.greenButtonBackground,
+    },
+    filterInput: {
+        height: 42,
+        borderWidth: 1,
+        borderColor: '#c8bd96',
+        borderRadius: 8,
+        paddingHorizontal: 12,
+        backgroundColor: '#fff',
+        fontFamily: Fonts.regular,
+        justifyContent: 'center',
+    },
+    filterButtonContainer: { flexDirection: 'row', alignItems: 'flex-end', gap: 10 },
+    filterButton: {
+        minWidth: 130,
+        backgroundColor: Colors.light.greenButtonBackground,
+        borderRadius: 8,
+        paddingVertical: 11,
+        paddingHorizontal: 14,
+        alignItems: 'center',
+    },
     
     card: { backgroundColor: Colors.light.softContainerBackground, borderRadius: 8, padding: 16, marginBottom: 16 },
     cardHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 },
@@ -368,6 +540,13 @@ const styles = StyleSheet.create({
     cardSubtitle: { fontFamily: Fonts.regular, fontSize: 14, color: Colors.light.mainTextColor, marginTop: 4 },
     statusBadge: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 8, height: 30 },
     statusBadgeText: { fontFamily: Fonts.semibold, color: '#fff', fontSize: 12 },
+
+    detailGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 12 },
+    detailItem: { flex: 1, minWidth: 210, backgroundColor: '#fff', borderRadius: 8, padding: 12 },
+    detailLabel: { marginBottom: 4, fontFamily: Fonts.semibold, fontSize: 12, color: Colors.light.basePriceDiscountedTextColor },
+    detailValue: { fontFamily: Fonts.bold, fontSize: 14, color: Colors.light.mainTextColor },
+    descriptionContainer: { backgroundColor: '#fff', borderRadius: 8, padding: 12, marginBottom: 12 },
+    descriptionText: { fontFamily: Fonts.regular, fontSize: 13, color: Colors.light.mainTextColor, lineHeight: 20 },
     
     actionButton: { padding: 12, borderRadius: 8, alignItems: 'center' },
     activateBtn: { backgroundColor: Colors.light.greenButtonBackground },

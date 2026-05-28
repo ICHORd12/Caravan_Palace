@@ -33,6 +33,19 @@ interface PMOrder {
 //#endregion
 
 
+//#region HELPER FUNCTIONS
+function formatDate(dateString: string): string {
+    if (!dateString) return "Unknown Date";
+    return dateString.split("T")[0];
+}
+
+function formatStatus(status: OrderStatus): string {
+    if (status === "in-transit") return "In-transit";
+    return status.charAt(0).toUpperCase() + status.slice(1);
+}
+//#endregion
+
+
 //#region API NAMES
 const downloadOrderInvoiceApi = (orderId: string) => `/api/v3/orders/${orderId}/invoice.pdf`;
 //#endregion
@@ -45,7 +58,9 @@ const TERMINAL_DISPLAY_STATUSES: OrderStatus[] = ["cancelled", "returned"];
 const statusSortOptions = [
     { label: "Status: Processing First", value: "processing" },
     { label: "Status: In-transit First", value: "in-transit" },
-    { label: "Status: Delivered First", value: "delivered" }
+    { label: "Status: Delivered First", value: "delivered" },
+    { label: "Status: Cancelled First", value: "cancelled" },
+    { label: "Status: Returned First", value: "returned" }
 ];
 
 export default function ProductManagerOrders() {
@@ -59,6 +74,7 @@ export default function ProductManagerOrders() {
     const [downloadingInvoices, setDownloadingInvoices] = useState<Record<string, boolean>>({});
 
     const [orderIdFilter, setOrderIdFilter] = useState("");
+    const [customerIdFilter, setCustomerIdFilter] = useState("");
     const [statusSort, setStatusSort] = useState<OrderStatus>("processing");
 
     const isPM = user?.role === "product_manager";
@@ -160,15 +176,30 @@ export default function ProductManagerOrders() {
     //#region FILTERING
     const filteredOrders = useMemo(() => {
         const searchId = orderIdFilter.trim().toLowerCase();
+        const searchCustomerId = customerIdFilter.trim().toLowerCase();
         return orders
-            .filter(order => !searchId || order.orderId.toLowerCase().includes(searchId))
+            .filter(order => {
+                const orderMatches = !searchId || order.orderId.toLowerCase().includes(searchId);
+                const customerMatches = !searchCustomerId || order.customerId.toLowerCase().includes(searchCustomerId);
+                return orderMatches && customerMatches;
+            })
             .sort((a, b) => {
                 if (a.status === statusSort && b.status !== statusSort) return -1;
                 if (b.status === statusSort && a.status !== statusSort) return 1;
                 return new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime();
             });
-    }, [orders, orderIdFilter, statusSort]);
+    }, [orders, orderIdFilter, customerIdFilter, statusSort]);
     //#endregion
+
+    function clearFiltersButtonFunction(): void {
+        setOrderIdFilter("");
+        setCustomerIdFilter("");
+        setStatusSort("processing");
+    }
+
+    function refreshOrdersButtonFunction(): void {
+        fetchOrders();
+    }
 
     useFocusEffect(
         useCallback(() => {
@@ -187,16 +218,39 @@ export default function ProductManagerOrders() {
         const activeStatusIndex = DISPLAY_ORDER_STATUSES.indexOf(item.status);
         const isTerminalDisplayStatus = TERMINAL_DISPLAY_STATUSES.includes(item.status);
         const isUpdating = updatingOrders[item.orderId];
+        const deliveredItemCount = item.items.filter(orderItem => orderItem.isDelivered).length;
 
         return (
             <View style={styles.orderCard}>
                 <View style={styles.orderCardHeader}>
                     <View>
                         <Text style={styles.orderTitle}>Order #{item.orderId.split('-')[0].toUpperCase()}</Text>
-                        <Text style={styles.orderDate}>{item.orderDate.split('T')[0]}</Text>
+                        <Text style={styles.orderDate}>{formatDate(item.orderDate)}</Text>
                     </View>
                     <View style={styles.statusBadge}>
-                        <Text style={styles.statusBadgeText}>{item.status.toUpperCase()}</Text>
+                        <Text style={styles.statusBadgeText}>{formatStatus(item.status)}</Text>
+                    </View>
+                </View>
+
+                <View style={styles.detailGrid}>
+                    <View style={styles.detailItem}>
+                        <Text style={styles.detailLabel}>Customer ID</Text>
+                        <Text style={styles.detailValue}>{item.customerId}</Text>
+                    </View>
+
+                    <View style={styles.detailItem}>
+                        <Text style={styles.detailLabel}>Total Items</Text>
+                        <Text style={styles.detailValue}>{item.items.length}</Text>
+                    </View>
+
+                    <View style={styles.detailItem}>
+                        <Text style={styles.detailLabel}>Delivered Items</Text>
+                        <Text style={styles.detailValue}>{deliveredItemCount}</Text>
+                    </View>
+
+                    <View style={styles.detailItem}>
+                        <Text style={styles.detailLabel}>Order Date</Text>
+                        <Text style={styles.detailValue}>{formatDate(item.orderDate)}</Text>
                     </View>
                 </View>
 
@@ -219,13 +273,27 @@ export default function ProductManagerOrders() {
                                 ]}>
                                     <Text style={[styles.statusCircleText, (isCompleted || isActive) && { color: '#fff' }]}>{index + 1}</Text>
                                 </View>
-                                <Text style={styles.statusStepText}>{status.toUpperCase()}</Text>
+                                <Text style={styles.statusStepText}>{formatStatus(status)}</Text>
                                 {index < DISPLAY_ORDER_STATUSES.length - 1 && (
                                     <View style={[styles.statusConnector, isCompleted && styles.completedStatusConnector]} />
                                 )}
                             </View>
                         );
                     })}
+                </View>
+
+                <View style={styles.itemsContainer}>
+                    <Text style={styles.sectionTitle}>Order Items</Text>
+                    {item.items.map((orderItem) => (
+                        <View key={orderItem.orderItemId} style={styles.orderItemContainer}>
+                            <View style={styles.orderItemHeader}>
+                                <Text style={styles.orderItemTitle}>Item #{orderItem.orderItemId}</Text>
+                                <Text style={styles.orderItemDelivered}>{orderItem.isDelivered ? "Delivered" : "Not Delivered"}</Text>
+                            </View>
+                            <Text style={styles.orderItemText}>Product ID: {orderItem.productId}</Text>
+                            <Text style={styles.orderItemText}>Quantity: {orderItem.quantity}</Text>
+                        </View>
+                    ))}
                 </View>
 
                
@@ -274,6 +342,16 @@ export default function ProductManagerOrders() {
                             placeholder="e.g. 7e8f8f62..."
                         />
                     </View>
+
+                    <View style={styles.filterInputContainer}>
+                        <Text style={styles.filterLabel}>Search Customer ID</Text>
+                        <TextInput
+                            style={styles.filterInput}
+                            value={customerIdFilter}
+                            onChangeText={setCustomerIdFilter}
+                            placeholder="e.g. user_3a0..."
+                        />
+                    </View>
                     
                     {/* The Z-Index wrapper for the dropdown menu */}
                     <View style={styles.sortContainer}>
@@ -284,6 +362,22 @@ export default function ProductManagerOrders() {
                             onChange={(val) => setStatusSort(val as OrderStatus)}
                             containerStyle={{ width: '100%', zIndex: 999 }}
                             triggerStyle={styles.filterInput}
+                        />
+                    </View>
+
+                    <View style={styles.filterButtonContainer}>
+                        <WrappedGeneralButton
+                            title="Clear Filters"
+                            wrapperStyles={styles.filterButtonWrapper}
+                            textStyles={styles.filterButtonText}
+                            onPress={clearFiltersButtonFunction}
+                        />
+
+                        <WrappedGeneralButton
+                            title="Refresh"
+                            wrapperStyles={styles.filterButtonWrapper}
+                            textStyles={styles.filterButtonText}
+                            onPress={refreshOrdersButtonFunction}
                         />
                     </View>
                 </View>
@@ -312,17 +406,36 @@ const styles = StyleSheet.create({
     pageTitle: { marginBottom: 20, fontFamily: Fonts.bold, fontSize: 28, color: Colors.light.greenButtonBackground },
     
     
-    filterContainer: { 
-        flexDirection: "row", 
-        gap: 15, 
+    filterContainer: {
+        flexDirection: "row",
+        flexWrap: "wrap",
+        gap: 12,
         backgroundColor: Colors.light.softContainerBackground, 
         padding: 15, 
         borderRadius: 8, 
         marginBottom: 20,
         ...(Platform.OS === 'web' ? { zIndex: 100 } : { elevation: 10 }) 
     },
-    filterInputContainer: { flex: 2, zIndex: 1 },
-    sortContainer: { flex: 1, zIndex: 999 },
+    filterInputContainer: { flex: 1, minWidth: 230, zIndex: 1 },
+    sortContainer: { flex: 1, minWidth: 220, zIndex: 999 },
+    filterButtonContainer: {
+        flexDirection: "row",
+        alignItems: "flex-end",
+        gap: 10,
+    },
+    filterButtonWrapper: {
+        minWidth: 120,
+        alignItems: "center",
+        backgroundColor: Colors.light.greenButtonBackground,
+        borderRadius: 8,
+        paddingVertical: 11,
+        paddingHorizontal: 14,
+    },
+    filterButtonText: {
+        fontFamily: Fonts.semibold,
+        fontSize: 14,
+        color: Colors.light.greenButtonTextColor,
+    },
     filterLabel: { fontFamily: Fonts.semibold, fontSize: 13, color: Colors.light.greenButtonBackground, marginBottom: 6 },
     filterInput: { height: 42, borderWidth: 1, borderColor: "#c8bd96", borderRadius: 8, paddingHorizontal: 12, backgroundColor: "#fff", fontFamily: Fonts.regular },
 
@@ -333,6 +446,9 @@ const styles = StyleSheet.create({
     orderDate: { fontFamily: Fonts.regular, fontSize: 14, color: Colors.light.basePriceDiscountedTextColor, marginTop: 4 },
     statusBadge: { backgroundColor: Colors.light.greenButtonBackground, paddingVertical: 6, paddingHorizontal: 12, borderRadius: 8, alignSelf: 'flex-start' },
     statusBadgeText: { fontFamily: Fonts.semibold, color: '#fff', fontSize: 12 },
+    detailGrid: { flexDirection: "row", flexWrap: "wrap", gap: 12, marginBottom: 12 },
+    detailItem: { flex: 1, minWidth: 210, backgroundColor: "#fff", borderRadius: 8, padding: 12 },
+    detailValue: { fontFamily: Fonts.bold, fontSize: 14, color: Colors.light.mainTextColor },
     
     addressContainer: { backgroundColor: "#fff", padding: 15, borderRadius: 8, marginBottom: 20 },
     detailLabel: { fontFamily: Fonts.semibold, fontSize: 12, color: Colors.light.basePriceDiscountedTextColor, marginBottom: 4 },
@@ -352,6 +468,12 @@ const styles = StyleSheet.create({
     /* BUTTONS (UPDATED FOR BETTER UI) */
     sectionTitle: { fontFamily: Fonts.bold, fontSize: 16, color: Colors.light.greenButtonBackground, marginBottom: 10 },
     invoiceSectionTitle: { marginTop: 12 },
+    itemsContainer: { marginTop: 4, marginBottom: 12 },
+    orderItemContainer: { backgroundColor: "#fff", borderRadius: 8, padding: 12, marginBottom: 10 },
+    orderItemHeader: { flexDirection: "row", justifyContent: "space-between", gap: 10, marginBottom: 8 },
+    orderItemTitle: { flex: 1, fontFamily: Fonts.semibold, fontSize: 14, color: Colors.light.greenButtonBackground },
+    orderItemDelivered: { fontFamily: Fonts.semibold, fontSize: 13, color: Colors.light.currentPriceTextColor },
+    orderItemText: { marginBottom: 4, fontFamily: Fonts.regular, fontSize: 13, color: Colors.light.mainTextColor },
     statusButtonContainer: { 
         flexDirection: "row", 
         flexWrap: "wrap", 
