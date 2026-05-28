@@ -10,19 +10,19 @@ import { styles } from './CustomMultiSelect.styles';
 
 // Use a generic type <T> so the component knows if it's dealing with strings or numbers
 interface CustomMultiSelectProps<T extends string | number> {
-    mainContainerStyle?: Object;
-    triggerStyle?: Object;
-    triggerTextStyle?: Object;
-    dropdownOverlayStyle?: Object;
-    scrollViewStyle?: Object;
-    optionItemStyle?: Object;
-    checkboxStyle?: Object;
-    checkboxSelectedStyle?: Object;
-    optionTextStyle?: Object;
-    selectAllButtonStyle?: Object;
-    selectAllTextStyle?: Object;
-    closeButtonStyle?: Object;
-    closeButtonTextStyle?: Object;
+    mainContainerStyle?: object;
+    triggerStyle?: object;
+    triggerTextStyle?: object;
+    dropdownOverlayStyle?: object;
+    scrollViewStyle?: object;
+    optionItemStyle?: object;
+    checkboxStyle?: object;
+    checkboxSelectedStyle?: object;
+    optionTextStyle?: object;
+    selectAllButtonStyle?: object;
+    selectAllTextStyle?: object;
+    closeButtonStyle?: object;
+    closeButtonTextStyle?: object;
 
     options: { label: string; value: T }[];
     selectedOptions: T[];

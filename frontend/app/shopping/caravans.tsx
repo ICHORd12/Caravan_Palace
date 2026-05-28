@@ -17,7 +17,7 @@ import Navbar from '@/components/Navbar/Navbar';
 import ProductCard from '@/components/ProductCard/ProductCard';
 import SearchBar from '@/components/SearchBar/SearchBar';
 
-import { API_BASE_URL, PRODUCTS_END_POINT, GET_BACKEND_CART, DELETE_ITEM_END_POINT, UPDATE_QUANTITY_END_POINT } from '@/constants/API';
+import { API_BASE_URL, PRODUCTS_END_POINT, GET_BACKEND_CART, DELETE_ITEM_END_POINT, UPDATE_QUANTITY_END_POINT, CATEGORIES_ENDPOINT } from '@/constants/API';
 import { Caravan, FetchProductsAllResponse, GetBackendCartResponse } from '@/models/BACKEND_MODELS';
 import { DEBUG } from '@/constants/CONSTANTS';
 import { useAuth } from '@/context/AuthContext'
@@ -41,16 +41,23 @@ const MARGIN = 20;
 
 //#region INPUT INTERFACES
 interface fetchProductsInput {
-    payload: Object; 
-    API_BASE_URL: string; 
-    PRODUCTS_END_POINT: string;
+    payload: object; 
+    apiBaseUrl: string; 
+    productsEndPoint: string;
     signal: AbortSignal 
+    sort?: string;
+    categoryIds?: string[];
 }
 
 interface getQuantityInformationInput {
-    API_BASE_URL: string; 
-    GET_BACKEND_CART: string;
+    apiBaseUrl: string; 
+    getBackendCart: string;
     signal: AbortSignal 
+}
+
+interface CategoryOption {
+    label: string;
+    value: string;
 }
 
 export interface UpdateQuantityInput {
@@ -73,6 +80,7 @@ export default function Caravans() {
     const [allCaravans, setAllCaravans] = useState<Caravan[]>([]);
     const [cartQuantity, setCartQuantity] = useState<Record<string, number>>({});
     const [wishlistMap, setWishlistMap] = useState<Record<string, boolean>>({});
+    const [categoryOptions, setCategoryOptions] = useState<CategoryOption[]>([]);
 
     const [updatingItems, setUpdatingItems] = useState<Record<string, boolean>>({});
     const [isCaravansLoaded, setisCaravansLoaded] = useState(false);
@@ -84,6 +92,7 @@ export default function Caravans() {
     const [selectedFuelTypes, setSelectedFuelTypes] = useState<string[]>([]);
     const [selectedWeights, setSelectedWeights] = useState<string[]>([]);
     const [selectedHasKitchens, setSelectedHasKitchens] = useState<string[]>([]);
+    const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
 
     const [appliedFilters, setAppliedFilters] = useState({
         models: [] as string[],
@@ -91,6 +100,7 @@ export default function Caravans() {
         fuelTypes: [] as string[],
         weights: [] as string[],
         hasKitchens: [] as string[],
+        categories: [] as string[],
     });
 
     // Search
@@ -111,6 +121,15 @@ export default function Caravans() {
         setSelectedFuelTypes([]);
         setSelectedWeights([]);
         setSelectedHasKitchens([]);
+        setSelectedCategories([]);
+        setAppliedFilters({
+            models: [],
+            prices: [],
+            fuelTypes: [],
+            weights: [],
+            hasKitchens: [],
+            categories: [],
+        });
 
         if (DEBUG) console.log("LOG::Executed: clearFilters");
     }
@@ -132,12 +151,12 @@ export default function Caravans() {
         setCartQuantity(localCartMap);
     }
 
-    async function getQuantityInformationAuth({ API_BASE_URL, GET_BACKEND_CART, signal }: getQuantityInformationInput)
+    async function getQuantityInformationAuth({ apiBaseUrl, getBackendCart, signal }: getQuantityInformationInput)
     {
         const _token = token
 
         try {
-            const response = await fetch(`${API_BASE_URL}${GET_BACKEND_CART}`, {
+            const response = await fetch(`${apiBaseUrl}${getBackendCart}`, {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
@@ -169,14 +188,14 @@ export default function Caravans() {
         }
     }
 
-    async function getQuantityInformation({ API_BASE_URL, GET_BACKEND_CART, signal }: getQuantityInformationInput) {
+    async function getQuantityInformation({ apiBaseUrl, getBackendCart, signal }: getQuantityInformationInput) {
         if (DEBUG) console.log("LOG::executed: getQuantityInformation");
 
         const localCartMap = getLocalCartMap();
 
         if (isAuthenticated) 
         {
-            getQuantityInformationAuth({API_BASE_URL: API_BASE_URL, GET_BACKEND_CART: GET_BACKEND_CART, signal: signal});
+            getQuantityInformationAuth({apiBaseUrl: API_BASE_URL, getBackendCart: GET_BACKEND_CART, signal: signal});
         } 
         else 
         {
@@ -310,12 +329,39 @@ export default function Caravans() {
     //#region FETCH PRODUCTS
 
 
-    async function fetchProducts({payload, API_BASE_URL, PRODUCTS_END_POINT, signal}: fetchProductsInput)
+    async function fetchProducts({payload, apiBaseUrl, productsEndPoint, signal}: fetchProductsInput)
     {
         setisCaravansLoaded(false);
 
+        const queryParams = new URLSearchParams();
+        if (payload && typeof payload === 'object' && 'sort' in payload) {
+            const sortValue = (payload as any).sort;
+            if (sortValue) {
+                queryParams.set('sort', sortValue);
+            }
+        }
+
+        if (payload && typeof payload === 'object' && 'categoryIds' in payload) {
+            const categoryIdsValue = (payload as any).categoryIds;
+            if (Array.isArray(categoryIdsValue) && categoryIdsValue.length > 0) {
+                queryParams.set('categoryIds', categoryIdsValue.join(','));
+            }
+        }
+
+        if (!queryParams.has('sort') && sortOption) {
+            queryParams.set('sort', sortOption);
+        }
+
+        if (!queryParams.has('categoryIds') && appliedFilters.categories.length > 0) {
+            queryParams.set('categoryIds', appliedFilters.categories.join(','));
+        }
+
         try {
-            const response = await fetch(`${API_BASE_URL}${PRODUCTS_END_POINT}`, {
+            const endpoint = queryParams.toString()
+                ? `${apiBaseUrl}${productsEndPoint}?${queryParams.toString()}`
+                : `${apiBaseUrl}${productsEndPoint}`;
+
+            const response = await fetch(endpoint, {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
@@ -355,6 +401,36 @@ export default function Caravans() {
             if (DEBUG) console.log("LOG::Executed: fetchProducts");
         }
     } 
+
+    async function fetchCategories(signal: AbortSignal) {
+        try {
+            const response = await fetch(`${API_BASE_URL}${CATEGORIES_ENDPOINT}`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                signal,
+            });
+
+            if (!response.ok) {
+                return;
+            }
+
+            const data = await response.json();
+            const mappedCategories: CategoryOption[] = (data.categories || [])
+                .filter((category: any) => category.isActive !== false && category.is_active !== false)
+                .map((category: any) => ({
+                    label: category.categoryName,
+                    value: category.categoryId,
+                }));
+
+            setCategoryOptions(mappedCategories);
+        } catch (error: any) {
+            if (error.name !== 'AbortError') {
+                console.error('Failed to fetch categories:', error);
+            }
+        }
+    }
 
     //#endregion
 
@@ -431,17 +507,6 @@ export default function Caravans() {
                 return appliedFilters.hasKitchens.includes(hasKitchenVal);
             });
         }
-
-        // Sort
-        result.sort((a, b) => {
-            if (sortOption === 'price_asc') return Number(a.currentPrice) - Number(b.currentPrice);
-            if (sortOption === 'price_desc') return Number(b.currentPrice) - Number(a.currentPrice);
-            if (sortOption === 'date_asc') return new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
-            if (sortOption === 'date_desc') return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
-            if (sortOption === 'rating_desc')return Number(b.averageRating || 0) - Number(a.averageRating || 0);
-            if (sortOption === 'rating_asc') return Number(a.averageRating || 0) - Number(b.averageRating || 0);
-            return 0;
-        });
 
         setCaravans(result);
     }
@@ -526,7 +591,13 @@ export default function Caravans() {
     useEffect(() => {
         applyFiltersAndSort();
     }, [
-        searchQuery, sortOption, appliedFilters, allCaravans
+        searchQuery,
+        appliedFilters.models,
+        appliedFilters.prices,
+        appliedFilters.fuelTypes,
+        appliedFilters.weights,
+        appliedFilters.hasKitchens,
+        allCaravans
     ]);
 
     function onApplyFilter() 
@@ -536,7 +607,8 @@ export default function Caravans() {
             prices: selectedPrices,
             fuelTypes: selectedFuelTypes,
             weights: selectedWeights,
-            hasKitchens: selectedHasKitchens
+            hasKitchens: selectedHasKitchens,
+            categories: selectedCategories,
         });
         if (DEBUG) console.log("LOG::Executed: onApplyFilter");
     }
@@ -547,23 +619,27 @@ export default function Caravans() {
             const controller = new AbortController();
 
             fetchProducts({
-                payload: {},
-                API_BASE_URL,
-                PRODUCTS_END_POINT,
-                signal: controller.signal
+                payload: {
+                    sort: sortOption,
+                    categoryIds: appliedFilters.categories,
+                },
+                apiBaseUrl: API_BASE_URL,
+                productsEndPoint: PRODUCTS_END_POINT,
+                signal: controller.signal,
             });
 
             getQuantityInformation({
-                API_BASE_URL,
-                GET_BACKEND_CART,
+                apiBaseUrl: API_BASE_URL,
+                getBackendCart: GET_BACKEND_CART,
                 signal: controller.signal
             });
 
             fetchUserWishlist(controller);
+            fetchCategories(controller.signal);
 
             return () => controller.abort();
 
-        }, [isAuthenticated, token])
+        }, [isAuthenticated, token, sortOption, appliedFilters.categories.join(',')])
     );
 
     useEffect(() => {
@@ -597,8 +673,19 @@ export default function Caravans() {
                         onPress={clearFilters}
                     />
 
-                    {/* Model Filter */}
+                    {/* Category Filter */}
                     <View style={[styles.generalFilter, { zIndex: 5 }]}>
+                        <Text style={styles.filterTitle}>Category Filter</Text>
+                        <CustomMultiSelect
+                            options={categoryOptions}
+                            selectedOptions={selectedCategories}
+                            onChange={setSelectedCategories}
+                            placeholder="Any"
+                        />
+                    </View>
+
+                    {/* Model Filter */}
+                    <View style={[styles.generalFilter, { zIndex: 4 }]}>
                         <Text style={styles.filterTitle}>Model Filter</Text>
                         <CustomMultiSelect
                             options={modelData}
@@ -609,7 +696,7 @@ export default function Caravans() {
                     </View>
 
                     {/* Price Filter */}
-                    <View style={[styles.generalFilter, { zIndex: 4 }]}>
+                    <View style={[styles.generalFilter, { zIndex: 3 }]}>
                         <Text style={styles.filterTitle}>Price Filter</Text>
                         <CustomMultiSelect
                             options={priceData}
@@ -620,7 +707,7 @@ export default function Caravans() {
                     </View>
 
                     {/* Fuel Type Filter */}
-                    <View style={[styles.generalFilter, { zIndex: 3 }]}>
+                    <View style={[styles.generalFilter, { zIndex: 2 }]}>
                         <Text style={styles.filterTitle}>Fuel Type Filter</Text>
                         <CustomMultiSelect
                             options={fuelData}
@@ -631,7 +718,7 @@ export default function Caravans() {
                     </View>
 
                     {/* Weight Filter */}
-                    <View style={[styles.generalFilter, { zIndex: 2 }]}>
+                    <View style={[styles.generalFilter, { zIndex: 1 }]}>
                         <Text style={styles.filterTitle}>Weight Filter</Text>
                         <CustomMultiSelect
                             options={weightData}
@@ -642,7 +729,7 @@ export default function Caravans() {
                     </View>
 
                     {/* Kitchen Filter */}
-                    <View style={[styles.generalFilter, { zIndex: 1 }]}>
+                    <View style={[styles.generalFilter, { zIndex: 0 }]}>
                         <Text style={styles.filterTitle}>Has Kitchen Filter</Text>
                         <CustomMultiSelect
                             options={kitchenData}

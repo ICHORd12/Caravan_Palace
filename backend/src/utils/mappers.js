@@ -48,7 +48,7 @@ exports.mapProduct = (row) => {
     hasKitchen: row.has_kitchen,
     discountRate: row.discount_rate,
     isActive: row.is_active,
-    averageRating: Number(row.average_rating || 0),
+    averageRating: row.average_rating === null || row.average_rating === undefined ? null : Number(row.average_rating),
     reviewCount: Number(row.review_count || 0),
     createdAt: row.created_at,
     updatedAt: row.updated_at,

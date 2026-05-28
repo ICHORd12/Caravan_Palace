@@ -130,6 +130,17 @@ describe('productModel', () => {
     expect(products[1]).toMatchObject({ productId: 2, name: 'B', isActive: false });
   });
 
+  test('getAllProducts supports date and rating sorts', async () => {
+    querySpy.mockResolvedValue({ rows: [], rowCount: 0 });
+
+    await productModel.getAllProducts('date_desc');
+    expect(querySpy.mock.calls[0][0]).toMatch(/ORDER BY created_at DESC/i);
+
+    querySpy.mockResolvedValue({ rows: [], rowCount: 0 });
+    await productModel.getAllProducts('rating_desc');
+    expect(querySpy.mock.calls[1][0]).toMatch(/ORDER BY pr\.average_rating DESC/i);
+  });
+
   // ------------------------------------------------------------------
   // Test 4: searchProductsByNameOrDescription wraps the term with %...%
   // ------------------------------------------------------------------

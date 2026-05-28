@@ -344,12 +344,12 @@ describe("historical order invoice download route", () => {
   });
 });
 
-describe("sales manager invoice download route", () => {
+describe("manager invoice download route", () => {
   afterEach(() => {
     jest.restoreAllMocks();
   });
 
-  test("downloads a PDF invoice for any order", async () => {
+  test("downloads a PDF invoice for a sales manager", async () => {
     const pdfBuffer = Buffer.from("%PDF-1.4\ninvoice\n%%EOF");
     jest.spyOn(invoiceService, "generateInvoiceForManager").mockResolvedValue({
       pdfBuffer,
@@ -373,6 +373,33 @@ describe("sales manager invoice download route", () => {
     );
     expect(invoiceService.generateInvoiceForManager).toHaveBeenCalledWith({
       orderId: "order-1",
+    });
+  });
+
+  test("downloads a PDF invoice for a product manager", async () => {
+    const pdfBuffer = Buffer.from("%PDF-1.4\ninvoice\n%%EOF");
+    jest.spyOn(invoiceService, "generateInvoiceForManager").mockResolvedValue({
+      pdfBuffer,
+      order: { orderId: "order-2" },
+      user: { userId: "user-3" },
+    });
+
+    const token = jwt.sign(
+      { userId: "manager-2", role: "product_manager" },
+      process.env.JWT_SECRET
+    );
+
+    const response = await request(app)
+      .get("/api/v3/orders/order-2/invoice.pdf")
+      .set("Authorization", `Bearer ${token}`)
+      .expect(200);
+
+    expect(response.headers["content-type"]).toMatch(/application\/pdf/);
+    expect(response.headers["content-disposition"]).toContain(
+      "invoice-order-order-2.pdf"
+    );
+    expect(invoiceService.generateInvoiceForManager).toHaveBeenCalledWith({
+      orderId: "order-2",
     });
   });
 

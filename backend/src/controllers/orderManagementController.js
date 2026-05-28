@@ -3,9 +3,12 @@ const orderService = require("../services/orderService");
 const financialReportService = require("../services/financialReportService");
 const invoiceService = require("../services/invoiceService");
 
-const assertSalesManager = (userRole) => {
-  if (userRole !== "sales_manager") {
-    throw new ApiError(403, "Only sales managers can download invoices");
+const assertManagerRole = (userRole) => {
+  if (userRole !== "sales_manager" && userRole !== "product_manager") {
+    throw new ApiError(
+      403,
+      "Only sales managers or product managers can download invoices"
+    );
   }
 };
 
@@ -67,7 +70,7 @@ exports.downloadOrderInvoice = async (req, res, next) => {
     const { orderId } = req.params;
     const userRole = req.user.role;
 
-    assertSalesManager(userRole);
+    assertManagerRole(userRole);
 
     const { pdfBuffer, order } = await invoiceService.generateInvoiceForManager({
       orderId,

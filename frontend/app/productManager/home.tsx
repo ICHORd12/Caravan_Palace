@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
     Montserrat_400Regular,
@@ -9,6 +9,8 @@ import {
 } from '@expo-google-fonts/montserrat';
 
 import Navbar from '@/components/Navbar/Navbar';
+import ManagerDashboardCard from '@/components/ManagerUI/ManagerDashboardCard';
+import { Colors, Fonts } from '@/constants/theme';
 import { useAuth } from '@/context/AuthContext';
 import { useTransition } from '@/context/TransitionContext';
 
@@ -50,20 +52,6 @@ export default function ProductManagerHome() {
         return null; 
     }
 
-    // A modular dashboard button component
-    const DashboardCard = ({ title, description, route, icon }: { title: string, description: string, route: string, icon: string }) => (
-        <TouchableOpacity 
-            style={styles.card} 
-            onPress={() => navigateWithWipe(route)}
-        >
-            <Text style={styles.cardIcon}>{icon}</Text>
-            <View>
-                <Text style={styles.cardTitle}>{title}</Text>
-                <Text style={styles.cardDesc}>{description}</Text>
-            </View>
-        </TouchableOpacity>
-    );
-
     return (
         <View style={styles.mainContainer}>
             <Navbar />
@@ -75,29 +63,29 @@ export default function ProductManagerHome() {
                 </View>
 
                 <View style={styles.grid}>
-                    <DashboardCard 
+                    <ManagerDashboardCard
                         icon="📦"
                         title="Product Management" 
                         description="Create, edit, and toggle active status for caravans." 
-                        route="/productManager/products" 
+                        onPress={() => navigateWithWipe('/productManager/products')}
                     />
-                    <DashboardCard 
+                    <ManagerDashboardCard
                         icon="🏷️"
                         title="Categories" 
                         description="Manage caravan categories and their visibility." 
-                        route="/productManager/categories" 
+                        onPress={() => navigateWithWipe('/productManager/categories')}
                     />
-                    <DashboardCard 
+                    <ManagerDashboardCard
                         icon="🚚"
                         title="Order Statuses" 
                         description="Transition orders to In-Transit or Delivered." 
-                        route="/productManager/orders" 
+                        onPress={() => navigateWithWipe('/productManager/orders')}
                     />
-                    <DashboardCard 
+                    <ManagerDashboardCard
                         icon="📊"
                         title="Stock Adjustment" 
                         description="Monitor and update inventory levels." 
-                        route="/productManager/stock" 
+                        onPress={() => navigateWithWipe('/productManager/stock')}
                     />
                 </View>
 
@@ -107,23 +95,10 @@ export default function ProductManagerHome() {
 }
 
 const styles = StyleSheet.create({
-    mainContainer: { flex: 1, backgroundColor: '#d6cba6' },
-    contentContainer: { flex: 1, padding: 40, maxWidth: 1000, width: '100%', alignSelf: 'center' },
-    header: { marginBottom: 40 },
-    greeting: { fontFamily: 'Montserrat_700Bold', fontSize: 32, color: '#283618', marginBottom: 8 },
-    subGreeting: { fontFamily: 'Montserrat_600SemiBold', fontSize: 18, color: '#606c38' },
-    grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 20, justifyContent: 'flex-start' },
-    card: { 
-        backgroundColor: '#fefae0', 
-        borderRadius: 12, 
-        padding: 24, 
-        width: '48%', 
-        minWidth: 300,
-        flexDirection: 'row',
-        alignItems: 'center',
-        shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 
-    },
-    cardIcon: { fontSize: 40, marginRight: 20 },
-    cardTitle: { fontFamily: 'Montserrat_700Bold', fontSize: 20, color: '#283618', marginBottom: 4 },
-    cardDesc: { fontFamily: 'Montserrat_400Regular', fontSize: 14, color: '#606c38', paddingRight: 40 }
+    mainContainer: { flex: 1, backgroundColor: Colors.light.salesManagerBackground },
+    contentContainer: { flex: 1, padding: 24, maxWidth: 1100, width: '100%', alignSelf: 'center' },
+    header: { marginTop: 20, marginBottom: 26 },
+    greeting: { fontFamily: Fonts.bold, fontSize: 30, color: Colors.light.greenButtonBackground, marginBottom: 8 },
+    subGreeting: { fontFamily: Fonts.semibold, fontSize: 17, color: Colors.light.mainTextColor },
+    grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 16, justifyContent: 'space-between' },
 });

@@ -22,12 +22,12 @@ import {
     CART_PAYMENT_END_POINT
 } from '@/constants/API';
 
-import { Caravan, CartItem, GetBackendCartResponse } from '@/models/BACKEND_MODELS';
+import { Caravan, CartItem, GetBackendCartResponse , FetchProductDetailsResponse} from '@/models/BACKEND_MODELS';
 import { CartItemFE } from '@/models/FRONTEND_MODELS';
 import { useToast } from '@/context/ToastContext';
 import { useTransition } from '@/context/TransitionContext';
 import { useUser } from '@/context/UserContext';
-import { FetchProductDetailsResponse} from '@/models/BACKEND_MODELS';
+
 import { useAuth } from '@/context/AuthContext'
 import { useRoutePayload } from '@/context/RoutePayloadPassing';
 
@@ -147,7 +147,7 @@ export default function ShoppingCart() {
 
 
     function onCardHolderNameChange (cardHolder: string):   void {setCardHolderName(cardHolder)};
-    function onCardNumberChange     (cardNumber: string):   void {setCardNumber(cardNumber)};
+    function onCardNumberChange     (value: string):   void {setCardNumber(value)};
     function onCardExpiryYearChange (expiryYear: number):   void {setCardExpiryYear(expiryYear)};
     function onCardExpiryMonthChange(expiryMonth: number):  void {setCardExpiryMonth(expiryMonth)};
     function onCardCvvChange        (CVV: string):          void {setCardCvv(CVV)};
@@ -329,7 +329,7 @@ export default function ShoppingCart() {
 
     async function fetchCartNotAuth(): Promise<CartItemFE[]>
     {
-        let cartItemFEs: CartItemFE[] = [];
+        let resultCartItemFEs: CartItemFE[] = [];
         const productIds: string[] = getLocalCartProductIds();
         try {
             const response = await fetch(`${API_BASE_URL}${FETCH_PRODUCTS_DETAILS_END_POINT}`, {
@@ -345,7 +345,7 @@ export default function ShoppingCart() {
             {
                 const caravans: Caravan[] = responseData.products;
                 const localCart: Record<string, number> = getLocalCartMap();
-                cartItemFEs = mapCaravansToCartItemFEs(caravans, localCart);
+                resultCartItemFEs = mapCaravansToCartItemFEs(caravans, localCart);
             }
             else
             {
@@ -354,13 +354,13 @@ export default function ShoppingCart() {
         } catch(error) {
             showToast(`${error}`, 'error');
         } finally {
-            return cartItemFEs;
+            return resultCartItemFEs;
         }
     }
 
     async function fetchCartAuth(): Promise<CartItemFE[]>
     {
-        let cartItemFEs: CartItemFE[] = [];
+        let resultCartItemFEs: CartItemFE[] = [];
         try {
             const response = await fetch(`${API_BASE_URL}${GET_BACKEND_CART}`, {
                 method: 'GET',
@@ -373,7 +373,7 @@ export default function ShoppingCart() {
             const responseData = await response.json();
             if (response.ok)
             {
-                cartItemFEs = mapCartItemsToCartItemFEs(responseData.items);
+                resultCartItemFEs = mapCartItemsToCartItemFEs(responseData.items);
             }
             else
             {
@@ -382,7 +382,7 @@ export default function ShoppingCart() {
         } catch(error) {
             showToast(`${error}`, 'error');
         } finally {
-            return cartItemFEs;
+            return resultCartItemFEs;
         }
     }
 
@@ -393,14 +393,14 @@ export default function ShoppingCart() {
         if (!isAuthenticated)
         {
             const cartItemFEsPromise: Promise<CartItemFE[]> = fetchCartNotAuth();
-            const cartItemFEs: CartItemFE[] = await cartItemFEsPromise;
-            setCartItemFEs(cartItemFEs);
+            const resultCartItemFEs: CartItemFE[] = await cartItemFEsPromise;
+            setCartItemFEs(resultCartItemFEs);
         }
         else
         {
             const cartItemFEsPromise: Promise<CartItemFE[]> = fetchCartAuth();
-            const cartItemFEs: CartItemFE[] = await cartItemFEsPromise;
-            setCartItemFEs(cartItemFEs);
+            const resultCartItemFEs: CartItemFE[] = await cartItemFEsPromise;
+            setCartItemFEs(resultCartItemFEs);
         }
 
         setIsLoading(false);

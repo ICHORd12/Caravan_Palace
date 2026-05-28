@@ -666,6 +666,15 @@ Fetches all products.
 - Allowed values:
   - `price_asc`
   - `price_desc`
+  - `date_asc`
+  - `date_desc`
+  - `rating_asc`
+  - `rating_desc`
+
+#### Optional Filter Parameters
+
+- `categoryIds`: optional comma-separated list of category ids
+- `q`: optional search text matched against name, description, and model
 
 #### Request Example
 
@@ -673,6 +682,12 @@ Current backend reads `sort` from query params for this endpoint:
 
 ```http
 GET /api/v3/products/all?sort=price_asc
+```
+
+Example with category filtering:
+
+```http
+GET /api/v3/products/all?categoryIds=ff28bce6-284e-4c65-8557-0416f4274679,ab12cd34-5678-90ef-ab12-cd34567890ef
 ```
 
 #### Success Response
@@ -738,18 +753,13 @@ Fetches products by category name.
 #### Important Backend Behavior
 
 - This route is defined as `GET`.
-- But the current backend reads `category_name` from `req.body`, not from query params.
-- The backend also accepts optional `sort` in the same request body.
-- In standard HTTP usage, `GET` requests usually do not send a body.
-- For frontend usage, it would be safer if backend later changes this to query-based usage like `?category_name=...`.
+- The backend reads `category_name` and `sort` from query params, with body fallbacks for compatibility.
+- In standard HTTP usage, `GET` requests should use query params rather than a body.
 
-#### Request Body
+#### Request Example
 
-```json
-{
-  "category_name": "Camper Vans",
-  "sort": "price_desc"
-}
+```http
+GET /api/v3/products/category_name?category_name=Camper%20Vans&sort=price_desc
 ```
 
 #### Optional Sort Parameter
@@ -758,10 +768,14 @@ Fetches products by category name.
 - Allowed values:
   - `price_asc`
   - `price_desc`
+  - `date_asc`
+  - `date_desc`
+  - `rating_asc`
+  - `rating_desc`
 
 #### Success Response
 
-Status: `201 Created`
+Status: `200 OK`
 
 ```json
 {
@@ -827,6 +841,10 @@ Searches products by name or description.
 - Allowed values:
   - `price_asc`
   - `price_desc`
+  - `date_asc`
+  - `date_desc`
+  - `rating_asc`
+  - `rating_desc`
 
 #### Request Example
 
@@ -2453,7 +2471,7 @@ Status: `200 OK`
 
 ## Order Management Endpoints
 
-All order management endpoints require authentication. The orders listing (`GET /api/v3/orders`) is available to both `sales_manager` and `product_manager` users; the financial summary and invoice download endpoints remain restricted to `sales_manager` users. The `PATCH /api/v3/orders/:orderId/status` endpoint remains restricted to `product_manager`.
+All order management endpoints require authentication. The orders listing (`GET /api/v3/orders`) is available to both `sales_manager` and `product_manager` users; the financial summary remains restricted to `sales_manager` users, the invoice download endpoint is available to both manager roles, and the `PATCH /api/v3/orders/:orderId/status` endpoint remains restricted to `product_manager`.
 
 ### `GET /api/v3/orders/reports/financial-summary`
 
@@ -2524,11 +2542,11 @@ Status: `200 OK`
 
 ### `GET /api/v3/orders/:orderId/invoice.pdf`
 
-Generates the invoice PDF for any order and streams it back as a file download. This endpoint is intended for sales managers.
+Generates the invoice PDF for any order and streams it back as a file download. This endpoint is intended for sales managers and product managers.
 
 #### Auth
 
-- Required (sales manager only)
+- Required (sales manager or product manager)
 
 #### Path Params
 
@@ -2555,7 +2573,7 @@ Content-Length: <bytes>
 - `400` if `orderId` is missing
 - `401` if token is missing
 - `401` if token is invalid
-- `403` if user is not a sales manager or product manager (depending on the endpoint)
+- `403` if user is not a sales manager or product manager
 - `404` if the order is not found
 
 ---
@@ -2635,7 +2653,7 @@ Updates an order status and populates deliveries when the order enters transit.
 
 #### Auth
 
-- Required (sales manager only)
+- Required (sales manager or product manager)
 
 #### Path Params
 
@@ -2725,7 +2743,7 @@ Status: `200 OK`
 - `400` if `status` filter is invalid
 - `401` if token is missing
 - `401` if token is invalid
-- `403` if user is not a sales manager
+- `403` if user is not a sales manager or product manager
 
 ---
 
@@ -3041,7 +3059,7 @@ These must be set on the backend for invoice emails and wishlist discount notifi
 21. `PATCH /products/:productId/discount` is restricted to `sales_manager` users and automatically emails wishlist users when the discount increases.
 22. `GET /orders/reports/financial-summary` is restricted to `sales_manager` users and requires `startDate` and `endDate` query params in `YYYY-MM-DD` format.
 23. `GET /orders` returns the site-wide order list and supports optional `status` and `startDate`/`endDate` filters. This endpoint is available to both `sales_manager` and `product_manager` users.
-24. `GET /orders/:orderId/invoice.pdf` is restricted to `sales_manager` users and returns a binary PDF stream for any order.
+24. `GET /orders/:orderId/invoice.pdf` is available to both `sales_manager` and `product_manager` users and returns a binary PDF stream for any order.
 25. By default, public product and category endpoints return only active records (`is_active = true`). Manager/admin-facing product and category views may include inactive records and will also include the `isActive` boolean in responses.
 26. `POST /categories` and activation endpoints (`PATCH /products/:productId/activation`, `PATCH /categories/:categoryId/activation`) are restricted to `product_manager` users.
 27. `POST /categories` accepts `categoryName` (or `category_name`) and rejects duplicate names with `409`.

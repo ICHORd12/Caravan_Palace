@@ -363,12 +363,12 @@ function WriteReview({isEligible, userReview, onUserReviewChange, onUserReviewDe
         setIsLoadingSubmitReview(false);
     }
 
-    async function handleSubmit({rating, commentText}: {rating: number, commentText: string})
+    async function handleSubmit({rating: newRating, commentText: newCommentText}: {rating: number, commentText: string})
     {
         setIsEditing(false);
         setIsLoadingSubmitReview(true);
 
-        const response = await onUserReviewChange({rating, commentText});
+        const response = await onUserReviewChange({rating: newRating, commentText: newCommentText});
         
         if (response === true)
         {

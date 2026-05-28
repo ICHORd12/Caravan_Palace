@@ -175,12 +175,20 @@ const normalizeImagesPayload = (images) => {
   return normalizedImages;
 };
 
-exports.getAllProducts = async({sort, userRole}) => {
+exports.getAllProducts = async({sort, userRole, q, categoryIds}) => {
   const normalizedSort = normalizeSort(sort);
   const isManager = userRole === "product_manager" || userRole === "sales_manager";
   const products = isManager
-    ? await productModel.getAllProductsForManager(normalizedSort)
-    : await productModel.getAllProducts(normalizedSort);
+    ? await productModel.getAllProductsForManager({
+        sort: normalizedSort,
+        q,
+        categoryIds,
+      })
+    : await productModel.getAllProducts({
+        sort: normalizedSort,
+        q,
+        categoryIds,
+      });
     if (!products) {
         throw new ApiError(404, "There is no product in database");
     }

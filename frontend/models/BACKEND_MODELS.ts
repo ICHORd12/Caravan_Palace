@@ -20,7 +20,7 @@ export type Caravan = {
     distributorInfo: string,
     berthCount: number,
     fuelType: string,
-    averageRating: 4.6,
+    averageRating: number | null,
     weightKg: number,
     hasKitchen: boolean,
     createdAt: string,
