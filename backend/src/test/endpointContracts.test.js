@@ -17,6 +17,20 @@ describe("endpoint contracts", () => {
     jest.restoreAllMocks();
   });
 
+  test("protected endpoint contracts reject missing tokens", async () => {
+    await request(app).get("/api/v3/orders/deliveries").expect(401);
+    await request(app).get("/api/v3/users/me").expect(401);
+    await request(app).get("/api/v3/users/me/orders/order-1").expect(401);
+    await request(app)
+      .patch("/api/v3/refunds/refund-1")
+      .send({ status: "approved" })
+      .expect(401);
+    await request(app)
+      .patch("/api/v3/orders/order-1/status")
+      .send({ status: "in-transit" })
+      .expect(401);
+  });
+
   test("GET /api/v3/orders/deliveries returns manager deliveries", async () => {
     const listSpy = jest
       .spyOn(deliveryService, "getAllDeliveriesForManager")
@@ -56,6 +70,15 @@ describe("endpoint contracts", () => {
       status: "in-transit",
     });
     expect(listSpy).toHaveBeenCalledWith({ userRole: "product_manager" });
+  });
+
+  test("GET /api/v3/orders/deliveries rejects non manager users", async () => {
+    const response = await request(app)
+      .get("/api/v3/orders/deliveries")
+      .set("Authorization", `Bearer ${buildToken({ role: "customer" })}`)
+      .expect(403);
+
+    expect(response.body.message).toMatch(/sales managers or product managers/i);
   });
 
   test("GET /api/v3/users/me returns the authenticated user's profile", async () => {
@@ -149,6 +172,16 @@ describe("endpoint contracts", () => {
     });
   });
 
+  test("PATCH /api/v3/refunds/:refundId rejects non sales managers", async () => {
+    const response = await request(app)
+      .patch("/api/v3/refunds/refund-1")
+      .set("Authorization", `Bearer ${buildToken({ role: "customer" })}`)
+      .send({ status: "approved" })
+      .expect(403);
+
+    expect(response.body.message).toMatch(/sales managers/i);
+  });
+
   test("PATCH /api/v3/orders/:orderId/status updates a manager order status", async () => {
     const updateOrderStatusSpy = jest
       .spyOn(orderService, "updateOrderStatusForManager")
@@ -175,5 +208,15 @@ describe("endpoint contracts", () => {
       status: "in-transit",
       userRole: "product_manager",
     });
+  });
+
+  test("PATCH /api/v3/orders/:orderId/status rejects non product managers", async () => {
+    const response = await request(app)
+      .patch("/api/v3/orders/order-1/status")
+      .set("Authorization", `Bearer ${buildToken({ role: "sales_manager" })}`)
+      .send({ status: "in-transit" })
+      .expect(403);
+
+    expect(response.body.message).toMatch(/product managers/i);
   });
 });
