@@ -4,8 +4,11 @@
 
 const { describe, test, expect, afterEach } = require("@jest/globals");
 const orderService = require("../services/orderService");
+const deliveryService = require("../services/deliveryService");
 const orderModel = require("../models/orderModel");
 const orderItemModel = require("../models/orderItemModel");
+const deliveryModel = require("../models/deliveryModel");
+const pool = require("../config/db");
 
 const buildDateUtc = (year, month, day) => new Date(Date.UTC(year, month - 1, day));
 
@@ -115,5 +118,127 @@ describe("orderService.getAllOrdersForManager", () => {
     expect(result.orders).toHaveLength(1);
     expect(result.orders[0].customer.email).toBe("test@example.com");
     expect(result.orders[0].items).toHaveLength(1);
+  });
+});
+
+describe("deliveryService.getAllDeliveriesForManager", () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  test("rejects non manager users", async () => {
+    await expect(
+      deliveryService.getAllDeliveriesForManager({
+        userRole: "customer",
+      })
+    ).rejects.toThrow(/sales managers or product managers/i);
+  });
+
+  test("allows product managers to view all deliveries", async () => {
+    jest.spyOn(deliveryModel, "listDeliveriesForManager").mockResolvedValue([]);
+
+    await expect(
+      deliveryService.getAllDeliveriesForManager({
+        userRole: "product_manager",
+      })
+    ).resolves.toMatchObject({
+      message: "Deliveries fetched successfully",
+      deliveries: [],
+    });
+  });
+
+  test("returns deliveries for sales managers", async () => {
+    jest.spyOn(deliveryModel, "listDeliveriesForManager").mockResolvedValue([
+      {
+        deliveryId: "delivery-1",
+        orderId: "order-1",
+        customerId: "user-1",
+        productId: "prod-1",
+        quantity: 2,
+        totalPrice: 300,
+        address: "Istanbul",
+        status: "in-transit",
+      },
+    ]);
+
+    const result = await deliveryService.getAllDeliveriesForManager({
+      userRole: "sales_manager",
+    });
+
+    expect(result.message).toBe("Deliveries fetched successfully");
+    expect(result.deliveries).toHaveLength(1);
+    expect(result.deliveries[0]).toMatchObject({
+      deliveryId: "delivery-1",
+      orderId: "order-1",
+      customerId: "user-1",
+      productId: "prod-1",
+      quantity: 2,
+      totalPrice: 300,
+      address: "Istanbul",
+      status: "in-transit",
+    });
+  });
+});
+
+describe("deliveryModel.listDeliveriesForManager", () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  test("maps delivery rows and derives delivery statuses", async () => {
+    const querySpy = jest.spyOn(pool, "query").mockResolvedValue({
+      rows: [
+        {
+          delivery_id: "delivery-1",
+          order_id: "order-1",
+          customer_id: "user-1",
+          product_id: "prod-1",
+          quantity: 2,
+          total_price: "300.00",
+          address: "Istanbul",
+          status: "in-transit",
+        },
+        {
+          delivery_id: "delivery-2",
+          order_id: "order-2",
+          customer_id: "user-2",
+          product_id: "prod-2",
+          quantity: 1,
+          total_price: "450.50",
+          address: "Ankara",
+          status: "delivered",
+        },
+      ],
+    });
+
+    const deliveries = await deliveryModel.listDeliveriesForManager();
+
+    const sql = querySpy.mock.calls[0][0];
+    expect(sql).toMatch(/CASE/i);
+    expect(sql).toMatch(/WHEN is_completed = true THEN 'delivered'/i);
+    expect(sql).toMatch(/ELSE 'in-transit'/i);
+    expect(sql).toMatch(/ORDER BY updated_at DESC, delivery_id ASC/i);
+    expect(deliveries).toEqual([
+      {
+        deliveryId: "delivery-1",
+        orderId: "order-1",
+        customerId: "user-1",
+        productId: "prod-1",
+        quantity: 2,
+        totalPrice: 300,
+        address: "Istanbul",
+        status: "in-transit",
+      },
+      {
+        deliveryId: "delivery-2",
+        orderId: "order-2",
+        customerId: "user-2",
+        productId: "prod-2",
+        quantity: 1,
+        totalPrice: 450.5,
+        address: "Ankara",
+        status: "delivered",
+      },
+    ]);
   });
 });

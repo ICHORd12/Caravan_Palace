@@ -2,6 +2,7 @@ const pool = require("../config/db");
 const ApiError = require("../utils/ApiError");
 const orderModel = require("../models/orderModel");
 const orderItemModel = require("../models/orderItemModel");
+const productModel = require("../models/productModel");
 const refundModel = require("../models/refundModel");
 const deliveryModel = require("../models/deliveryModel");
 const userModel = require("../models/userModel");
@@ -261,7 +262,24 @@ exports.updateRefundStatus = async ({ refundId, status, userRole }) => {
       throw new ApiError(404, "Refund not found");
     }
 
-    if (status === "approved") {
+    if (status === "approved" && refundWithOrder.status !== "approved") {
+      const orderItem = await orderItemModel.getOrderItemById(
+        refundWithOrder.orderItemId,
+        client
+      );
+
+      if (!orderItem) {
+        throw new ApiError(404, "Order item not found for this refund");
+      }
+
+      await productModel.increaseStock(
+        {
+          productId: orderItem.productId,
+          quantity: orderItem.quantity,
+        },
+        client
+      );
+
       const counts = await refundModel.getRefundCountsByOrderId(
         refundWithOrder.orderId,
         client
