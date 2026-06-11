@@ -1,4 +1,5 @@
 const pool = require("../config/db");
+const { mapDelivery } = require("../utils/mappers");
 
 exports.getLatestCompletedDeliveryDateByOrderId = async (orderId, client) => {
   const executor = client || pool;
@@ -29,6 +30,31 @@ exports.getDeliveryCountByOrderId = async (orderId, client) => {
   );
 
   return result.rows[0] ? result.rows[0].count : 0;
+};
+
+exports.listDeliveriesForManager = async (client) => {
+  const executor = client || pool;
+
+  const result = await executor.query(
+    `
+    SELECT
+      delivery_id,
+      order_id,
+      customer_id,
+      product_id,
+      quantity,
+      total_price,
+      address,
+      CASE
+        WHEN is_completed = true THEN 'delivered'
+        ELSE 'in-transit'
+      END AS status
+    FROM deliveries
+    ORDER BY updated_at DESC, delivery_id ASC
+    `
+  );
+
+  return result.rows.map(mapDelivery);
 };
 
 exports.createDeliveriesForOrder = async (orderId, client) => {

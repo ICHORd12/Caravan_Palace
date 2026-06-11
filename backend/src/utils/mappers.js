@@ -122,6 +122,21 @@ exports.mapRefund = (row) => {
   };
 }
 
+exports.mapDelivery = (row) => {
+  if (!row) return null;
+
+  return {
+    deliveryId: row.delivery_id,
+    orderId: row.order_id,
+    customerId: row.customer_id,
+    productId: row.product_id,
+    quantity: row.quantity,
+    totalPrice: Number(row.total_price),
+    address: row.address,
+    status: row.status,
+  };
+}
+
 exports.mapOrderItem = (row) => {
   return {
     orderItemId: row.order_item_id,

@@ -1,5 +1,6 @@
 const ApiError = require("../utils/ApiError");
 const orderService = require("../services/orderService");
+const deliveryService = require("../services/deliveryService");
 const financialReportService = require("../services/financialReportService");
 const invoiceService = require("../services/invoiceService");
 
@@ -38,6 +39,20 @@ exports.getFinancialSummary = async (req, res, next) => {
     const result = await financialReportService.getFinancialSummary({
       startDate,
       endDate,
+      userRole,
+    });
+
+    res.status(200).json(result);
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.getAllDeliveries = async (req, res, next) => {
+  try {
+    const userRole = req.user.role;
+
+    const result = await deliveryService.getAllDeliveriesForManager({
       userRole,
     });
 
