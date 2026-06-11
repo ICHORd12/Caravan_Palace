@@ -4,8 +4,10 @@
 
 const { describe, test, expect, afterEach } = require("@jest/globals");
 const orderService = require("../services/orderService");
+const deliveryService = require("../services/deliveryService");
 const orderModel = require("../models/orderModel");
 const orderItemModel = require("../models/orderItemModel");
+const deliveryModel = require("../models/deliveryModel");
 
 const buildDateUtc = (year, month, day) => new Date(Date.UTC(year, month - 1, day));
 
@@ -115,5 +117,64 @@ describe("orderService.getAllOrdersForManager", () => {
     expect(result.orders).toHaveLength(1);
     expect(result.orders[0].customer.email).toBe("test@example.com");
     expect(result.orders[0].items).toHaveLength(1);
+  });
+});
+
+describe("deliveryService.getAllDeliveriesForManager", () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  test("rejects non manager users", async () => {
+    await expect(
+      deliveryService.getAllDeliveriesForManager({
+        userRole: "customer",
+      })
+    ).rejects.toThrow(/sales managers or product managers/i);
+  });
+
+  test("allows product managers to view all deliveries", async () => {
+    jest.spyOn(deliveryModel, "listDeliveriesForManager").mockResolvedValue([]);
+
+    await expect(
+      deliveryService.getAllDeliveriesForManager({
+        userRole: "product_manager",
+      })
+    ).resolves.toMatchObject({
+      message: "Deliveries fetched successfully",
+      deliveries: [],
+    });
+  });
+
+  test("returns deliveries for sales managers", async () => {
+    jest.spyOn(deliveryModel, "listDeliveriesForManager").mockResolvedValue([
+      {
+        deliveryId: "delivery-1",
+        orderId: "order-1",
+        customerId: "user-1",
+        productId: "prod-1",
+        quantity: 2,
+        totalPrice: 300,
+        address: "Istanbul",
+        status: "in-transit",
+      },
+    ]);
+
+    const result = await deliveryService.getAllDeliveriesForManager({
+      userRole: "sales_manager",
+    });
+
+    expect(result.message).toBe("Deliveries fetched successfully");
+    expect(result.deliveries).toHaveLength(1);
+    expect(result.deliveries[0]).toMatchObject({
+      deliveryId: "delivery-1",
+      orderId: "order-1",
+      customerId: "user-1",
+      productId: "prod-1",
+      quantity: 2,
+      totalPrice: 300,
+      address: "Istanbul",
+      status: "in-transit",
+    });
   });
 });
