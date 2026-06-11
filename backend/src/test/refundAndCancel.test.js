@@ -209,14 +209,28 @@ describe("refundService.updateRefundStatus", () => {
   test("approves refund and marks order returned when all refunds approved", async () => {
     jest.spyOn(refundModel, "getRefundWithOrder").mockResolvedValue({
       refundId: "refund-1",
+      orderItemId: "item-1",
       orderId: "order-4",
       customerId: "user-4",
+      status: "pending",
     });
 
     jest.spyOn(refundModel, "updateRefundStatus").mockResolvedValue({
       refundId: "refund-1",
       status: "approved",
     });
+
+    jest.spyOn(orderItemModel, "getOrderItemById").mockResolvedValue({
+      orderItemId: "item-1",
+      orderId: "order-4",
+      productId: "prod-1",
+      quantity: 2,
+      purchasedPrice: 100,
+    });
+
+    const increaseSpy = jest
+      .spyOn(productModel, "increaseStock")
+      .mockResolvedValue({ product_id: "prod-1", quantity_in_stocks: 7 });
 
     jest.spyOn(refundModel, "getRefundCountsByOrderId").mockResolvedValue({
       total: 2,
@@ -251,8 +265,50 @@ describe("refundService.updateRefundStatus", () => {
     });
 
     expect(result.message).toBe("Refund status updated successfully");
+    expect(increaseSpy).toHaveBeenCalledWith(
+      { productId: "prod-1", quantity: 2 },
+      client
+    );
     expect(updateOrderSpy).toHaveBeenCalledTimes(1);
     expect(emailSpy).toHaveBeenCalledTimes(1);
+  });
+
+  test("does not restock when an already approved refund is approved again", async () => {
+    jest.spyOn(refundModel, "getRefundWithOrder").mockResolvedValue({
+      refundId: "refund-1",
+      orderItemId: "item-1",
+      orderId: "order-4",
+      customerId: "user-4",
+      status: "approved",
+    });
+
+    jest.spyOn(refundModel, "updateRefundStatus").mockResolvedValue({
+      refundId: "refund-1",
+      status: "approved",
+    });
+
+    const increaseSpy = jest
+      .spyOn(productModel, "increaseStock")
+      .mockResolvedValue({});
+    const orderItemSpy = jest
+      .spyOn(orderItemModel, "getOrderItemById")
+      .mockResolvedValue({});
+    const updateOrderSpy = jest
+      .spyOn(orderModel, "updateOrderStatus")
+      .mockResolvedValue({});
+
+    jest.spyOn(userModel, "findById").mockResolvedValue(null);
+
+    const result = await refundService.updateRefundStatus({
+      refundId: "refund-1",
+      status: "approved",
+      userRole: "sales_manager",
+    });
+
+    expect(result.message).toBe("Refund status updated successfully");
+    expect(orderItemSpy).not.toHaveBeenCalled();
+    expect(increaseSpy).not.toHaveBeenCalled();
+    expect(updateOrderSpy).not.toHaveBeenCalled();
   });
 });
 
