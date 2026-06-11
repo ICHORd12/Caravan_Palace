@@ -2471,7 +2471,7 @@ Status: `200 OK`
 
 ## Order Management Endpoints
 
-All order management endpoints require authentication. The orders listing (`GET /api/v3/orders`) is available to both `sales_manager` and `product_manager` users; the financial summary remains restricted to `sales_manager` users, the invoice download endpoint is available to both manager roles, and the `PATCH /api/v3/orders/:orderId/status` endpoint remains restricted to `product_manager`.
+All order management endpoints require authentication. The orders listing (`GET /api/v3/orders`) and deliveries listing (`GET /api/v3/orders/deliveries`) are available to both `sales_manager` and `product_manager` users; the financial summary remains restricted to `sales_manager` users, the invoice download endpoint is available to both manager roles, and the `PATCH /api/v3/orders/:orderId/status` endpoint remains restricted to `product_manager`.
 
 ### `GET /api/v3/orders/reports/financial-summary`
 
@@ -2575,6 +2575,49 @@ Content-Length: <bytes>
 - `401` if token is invalid
 - `403` if user is not a sales manager or product manager
 - `404` if the order is not found
+
+---
+
+
+### `GET /api/v3/orders/deliveries`
+
+Returns all delivery rows across all orders.
+
+#### Auth
+
+- Required (sales manager or product manager)
+
+#### Success Response
+
+Status: `200 OK`
+
+```json
+{
+  "message": "Deliveries fetched successfully",
+  "deliveries": [
+    {
+      "deliveryId": "d1a7f3b9-2b4e-4a8e-8aa2-3c1c18f9a701",
+      "orderId": "7e8f8f62-4a2f-4a60-bec5-3bfdfb879c1b",
+      "customerId": "b3c3f74e-4aba-4e46-8e5c-53c344f2d259",
+      "productId": "8924ed90-3acb-4e39-a9a5-5c47a84255e9",
+      "quantity": 1,
+      "totalPrice": 479999.99,
+      "address": "Levent, Istanbul",
+      "status": "in-transit"
+    }
+  ]
+}
+```
+
+#### Notes
+
+- `status` is derived from delivery completion state: incomplete deliveries return `"in-transit"` and completed deliveries return `"delivered"`.
+
+#### Common Errors
+
+- `401` if token is missing
+- `401` if token is invalid
+- `403` if user is not a sales manager or product manager
 
 ---
 
@@ -3059,7 +3102,8 @@ These must be set on the backend for invoice emails and wishlist discount notifi
 21. `PATCH /products/:productId/discount` is restricted to `sales_manager` users and automatically emails wishlist users when the discount increases.
 22. `GET /orders/reports/financial-summary` is restricted to `sales_manager` users and requires `startDate` and `endDate` query params in `YYYY-MM-DD` format.
 23. `GET /orders` returns the site-wide order list and supports optional `status` and `startDate`/`endDate` filters. This endpoint is available to both `sales_manager` and `product_manager` users.
-24. `GET /orders/:orderId/invoice.pdf` is available to both `sales_manager` and `product_manager` users and returns a binary PDF stream for any order.
-25. By default, public product and category endpoints return only active records (`is_active = true`). Manager/admin-facing product and category views may include inactive records and will also include the `isActive` boolean in responses.
-26. `POST /categories` and activation endpoints (`PATCH /products/:productId/activation`, `PATCH /categories/:categoryId/activation`) are restricted to `product_manager` users.
-27. `POST /categories` accepts `categoryName` (or `category_name`) and rejects duplicate names with `409`.
+24. `GET /orders/deliveries` returns all delivery rows and is available to both `sales_manager` and `product_manager` users.
+25. `GET /orders/:orderId/invoice.pdf` is available to both `sales_manager` and `product_manager` users and returns a binary PDF stream for any order.
+26. By default, public product and category endpoints return only active records (`is_active = true`). Manager/admin-facing product and category views may include inactive records and will also include the `isActive` boolean in responses.
+27. `POST /categories` and activation endpoints (`PATCH /products/:productId/activation`, `PATCH /categories/:categoryId/activation`) are restricted to `product_manager` users.
+28. `POST /categories` accepts `categoryName` (or `category_name`) and rejects duplicate names with `409`.
