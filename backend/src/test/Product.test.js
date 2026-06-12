@@ -111,8 +111,8 @@ describe('productModel', () => {
   test('getAllProducts maps every row and applies the sort ORDER BY', async () => {
     querySpy.mockResolvedValue({
       rows: [
-        { product_id: 1, name: 'A', current_price: '10.00', quantity_in_stocks: 3, is_active: true },
-        { product_id: 2, name: 'B', current_price: '20.00', quantity_in_stocks: 0, is_active: false },
+        { product_id: 1, category_id: 'cat-1', category_name: 'Camper Vans', name: 'A', current_price: '10.00', quantity_in_stocks: 3, is_active: true },
+        { product_id: 2, category_id: null, category_name: null, name: 'B', current_price: '20.00', quantity_in_stocks: 0, is_active: false },
       ],
       rowCount: 2,
     });
@@ -122,12 +122,95 @@ describe('productModel', () => {
     expect(querySpy).toHaveBeenCalledTimes(1);
     const sql = querySpy.mock.calls[0][0];
     expect(sql).toMatch(/FROM products/i);
+    expect(sql).toMatch(/LEFT JOIN categories c ON p\.category_id = c\.category_id/i);
+    expect(sql).toMatch(/c\.category_name/i);
     expect(sql).toMatch(/is_active = TRUE/i);
+    expect(sql).toMatch(/GROUP BY p\.product_id, c\.category_name/i);
     expect(sql).toMatch(/ORDER BY current_price ASC/);
 
     expect(products).toHaveLength(2);
-    expect(products[0]).toMatchObject({ productId: 1, name: 'A', isActive: true });
-    expect(products[1]).toMatchObject({ productId: 2, name: 'B', isActive: false });
+    expect(products[0]).toMatchObject({
+      productId: 1,
+      categoryId: 'cat-1',
+      categoryName: 'Camper Vans',
+      name: 'A',
+      isActive: true,
+    });
+    expect(products[1]).toMatchObject({
+      productId: 2,
+      categoryId: null,
+      categoryName: null,
+      name: 'B',
+      isActive: false,
+    });
+  });
+
+  test('getProductDetailsById returns categoryName with product details', async () => {
+    querySpy.mockResolvedValue({
+      rows: [
+        {
+          product_id: 11,
+          category_id: 'cat-2',
+          category_name: 'Off-Road Caravans',
+          name: 'Trail Master',
+          current_price: '125000.00',
+          quantity_in_stocks: 4,
+          is_active: true,
+        },
+      ],
+      rowCount: 1,
+    });
+
+    const product = await productModel.getProductDetailsById(11);
+
+    expect(querySpy).toHaveBeenCalledTimes(1);
+    const [sql, params] = querySpy.mock.calls[0];
+    expect(sql).toMatch(/LEFT JOIN categories c ON p\.category_id = c\.category_id/i);
+    expect(sql).toMatch(/WHERE p\.product_id = \$1/i);
+    expect(sql).toMatch(/AND p\.is_active = TRUE/i);
+    expect(sql).toMatch(/GROUP BY p\.product_id, c\.category_name/i);
+    expect(params).toEqual([11]);
+
+    expect(product).toMatchObject({
+      productId: 11,
+      categoryId: 'cat-2',
+      categoryName: 'Off-Road Caravans',
+      name: 'Trail Master',
+    });
+  });
+
+  test('getProductsByCategoryName keeps filtered product payloads category-aware', async () => {
+    querySpy.mockResolvedValue({
+      rows: [
+        {
+          product_id: 12,
+          category_id: 'cat-3',
+          category_name: 'Luxury Caravans',
+          name: 'Grand Tourer',
+          current_price: '250000.00',
+          quantity_in_stocks: 1,
+          is_active: true,
+        },
+      ],
+      rowCount: 1,
+    });
+
+    const products = await productModel.getProductsByCategoryName('Luxury Caravans', 'date_desc');
+
+    expect(querySpy).toHaveBeenCalledTimes(1);
+    const [sql, params] = querySpy.mock.calls[0];
+    expect(sql).toMatch(/INNER JOIN categories c ON p\.category_id = c\.category_id/i);
+    expect(sql).toMatch(/c\.category_name = \$1/i);
+    expect(sql).toMatch(/AND c\.is_active = TRUE/i);
+    expect(sql).toMatch(/GROUP BY p\.product_id, c\.category_name/i);
+    expect(params).toEqual(['Luxury Caravans']);
+
+    expect(products[0]).toMatchObject({
+      productId: 12,
+      categoryId: 'cat-3',
+      categoryName: 'Luxury Caravans',
+      name: 'Grand Tourer',
+    });
   });
 
   test('getAllProducts supports date and rating sorts', async () => {

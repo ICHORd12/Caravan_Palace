@@ -3,6 +3,10 @@ const { mapProduct } = require("../utils/mappers");
 const { getOrderByClause } = require("../utils/sorter");
 const { productImagesSelect, productRatingSelect, productRatingJoin } = require("../utils/sqlHelpers");
 
+const productCategorySelect = "c.category_name";
+const productCategoryJoin = "LEFT JOIN categories c ON p.category_id = c.category_id";
+const productCategoryGroupBy = "c.category_name";
+
 const normalizeListParam = (value) => {
   if (Array.isArray(value)) {
     return value.map((item) => String(item).trim()).filter(Boolean);
@@ -62,13 +66,15 @@ exports.getAllProducts = async (filtersOrSort) => {
     `
     SELECT 
       p.*,
+      ${productCategorySelect},
       ${productImagesSelect},
       ${productRatingSelect}
     FROM products p
+    ${productCategoryJoin}
     LEFT JOIN product_images pi ON p.product_id = pi.product_id
     ${productRatingJoin}
     ${whereClause}
-    GROUP BY p.product_id, pr.average_rating, pr.review_count
+    GROUP BY p.product_id, ${productCategoryGroupBy}, pr.average_rating, pr.review_count
     ${getOrderByClause(sort)}
     `
     , params
@@ -90,13 +96,15 @@ exports.getAllProductsForManager = async (filtersOrSort) => {
     `
     SELECT 
       p.*,
+      ${productCategorySelect},
       ${productImagesSelect},
       ${productRatingSelect}
     FROM products p
+    ${productCategoryJoin}
     LEFT JOIN product_images pi ON p.product_id = pi.product_id
     ${productRatingJoin}
     ${whereClause}
-    GROUP BY p.product_id, pr.average_rating, pr.review_count
+    GROUP BY p.product_id, ${productCategoryGroupBy}, pr.average_rating, pr.review_count
     ${getOrderByClause(sort)}
     `
     , params
@@ -111,6 +119,7 @@ exports.getProductsByCategoryName = async (category_name, sort) => {
     `
     SELECT 
       p.*,
+      c.category_name,
       ${productImagesSelect},
       ${productRatingSelect}
     FROM products p
@@ -120,7 +129,7 @@ exports.getProductsByCategoryName = async (category_name, sort) => {
     WHERE c.category_name = $1
       AND p.is_active = TRUE
       AND c.is_active = TRUE
-    GROUP BY p.product_id, pr.average_rating, pr.review_count
+    GROUP BY p.product_id, c.category_name, pr.average_rating, pr.review_count
     ${getOrderByClause(sort)}
     `,
     [category_name]
@@ -134,6 +143,7 @@ exports.getProductsByCategoryNameForManager = async (category_name, sort) => {
     `
     SELECT 
       p.*,
+      c.category_name,
       ${productImagesSelect},
       ${productRatingSelect}
     FROM products p
@@ -142,7 +152,7 @@ exports.getProductsByCategoryNameForManager = async (category_name, sort) => {
     ${productRatingJoin}
     WHERE c.category_name = $1
       AND c.is_active = TRUE
-    GROUP BY p.product_id, pr.average_rating, pr.review_count
+    GROUP BY p.product_id, c.category_name, pr.average_rating, pr.review_count
     ${getOrderByClause(sort)}
     `,
     [category_name]
@@ -194,14 +204,16 @@ exports.getProductDetailsById = async (productId) => {
     `
     SELECT 
       p.*,
+      ${productCategorySelect},
       ${productImagesSelect},
       ${productRatingSelect}
     FROM products p
+    ${productCategoryJoin}
     LEFT JOIN product_images pi ON p.product_id = pi.product_id
     ${productRatingJoin}
     WHERE p.product_id = $1
       AND p.is_active = TRUE
-    GROUP BY p.product_id, pr.average_rating, pr.review_count
+    GROUP BY p.product_id, ${productCategoryGroupBy}, pr.average_rating, pr.review_count
     `,
     [productId]
   );
@@ -215,14 +227,16 @@ exports.getProductsByIds = async (productIds, sort) => {
     `
     SELECT 
       p.*,
+      ${productCategorySelect},
       ${productImagesSelect},
       ${productRatingSelect}
     FROM products p
+    ${productCategoryJoin}
     LEFT JOIN product_images pi ON p.product_id = pi.product_id
     ${productRatingJoin}
     WHERE p.product_id = ANY($1::uuid[])
       AND p.is_active = TRUE
-    GROUP BY p.product_id, pr.average_rating, pr.review_count
+    GROUP BY p.product_id, ${productCategoryGroupBy}, pr.average_rating, pr.review_count
     ${getOrderByClause(sort)}
     `,
     [productIds]
@@ -236,13 +250,15 @@ exports.getProductsByIdsForManager = async (productIds, sort) => {
     `
     SELECT 
       p.*,
+      ${productCategorySelect},
       ${productImagesSelect},
       ${productRatingSelect}
     FROM products p
+    ${productCategoryJoin}
     LEFT JOIN product_images pi ON p.product_id = pi.product_id
     ${productRatingJoin}
     WHERE p.product_id = ANY($1::uuid[])
-    GROUP BY p.product_id, pr.average_rating, pr.review_count
+    GROUP BY p.product_id, ${productCategoryGroupBy}, pr.average_rating, pr.review_count
     ${getOrderByClause(sort)}
     `,
     [productIds]
@@ -475,13 +491,15 @@ exports.getProductDetailsByIdForManager = async (productId, client) => {
     `
     SELECT 
       p.*,
+      ${productCategorySelect},
       ${productImagesSelect},
       ${productRatingSelect}
     FROM products p
+    ${productCategoryJoin}
     LEFT JOIN product_images pi ON p.product_id = pi.product_id
     ${productRatingJoin}
     WHERE p.product_id = $1
-    GROUP BY p.product_id, pr.average_rating, pr.review_count
+    GROUP BY p.product_id, ${productCategoryGroupBy}, pr.average_rating, pr.review_count
     `,
     [productId]
   );
@@ -539,14 +557,16 @@ exports.searchProductsByNameOrDescription = async (searchTerm, sort) => {
     `
     SELECT 
       p.*,
+      ${productCategorySelect},
       ${productImagesSelect},
       ${productRatingSelect}
     FROM products p
+    ${productCategoryJoin}
     LEFT JOIN product_images pi ON p.product_id = pi.product_id
     ${productRatingJoin}
     WHERE (p.name ILIKE $1 OR p.description ILIKE $1)
       AND p.is_active = TRUE
-    GROUP BY p.product_id, pr.average_rating, pr.review_count
+    GROUP BY p.product_id, ${productCategoryGroupBy}, pr.average_rating, pr.review_count
     ${getOrderByClause(sort)}
     `,
     [likePattern]
@@ -562,13 +582,15 @@ exports.searchProductsByNameOrDescriptionForManager = async (searchTerm, sort) =
     `
     SELECT 
       p.*,
+      ${productCategorySelect},
       ${productImagesSelect},
       ${productRatingSelect}
     FROM products p
+    ${productCategoryJoin}
     LEFT JOIN product_images pi ON p.product_id = pi.product_id
     ${productRatingJoin}
     WHERE (p.name ILIKE $1 OR p.description ILIKE $1)
-    GROUP BY p.product_id, pr.average_rating, pr.review_count
+    GROUP BY p.product_id, ${productCategoryGroupBy}, pr.average_rating, pr.review_count
     ${getOrderByClause(sort)}
     `,
     [likePattern]

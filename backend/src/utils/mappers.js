@@ -33,6 +33,7 @@ exports.mapProduct = (row) => {
   return {
     productId: row.product_id,
     categoryId: row.category_id,
+    categoryName: row.category_name,
     name: row.name,
     model: row.model,
     serialNumber: row.serial_number,
