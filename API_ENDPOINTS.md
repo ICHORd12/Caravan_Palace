@@ -632,7 +632,12 @@ Status: `200 OK`
 
 ## Product Endpoints
 
-Product objects returned by the product endpoints below include an `images` array plus approved-review rating summary fields. Images are ordered with primary images first, then by creation date. Manager-facing product responses (used by admin/manager UIs) also include an `isActive` boolean indicating whether the product is active.
+Product objects returned by the product endpoints below include category metadata, an `images` array, and approved-review rating summary fields. Images are ordered with primary images first, then by creation date. Manager-facing product responses (used by admin/manager UIs) also include an `isActive` boolean indicating whether the product is active.
+
+#### Product Category Fields
+
+- `categoryId`: the product's linked category id. Can be `null` for legacy products or products whose category was deleted.
+- `categoryName`: the linked category's display name. Can be `null` when `categoryId` is `null`.
 
 #### Product Rating Fields
 
@@ -703,6 +708,7 @@ Note: the current backend returns `201`, even though this is a read endpoint.
     {
       "productId": "8c322b6b-db04-44cb-83f1-c84324e1b857",
       "categoryId": "ff28bce6-284e-4c65-8557-0416f4274679",
+      "categoryName": "Camper Vans",
       "name": "Caravan X",
       "model": "2025",
       "serialNumber": "SN-123",
@@ -784,6 +790,7 @@ Status: `200 OK`
     {
       "productId": "8c322b6b-db04-44cb-83f1-c84324e1b857",
       "categoryId": "ff28bce6-284e-4c65-8557-0416f4274679",
+      "categoryName": "Camper Vans",
       "name": "Caravan X",
       "model": "2025",
       "serialNumber": "SN-123",
@@ -865,6 +872,7 @@ Status: `200 OK`
     {
       "productId": "8924ed90-3acb-4e39-a9a5-5c47a84255e9",
       "categoryId": "ff28bce6-284e-4c65-8557-0416f4274679",
+      "categoryName": "Camper Vans",
       "name": "Eco Camper Van",
       "model": "2025",
       "serialNumber": "SN-123",
@@ -946,6 +954,7 @@ Status: `200 OK`
     {
       "productId": "8924ed90-3acb-4e39-a9a5-5c47a84255e9",
       "categoryId": "ff28bce6-284e-4c65-8557-0416f4274679",
+      "categoryName": "Camper Vans",
       "name": "Eco Camper Van",
       "model": "2025",
       "serialNumber": "SN-123",
@@ -1024,6 +1033,7 @@ Status: `200 OK`
     "product": {
         "productId": "8924ed90-3acb-4e39-a9a5-5c47a84255e9",
         "categoryId": "11111111-1111-1111-1111-111111111111",
+        "categoryName": "Camper Vans",
         "name": "Eco Camper Van",
         "model": "ECO-2025",
         "serialNumber": "SN-000002",
@@ -1139,6 +1149,7 @@ Status: `201 Created`
   "product": {
     "productId": "8924ed90-3acb-4e39-a9a5-5c47a84255e9",
     "categoryId": "11111111-1111-1111-1111-111111111111",
+    "categoryName": "Camper Vans",
     "name": "Eco Camper Van",
     "model": "ECO-2025",
     "serialNumber": "SN-000002",
