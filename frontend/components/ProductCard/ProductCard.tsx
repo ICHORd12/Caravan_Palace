@@ -26,7 +26,7 @@ export function WishlistButton({ isWishlisted, size, onToggle }: WishlistButtonP
             <Ionicons
                 name={isWishlisted ? "bookmark" : "bookmark-outline"}
                 size={size ? size : 24}
-                color={isWishlisted ? "#21758f" : "#666"} // Adjust colors to match your theme
+                color={isWishlisted ? "#21758f" : "#666"} 
             />
         </TouchableOpacity>
     );
@@ -38,17 +38,16 @@ export function WishlistButton({ isWishlisted, size, onToggle }: WishlistButtonP
 interface ProductCardProps {
     dimensionStyle?: object; 
     caravan: Caravan;
-    quantity: number; // Added: Passed from parent
+    quantity: number; 
     isWishListed: boolean;
     disabled?: boolean;
-    onUpdateQuantity: (newAmount: number) => void; // Added: Handled by parent
+    onUpdateQuantity: (newAmount: number) => void; 
     onWishListToggle: () => void;
 }
 
 export default function ProductCard({ dimensionStyle, caravan, quantity, isWishListed=false, disabled=false, onUpdateQuantity, onWishListToggle}: ProductCardProps) {
     const router = useRouter();
     const [isHovered, setIsHovered] = useState(false);
-    // Carousel state can stay here as it only affects this specific UI component
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
     const [localQty, setLocalQty] = useState(quantity.toString());
@@ -63,7 +62,6 @@ export default function ProductCard({ dimensionStyle, caravan, quantity, isWishL
     }, [quantity]);
 
     const hasDiscount = Number(caravan.discountRate) > 0;
-
 
     function nextImage(e: any) {
         if (e && e.stopPropagation) e.stopPropagation();
@@ -82,7 +80,6 @@ export default function ProductCard({ dimensionStyle, caravan, quantity, isWishL
             prevIndex === 0 ? caravan.images.length - 1 : prevIndex - 1
         );
     }
-
 
     const handleQtyChange = (text: string) => {
         const numericText = text.replace(/[^0-9]/g, '');
@@ -104,7 +101,6 @@ export default function ProductCard({ dimensionStyle, caravan, quantity, isWishL
         }
     };
 
-
     return (
         <Pressable
             // @ts-ignore
@@ -125,7 +121,6 @@ export default function ProductCard({ dimensionStyle, caravan, quantity, isWishL
                                 resizeMode="cover"
                             />
                             
-                            {/* Only show arrows if there is more than one image */}
                             {caravan.images.length > 1 && (
                                 <>
                                     <Pressable 
@@ -184,7 +179,10 @@ export default function ProductCard({ dimensionStyle, caravan, quantity, isWishL
                         )}
                     </View>
 
+                    {/* UPDATED SPECS GRID */}
                     <View style={styles.specsGrid}>
+                        {/* We use (caravan as any) here just to prevent TypeScript from crashing if the model isn't updated yet */}
+                        <Text style={styles.specText}>• Category: {(caravan as any).categoryName || 'Uncategorized'}</Text>
                         <Text style={styles.specText}>• Fuel: {caravan.fuelType}</Text>
                         <Text style={styles.specText}>• Weight: {caravan.weightKg} kg</Text>
                         <Text style={styles.specText}>• Kitchen: {caravan.hasKitchen ? 'Yes' : 'No'}</Text>
@@ -207,8 +205,7 @@ export default function ProductCard({ dimensionStyle, caravan, quantity, isWishL
                                     disabled={disabled} 
                                     style={[styles.qtyButton, (disabled) && {opacity: 0.5}]} 
                                     onPress={(e) => {
-                                        // Optional: prevent navigation when adjusting quantity
-                                        // @ts-ignore for web support if needed
+                                        // @ts-ignore 
                                         if (e && e.stopPropagation) e.stopPropagation();
                                         onUpdateQuantity(-1);
                                     }}
@@ -220,7 +217,6 @@ export default function ProductCard({ dimensionStyle, caravan, quantity, isWishL
                                     onPress={(e) => {
                                         if (e && e.stopPropagation) e.stopPropagation();
                                     }}
-                                    // Optional: Add cursor style if you want standard web text-selection behavior
                                     // @ts-ignore
                                     style={{ cursor: 'text' }} 
                                 >
@@ -232,7 +228,6 @@ export default function ProductCard({ dimensionStyle, caravan, quantity, isWishL
                                         onSubmitEditing={handleBlur}
                                         keyboardType="numeric"
                                         editable={!disabled}
-                                        // You can remove the onPressIn entirely now
                                     />
                                 </Pressable>
 
