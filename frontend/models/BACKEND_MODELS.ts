@@ -8,6 +8,7 @@ Usually responses.
 export type Caravan = {
     productId: string,
     categoryId: string,
+    categoryName?: string, 
     name: string,
     model: string,
     serialNumber: string,
@@ -21,6 +22,7 @@ export type Caravan = {
     berthCount: number,
     fuelType: string,
     averageRating: number | null,
+    reviewCount: number,   
     weightKg: number,
     hasKitchen: boolean,
     createdAt: string,
@@ -104,6 +106,3 @@ export type GetProductIdDetailsResponse = {
     userReview: Review,
     reviews: Review[]
 }
-
-
-

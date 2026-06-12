@@ -246,8 +246,10 @@ function ProductDetails({product, currentQuantity, isLoading, isWishlisted, onUp
                         )}
                     
                     <View style={productDetailsStyles.featuresContainer}>
+                        {/* UPDATED: Added Category right at the top of the features! */}
+                        <FeatureWithBackground label="Category" value={(product as any).categoryName || 'Uncategorized'}/>
                         <FeatureWithBackground label="Fuel Type" value={product.fuelType}/>
-                        <FeatureWithBackground label="Weight" value={product.weightKg}/>
+                        <FeatureWithBackground label="Weight" value={`${product.weightKg} kg`}/>
                         <FeatureWithBackground label="Berths" value={product.berthCount}/>
                         <FeatureWithBackground label="Kitchen" value={product.hasKitchen ? "Yes" : "No"}/>
                         <FeatureWithBackground label="Warranty" value={product.warrantyStatus}/>
