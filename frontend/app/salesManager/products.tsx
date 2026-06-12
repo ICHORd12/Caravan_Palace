@@ -57,6 +57,7 @@ interface SalesManagerProduct {
     createdAt: string;
     updatedAt: string;
     images: SalesManagerProductImage[];
+    isActive?: boolean; // NEW: Added to track visibility
 }
 
 interface FetchProductsResponse {
@@ -105,7 +106,6 @@ interface SalesManagerProductCardProps {
 function formatDate(dateString: string): string
 {
     if (!dateString) return "Unknown Date";
-
     return dateString.split("T")[0];
 }
 
@@ -268,8 +268,14 @@ function SalesManagerProductCard({
                     <Text style={styles.productSubtitle}>{product.model} | {product.serialNumber}</Text>
                 </View>
 
-                <View style={styles.discountBadge}>
-                    <Text style={styles.discountBadgeText}>{product.discountRate}% Discount</Text>
+                {/* NEW: Displays Status & Discount badges side by side */}
+                <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
+                    <View style={[styles.discountBadge, { backgroundColor: product.isActive ? Colors.light.greenButtonBackground : Colors.light.deleteButtonBackground }]}>
+                        <Text style={[styles.discountBadgeText, { color: '#fff' }]}>{product.isActive ? "Active" : "Inactive"}</Text>
+                    </View>
+                    <View style={styles.discountBadge}>
+                        <Text style={styles.discountBadgeText}>{product.discountRate}% Discount</Text>
+                    </View>
                 </View>
             </View>
 
@@ -431,6 +437,7 @@ export default function SalesManagerProducts()
     //#region API FUNCTIONS
     async function fetchProducts(): Promise<void>
     {
+        if (!token) return; // Quick safety check
         setIsLoadingProducts(true);
 
         try {
@@ -438,13 +445,18 @@ export default function SalesManagerProducts()
                 method: "GET",
                 headers: {
                     "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}` // FIX: Sending the JWT token so backend sees us as a manager!
                 },
             });
 
             const responseData = await readResponseJson<FetchProductsResponse>(response);
 
             if (response.ok) {
-                const fetchedProducts = responseData?.products || [];
+                const fetchedProducts = (responseData?.products || []).map((p: any) => ({
+                    ...p,
+                    isActive: p.isActive !== undefined ? p.isActive : (p.is_active !== undefined ? p.is_active : true)
+                }));
+                
                 setProducts(fetchedProducts);
 
                 const initialDiscountInputs: Record<string, string> = {};

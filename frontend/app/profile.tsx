@@ -24,6 +24,7 @@ export default function Profile() {
     const { revealWipe, navigateWithWipe } = useTransition();
 
     // Profile state
+    const [userId, setUserId] = useState('');
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [taxId, setTaxId] = useState('');
@@ -70,6 +71,7 @@ export default function Profile() {
 
             if (response.ok) {
                 const data = await response.json();
+                setUserId(data.user.id || data.user.userId || ''); 
                 setName(data.user.name || '');
                 setEmail(data.user.email || '');
                 setTaxId(data.user.taxId || '');
@@ -253,6 +255,14 @@ export default function Profile() {
                 {/* Personal Information Section */}
                 <View style={styles.formContainer}>
                     <Text style={styles.sectionHeader}>Personal Information</Text>
+
+                    {/* NEW: User ID Card */}
+                    {userId ? (
+                        <View style={styles.addressCard}>
+                            <Text style={styles.addressLabel}>User ID</Text>
+                            <Text style={styles.addressText} selectable={true}>{userId}</Text>
+                        </View>
+                    ) : null}
 
                     {/* Email Card */}
                     <View style={styles.addressCard}>

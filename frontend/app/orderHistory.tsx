@@ -15,21 +15,46 @@ import { useAuth } from '@/context/AuthContext';
 import { useTransition } from '@/context/TransitionContext';
 import { API_BASE_URL, GET_ORDERS_END_POINT } from '@/constants/API';
 
-// Added 'Returned' to the type definitions
 export type ExtendedStatus = StatusType | 'Cancelled' | 'Refund Requested' | 'Returned';
 
+
+const getPendingRefunds = async (): Promise<string[]> => {
+    try {
+        if (Platform.OS === 'web') {
+            const stored = window.localStorage.getItem('pendingRefunds');
+            return stored ? JSON.parse(stored) : [];
+        } else {
+            const stored = await SecureStore.getItemAsync('pendingRefunds');
+            return stored ? JSON.parse(stored) : [];
+        }
+    } catch { return []; }
+};
+
+const addPendingRefund = async (orderId: string) => {
+    try {
+        const current = await getPendingRefunds();
+        if (!current.includes(orderId)) {
+            current.push(orderId);
+            const serialized = JSON.stringify(current);
+            if (Platform.OS === 'web') {
+                window.localStorage.setItem('pendingRefunds', serialized);
+            } else {
+                await SecureStore.setItemAsync('pendingRefunds', serialized);
+            }
+        }
+    } catch {}
+};
+// --------------------------------------------------------
 
 const mapBackendStatus = (backendStatus: string): ExtendedStatus => {
   const status = backendStatus.toLowerCase();
   
-
   if (status === 'pending' || status === 'processing') return 'Processing';
   if (status === 'in-transit' || status === 'shipped') return 'In-transit';
   if (status === 'delivered') return 'Delivered';
   if (status === 'cancelled') return 'Cancelled';
-  
- 
   if (status === 'returned') return 'Returned'; 
+  if (status === 'refund-requested' || status === 'refund_requested') return 'Refund Requested'; 
   
   return 'Processing'; 
 };
@@ -78,12 +103,23 @@ export default function OrderHistoryScreen() {
 
       if (response.ok) {
         const data = await response.json();
-        const formattedOrders = data.orders.map((backendOrder: any) => ({
-          id: backendOrder.orderId,
-          date: backendOrder.orderDate.split('T')[0], 
-          totalPrice: parseFloat(backendOrder.totalPrice),
-          status: mapBackendStatus(backendOrder.status)
-        }));
+        const pendingRefunds = await getPendingRefunds(); // Load memory
+
+        const formattedOrders = data.orders.map((backendOrder: any) => {
+          let mappedStatus = mapBackendStatus(backendOrder.status);
+
+
+          if (mappedStatus === 'Delivered' && pendingRefunds.includes(backendOrder.orderId)) {
+             mappedStatus = 'Refund Requested';
+          }
+
+          return {
+            id: backendOrder.orderId,
+            date: backendOrder.orderDate.split('T')[0], 
+            totalPrice: parseFloat(backendOrder.totalPrice),
+            status: mappedStatus
+          };
+        });
         
         setOrders(formattedOrders);
       }
@@ -162,8 +198,8 @@ export default function OrderHistoryScreen() {
             }
         });
 
-        // Backend returns 201 Created on success
         if (response.ok || response.status === 201) { 
+            await addPendingRefund(orderId); // Save to local memory!
             setOrders(prevOrders => 
               prevOrders.map(order => 
                 order.id === orderId ? { ...order, status: 'Refund Requested' } : order
@@ -173,8 +209,21 @@ export default function OrderHistoryScreen() {
             else Alert.alert('Request Sent', 'Refund request sent to customer support.');
         } else {
             const data = await response.json();
-            if (Platform.OS === 'web') window.alert(data.message || 'Failed to request refund.');
-            else Alert.alert('Error', data.message || 'Failed to request refund.');
+            
+            
+            if (response.status === 409) {
+                await addPendingRefund(orderId); 
+                setOrders(prevOrders => 
+                  prevOrders.map(order => 
+                    order.id === orderId ? { ...order, status: 'Refund Requested' } : order
+                  )
+                );
+                if (Platform.OS === 'web') window.alert('You have already requested a refund for this order.');
+                else Alert.alert('Already Requested', 'You have already requested a refund for this order.');
+            } else {
+                if (Platform.OS === 'web') window.alert(data.message || 'Failed to request refund.');
+                else Alert.alert('Error', data.message || 'Failed to request refund.');
+            }
         }
     } catch (error) {
         console.error("Refund request error:", error);
@@ -267,7 +316,6 @@ export default function OrderHistoryScreen() {
     </View>
   );
 }
-
 
 const styles = StyleSheet.create({
   mainContainer: {
